@@ -1,0 +1,28 @@
+{
+  "name": "nova-imp-auto-screenshot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Playwright screenshots of every Theme Editor setting panel for Nova-IMP documentation.",
+  "scripts": {
+    "manifest": "node src/cli.js manifest",
+    "render": "node src/cli.js render",
+    "docs": "node src/cli.js docs",
+    "optimize": "node src/cli.js optimize",
+    "changelog": "node src/cli.js changelog",
+    "serve": "node src/cli.js serve",
+    "build": "node src/cli.js render && node src/cli.js docs",
+    "login": "node src/cli.js login",
+    "capture": "node src/cli.js capture",
+    "capture:global": "node src/cli.js capture --only=global",
+    "capture:debug": "node src/cli.js capture --only=global --debug",
+    "postinstall": "npx playwright install chromium || echo \"Chromium install skipped — run 'npx playwright install chromium' manually before capture.\""
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "playwright": "^1.54.1",
+    "sharp": "^0.35.3"
+  }
+}

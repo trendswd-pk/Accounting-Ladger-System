@@ -1,0 +1,27 @@
+{
+  "store": "your-store",
+  "themeId": "123456789012",
+  "outDir": "Nova-IMP-Docs/screenshots",
+  "authFile": "scripts/auto-screenshot/auth/storage-state.json",
+  "headless": true,
+  "viewport": {
+    "width": 1500,
+    "height": 1000
+  },
+  "deviceScaleFactor": 2,
+  "settleMs": 1200,
+  "capture": {
+    "globalSettings": true,
+    "sections": true,
+    "blocks": true,
+    "addBlockPanel": false,
+    "storefront": false
+  },
+  "samples": {
+    "productHandle": "example-product",
+    "collectionHandle": "all",
+    "pageHandle": "about-us",
+    "blogHandle": "news",
+    "articlePath": "/blogs/news/example-article"
+  }
+}

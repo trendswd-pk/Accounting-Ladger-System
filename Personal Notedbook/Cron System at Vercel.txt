@@ -1,0 +1,26 @@
+Cron System Add krna he app me
+
+Add a Serverless Function to your project
+import { NextResponse } from 'next/server';
+
+export async function GET() {
+  return NextResponse.json({ ok: true });
+}
+
+Add a cron job to your vercel.json
+
+{
+  "crons": [{
+    "path": "/api/cron",
+    "schedule": "0 10 * * *"
+  }]
+}
+
+Add a secret to your project
+Prevent unauthorized access by adding the CRON_SECRET environment variable to your project and check incoming requests. Vercel will add it to all cron job invocations as part of the Authorization header, allowing you to specify any value you'd like for authorization.
+const authHeader = req.headers.get('Authorization');
+const cronSecret = process.env.CRON_SECRET;
+
+if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  return res.status(401).end('Unauthorized');
+}

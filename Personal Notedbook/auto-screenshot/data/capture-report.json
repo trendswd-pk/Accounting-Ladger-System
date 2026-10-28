@@ -1,0 +1,1610 @@
+{
+  "startedAt": "2026-07-31T08:33:09.475Z",
+  "finishedAt": "2026-07-31T08:34:11.755Z",
+  "store": "shaposh-textile.myshopify.com",
+  "themeId": "187634712895",
+  "mode": "render",
+  "totals": {
+    "captured": 187,
+    "skipped": 23,
+    "settingsShown": 1310,
+    "sections": 62,
+    "themeBlocks": 14,
+    "templates": 26,
+    "sectionGroups": 4,
+    "globalSettingGroups": 16,
+    "settings": 1310
+  },
+  "captured": [
+    {
+      "kind": "global-settings",
+      "group": "Colors",
+      "settingsCount": 36,
+      "image": "global-settings/01-colors.png"
+    },
+    {
+      "kind": "global-settings",
+      "group": "Typography",
+      "settingsCount": 26,
+      "image": "global-settings/02-typography.png"
+    },
+    {
+      "kind": "global-settings",
+      "group": "Products",
+      "settingsCount": 4,
+      "image": "global-settings/03-products.png"
+    },
+    {
+      "kind": "global-settings",
+      "group": "Product tiles",
+      "settingsCount": 17,
+      "image": "global-settings/04-product-tiles.png"
+    },
+    {
+      "kind": "global-settings",
+      "group": "Countdown timer",
+      "settingsCount": 17,
+      "image": "global-settings/05-countdown-timer.png"
+    },
+    {
+      "kind": "global-settings",
+      "group": "Sale checkout timer",
+      "settingsCount": 16,
+      "image": "global-settings/06-sale-checkout-timer.png"
+    },
+    {
+      "kind": "global-settings",
+      "group": "Collection tiles",
+      "settingsCount": 7,
+      "image": "global-settings/07-collection-tiles.png"
+    },
+    {
+      "kind": "global-settings",
+      "group": "Currency",
+      "settingsCount": 4,
+      "image": "global-settings/08-currency.png"
+    },
+    {
+      "kind": "global-settings",
+      "group": "Cart",
+      "settingsCount": 6,
+      "image": "global-settings/09-cart.png"
+    },
+    {
+      "kind": "global-settings",
+      "group": "Customer accounts",
+      "settingsCount": 2,
+      "image": "global-settings/10-customer-accounts.png"
+    },
+    {
+      "kind": "global-settings",
+      "group": "Search",
+      "settingsCount": 5,
+      "image": "global-settings/11-search.png"
+    },
+    {
+      "kind": "global-settings",
+      "group": "Social media",
+      "settingsCount": 15,
+      "image": "global-settings/12-social-media.png"
+    },
+    {
+      "kind": "global-settings",
+      "group": "Quick view",
+      "settingsCount": 35,
+      "image": "global-settings/13-quick-view.png"
+    },
+    {
+      "kind": "global-settings",
+      "group": "Additional Buttons",
+      "settingsCount": 32,
+      "image": "global-settings/14-additional-buttons.png"
+    },
+    {
+      "kind": "global-settings",
+      "group": "Favicon",
+      "settingsCount": 1,
+      "image": "global-settings/15-favicon.png"
+    },
+    {
+      "kind": "global-settings",
+      "group": "Extras",
+      "settingsCount": 4,
+      "image": "global-settings/16-extras.png"
+    },
+    {
+      "kind": "section",
+      "page": "collection",
+      "section": "Circular-Sale-Navigation-Title",
+      "sectionName": "Circular Sale Nav - Title",
+      "settingsCount": 5,
+      "image": "sections/collection/01-circular-sale-navigation-title/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "Circular-Sale-Navigation-Title",
+      "block": "collection_block",
+      "blockName": "Collection",
+      "settingsCount": 2,
+      "image": "sections/collection/01-circular-sale-navigation-title/blocks/01-collection-block.png"
+    },
+    {
+      "kind": "section",
+      "page": "collection",
+      "section": "Circular-Sale-Navigation",
+      "sectionName": "Circular Sale Navigation",
+      "settingsCount": 6,
+      "image": "sections/collection/02-circular-sale-navigation/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "other",
+      "section": "advanced-content",
+      "sectionName": "Custom content",
+      "settingsCount": 2,
+      "image": "sections/other/01-advanced-content/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "advanced-content",
+      "block": "liquid",
+      "blockName": "HTML",
+      "settingsCount": 3,
+      "image": "sections/other/01-advanced-content/blocks/01-liquid.png"
+    },
+    {
+      "kind": "block",
+      "section": "advanced-content",
+      "block": "image",
+      "blockName": "Image",
+      "settingsCount": 4,
+      "image": "sections/other/01-advanced-content/blocks/02-image.png"
+    },
+    {
+      "kind": "section",
+      "page": "global",
+      "section": "age-verification-popup",
+      "sectionName": "Age verification popup",
+      "settingsCount": 15,
+      "image": "sections/global/01-age-verification-popup/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "global",
+      "section": "announcement-bar-trends-wd",
+      "sectionName": "Announcement (Trends-WD)",
+      "settingsCount": 21,
+      "image": "sections/global/02-announcement-bar-trends-wd/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "announcement-bar-trends-wd",
+      "block": "announcement",
+      "blockName": "Announcement",
+      "settingsCount": 2,
+      "image": "sections/global/02-announcement-bar-trends-wd/blocks/01-announcement.png"
+    },
+    {
+      "kind": "section",
+      "page": "global",
+      "section": "announcement",
+      "sectionName": "Announcement bar",
+      "settingsCount": 3,
+      "image": "sections/global/03-announcement/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "announcement",
+      "block": "announcement",
+      "blockName": "Announcement",
+      "settingsCount": 3,
+      "image": "sections/global/03-announcement/blocks/02-announcement.png"
+    },
+    {
+      "kind": "section",
+      "page": "other",
+      "section": "apps",
+      "sectionName": "Apps",
+      "settingsCount": 2,
+      "image": "sections/other/02-apps/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "article",
+      "section": "article-template",
+      "sectionName": "Article pages",
+      "settingsCount": 7,
+      "image": "sections/article/01-article-template/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "product.brand-story",
+      "section": "background-image-text",
+      "sectionName": "Large image with text box",
+      "settingsCount": 12,
+      "image": "sections/product-brand-story/01-background-image-text/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "other",
+      "section": "background-video-text",
+      "sectionName": "Large video with text box",
+      "settingsCount": 10,
+      "image": "sections/other/03-background-video-text/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "article",
+      "section": "blog-posts",
+      "sectionName": "Blog posts",
+      "settingsCount": 11,
+      "image": "sections/article/02-blog-posts/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "blog",
+      "section": "blog-template",
+      "sectionName": "Blog pages",
+      "settingsCount": 8,
+      "image": "sections/blog/01-blog-template/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "collection",
+      "section": "collection-header",
+      "sectionName": "Collection header",
+      "settingsCount": 4,
+      "image": "sections/collection/03-collection-header/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "product.brand-story",
+      "section": "collection-return",
+      "sectionName": "Back to collection",
+      "settingsCount": 0,
+      "image": "sections/product-brand-story/02-collection-return/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "page.about",
+      "section": "contact-form",
+      "sectionName": "Contact form",
+      "settingsCount": 6,
+      "image": "sections/page-about/01-contact-form/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "other",
+      "section": "countdown",
+      "sectionName": "Countdown",
+      "settingsCount": 10,
+      "image": "sections/other/04-countdown/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "countdown",
+      "block": "timer",
+      "blockName": "Timer",
+      "settingsCount": 7,
+      "image": "sections/other/04-countdown/blocks/02-timer.png"
+    },
+    {
+      "kind": "block",
+      "section": "countdown",
+      "block": "content",
+      "blockName": "Content",
+      "settingsCount": 4,
+      "image": "sections/other/04-countdown/blocks/03-content.png"
+    },
+    {
+      "kind": "block",
+      "section": "countdown",
+      "block": "button",
+      "blockName": "Button",
+      "settingsCount": 3,
+      "image": "sections/other/04-countdown/blocks/04-button.png"
+    },
+    {
+      "kind": "section",
+      "page": "page.faq",
+      "section": "faq",
+      "sectionName": "FAQ",
+      "settingsCount": 2,
+      "image": "sections/page-faq/01-faq/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "faq",
+      "block": "rich-text",
+      "blockName": "Rich text",
+      "settingsCount": 3,
+      "image": "sections/page-faq/01-faq/blocks/01-rich-text.png"
+    },
+    {
+      "kind": "block",
+      "section": "faq",
+      "block": "question",
+      "blockName": "Question",
+      "settingsCount": 2,
+      "image": "sections/page-faq/01-faq/blocks/02-question.png"
+    },
+    {
+      "kind": "section",
+      "page": "404",
+      "section": "featured-collection",
+      "sectionName": "Featured collection",
+      "settingsCount": 28,
+      "image": "sections/404/01-featured-collection/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "collection.collection-landing",
+      "section": "featured-collections",
+      "sectionName": "Collection list",
+      "settingsCount": 45,
+      "image": "sections/collection-collection-landing/01-featured-collections/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "featured-collections",
+      "block": "collection",
+      "blockName": "Collection",
+      "settingsCount": 4,
+      "image": "sections/collection-collection-landing/01-featured-collections/blocks/01-collection.png"
+    },
+    {
+      "kind": "section",
+      "page": "other",
+      "section": "featured-product",
+      "sectionName": "Featured product",
+      "settingsCount": 13,
+      "image": "sections/other/05-featured-product/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "featured-product",
+      "block": "price",
+      "blockName": "Price",
+      "settingsCount": 0,
+      "image": "sections/other/05-featured-product/blocks/02-price.png"
+    },
+    {
+      "kind": "block",
+      "section": "featured-product",
+      "block": "quantity_selector",
+      "blockName": "Quantity selector",
+      "settingsCount": 0,
+      "image": "sections/other/05-featured-product/blocks/03-quantity-selector.png"
+    },
+    {
+      "kind": "block",
+      "section": "featured-product",
+      "block": "complementary_products",
+      "blockName": "Complementary products",
+      "settingsCount": 7,
+      "image": "sections/other/05-featured-product/blocks/04-complementary-products.png"
+    },
+    {
+      "kind": "block",
+      "section": "featured-product",
+      "block": "size_chart",
+      "blockName": "Size chart",
+      "settingsCount": 1,
+      "image": "sections/other/05-featured-product/blocks/05-size-chart.png"
+    },
+    {
+      "kind": "block",
+      "section": "featured-product",
+      "block": "variant_picker",
+      "blockName": "Variant picker",
+      "settingsCount": 4,
+      "image": "sections/other/05-featured-product/blocks/06-variant-picker.png"
+    },
+    {
+      "kind": "block",
+      "section": "featured-product",
+      "block": "description",
+      "blockName": "Description",
+      "settingsCount": 1,
+      "image": "sections/other/05-featured-product/blocks/07-description.png"
+    },
+    {
+      "kind": "block",
+      "section": "featured-product",
+      "block": "buy_buttons",
+      "blockName": "Buy buttons",
+      "settingsCount": 3,
+      "image": "sections/other/05-featured-product/blocks/08-buy-buttons.png"
+    },
+    {
+      "kind": "block",
+      "section": "featured-product",
+      "block": "inventory_status",
+      "blockName": "Inventory status",
+      "settingsCount": 2,
+      "image": "sections/other/05-featured-product/blocks/09-inventory-status.png"
+    },
+    {
+      "kind": "block",
+      "section": "featured-product",
+      "block": "sales_point",
+      "blockName": "Sales point",
+      "settingsCount": 2,
+      "image": "sections/other/05-featured-product/blocks/10-sales-point.png"
+    },
+    {
+      "kind": "block",
+      "section": "featured-product",
+      "block": "text",
+      "blockName": "Text",
+      "settingsCount": 1,
+      "image": "sections/other/05-featured-product/blocks/11-text.png"
+    },
+    {
+      "kind": "block",
+      "section": "featured-product",
+      "block": "trust_badge",
+      "blockName": "Trust badge",
+      "settingsCount": 1,
+      "image": "sections/other/05-featured-product/blocks/12-trust-badge.png"
+    },
+    {
+      "kind": "block",
+      "section": "featured-product",
+      "block": "tab",
+      "blockName": "Tab",
+      "settingsCount": 3,
+      "image": "sections/other/05-featured-product/blocks/13-tab.png"
+    },
+    {
+      "kind": "block",
+      "section": "featured-product",
+      "block": "share",
+      "blockName": "Share on social",
+      "settingsCount": 1,
+      "image": "sections/other/05-featured-product/blocks/14-share.png"
+    },
+    {
+      "kind": "block",
+      "section": "featured-product",
+      "block": "separator",
+      "blockName": "Separator",
+      "settingsCount": 0,
+      "image": "sections/other/05-featured-product/blocks/15-separator.png"
+    },
+    {
+      "kind": "block",
+      "section": "featured-product",
+      "block": "contact",
+      "blockName": "Contact form",
+      "settingsCount": 3,
+      "image": "sections/other/05-featured-product/blocks/16-contact.png"
+    },
+    {
+      "kind": "block",
+      "section": "featured-product",
+      "block": "custom",
+      "blockName": "HTML",
+      "settingsCount": 1,
+      "image": "sections/other/05-featured-product/blocks/17-custom.png"
+    },
+    {
+      "kind": "section",
+      "page": "other",
+      "section": "featured-video",
+      "sectionName": "Video",
+      "settingsCount": 3,
+      "image": "sections/other/06-featured-video/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "global",
+      "section": "footer-promotions",
+      "sectionName": "Footer promotions",
+      "settingsCount": 1,
+      "image": "sections/global/04-footer-promotions/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "footer-promotions",
+      "block": "promotion",
+      "blockName": "Column",
+      "settingsCount": 7,
+      "image": "sections/global/04-footer-promotions/blocks/01-promotion.png"
+    },
+    {
+      "kind": "section",
+      "page": "global",
+      "section": "footer",
+      "sectionName": "Footer",
+      "settingsCount": 11,
+      "image": "sections/global/05-footer/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "footer",
+      "block": "logo_social",
+      "blockName": "Logo",
+      "settingsCount": 3,
+      "image": "sections/global/05-footer/blocks/01-logo-social.png"
+    },
+    {
+      "kind": "block",
+      "section": "footer",
+      "block": "menu",
+      "blockName": "Navigation",
+      "settingsCount": 3,
+      "image": "sections/global/05-footer/blocks/02-menu.png"
+    },
+    {
+      "kind": "block",
+      "section": "footer",
+      "block": "newsletter",
+      "blockName": "Newsletter and social",
+      "settingsCount": 5,
+      "image": "sections/global/05-footer/blocks/03-newsletter.png"
+    },
+    {
+      "kind": "block",
+      "section": "footer",
+      "block": "custom",
+      "blockName": "Custom content",
+      "settingsCount": 5,
+      "image": "sections/global/05-footer/blocks/04-custom.png"
+    },
+    {
+      "kind": "block",
+      "section": "footer",
+      "block": "follow_shop_cta",
+      "blockName": "Follow on Shop",
+      "settingsCount": 2,
+      "image": "sections/global/05-footer/blocks/05-follow-shop-cta.png"
+    },
+    {
+      "kind": "section",
+      "page": "other",
+      "section": "gallery",
+      "sectionName": "Gallery",
+      "settingsCount": 11,
+      "image": "sections/other/07-gallery/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "gallery",
+      "block": "image",
+      "blockName": "Image",
+      "settingsCount": 3,
+      "image": "sections/other/07-gallery/blocks/01-image.png"
+    },
+    {
+      "kind": "block",
+      "section": "gallery",
+      "block": "app",
+      "blockName": "Apps",
+      "settingsCount": 0,
+      "image": "sections/other/07-gallery/blocks/02-app.png"
+    },
+    {
+      "kind": "section",
+      "page": "other",
+      "section": "giftcard-header",
+      "sectionName": "Header",
+      "settingsCount": 3,
+      "image": "sections/other/08-giftcard-header/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "global",
+      "section": "header",
+      "sectionName": "Header",
+      "settingsCount": 20,
+      "image": "sections/global/06-header/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "header",
+      "block": "mega_menu",
+      "blockName": "Mega menu",
+      "settingsCount": 33,
+      "image": "sections/global/06-header/blocks/01-mega-menu.png"
+    },
+    {
+      "kind": "section",
+      "page": "index",
+      "section": "hero-video",
+      "sectionName": "Video hero",
+      "settingsCount": 11,
+      "image": "sections/index/01-hero-video/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "other",
+      "section": "hotspots",
+      "sectionName": "Image hotspots",
+      "settingsCount": 8,
+      "image": "sections/other/09-hotspots/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "hotspots",
+      "block": "product",
+      "blockName": "Product hotspot",
+      "settingsCount": 3,
+      "image": "sections/other/09-hotspots/blocks/01-product.png"
+    },
+    {
+      "kind": "block",
+      "section": "hotspots",
+      "block": "paragraph",
+      "blockName": "Paragraph hotspot",
+      "settingsCount": 7,
+      "image": "sections/other/09-hotspots/blocks/02-paragraph.png"
+    },
+    {
+      "kind": "section",
+      "page": "other",
+      "section": "image-compare",
+      "sectionName": "Image comparison",
+      "settingsCount": 8,
+      "image": "sections/other/10-image-compare/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "image-compare",
+      "block": "image",
+      "blockName": "Image",
+      "settingsCount": 1,
+      "image": "sections/other/10-image-compare/blocks/01-image.png"
+    },
+    {
+      "kind": "section",
+      "page": "index",
+      "section": "image-grid",
+      "sectionName": "Image grid",
+      "settingsCount": 16,
+      "image": "sections/index/02-image-grid/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "image-grid",
+      "block": "image",
+      "blockName": "Image",
+      "settingsCount": 3,
+      "image": "sections/index/02-image-grid/blocks/01-image.png"
+    },
+    {
+      "kind": "section",
+      "page": "list-collections",
+      "section": "list-collections-template",
+      "sectionName": "Collections list page",
+      "settingsCount": 47,
+      "image": "sections/list-collections/01-list-collections-template/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "list-collections-template",
+      "block": "collection",
+      "blockName": "Collection",
+      "settingsCount": 4,
+      "image": "sections/list-collections/01-list-collections-template/blocks/01-collection.png"
+    },
+    {
+      "kind": "section",
+      "page": "list-collections",
+      "section": "logo-list",
+      "sectionName": "Logo list",
+      "settingsCount": 26,
+      "image": "sections/list-collections/02-logo-list/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "logo-list",
+      "block": "logo_image",
+      "blockName": "Logo",
+      "settingsCount": 3,
+      "image": "sections/list-collections/02-logo-list/blocks/01-logo-image.png"
+    },
+    {
+      "kind": "section",
+      "page": "404",
+      "section": "main-404",
+      "sectionName": "404 page",
+      "settingsCount": 0,
+      "image": "sections/404/02-main-404/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "cart",
+      "section": "main-cart",
+      "sectionName": "Cart page",
+      "settingsCount": 0,
+      "image": "sections/cart/01-main-cart/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "collection.collection-landing",
+      "section": "main-collection",
+      "sectionName": "Product grid",
+      "settingsCount": 12,
+      "image": "sections/collection-collection-landing/02-main-collection/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "main-collection",
+      "block": "collection_description",
+      "blockName": "Collection description",
+      "settingsCount": 0,
+      "image": "sections/collection-collection-landing/02-main-collection/blocks/01-collection-description.png"
+    },
+    {
+      "kind": "block",
+      "section": "main-collection",
+      "block": "product_grid",
+      "blockName": "Products",
+      "settingsCount": 4,
+      "image": "sections/collection-collection-landing/02-main-collection/blocks/02-product-grid.png"
+    },
+    {
+      "kind": "block",
+      "section": "main-collection",
+      "block": "subcollections",
+      "blockName": "Subcollections",
+      "settingsCount": 2,
+      "image": "sections/collection-collection-landing/02-main-collection/blocks/03-subcollections.png"
+    },
+    {
+      "kind": "section",
+      "page": "page.full-width",
+      "section": "main-page-full-width",
+      "sectionName": "Page (full width)",
+      "settingsCount": 0,
+      "image": "sections/page-full-width/01-main-page-full-width/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "page.about",
+      "section": "main-page",
+      "sectionName": "Page",
+      "settingsCount": 0,
+      "image": "sections/page-about/02-main-page/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "product.high-variant",
+      "section": "main-product-high-variant",
+      "sectionName": "Product: 250+ variants",
+      "settingsCount": 1,
+      "image": "sections/product-high-variant/01-main-product-high-variant/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "product.brand-story",
+      "section": "main-product",
+      "sectionName": "Product",
+      "settingsCount": 12,
+      "image": "sections/product-brand-story/03-main-product/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "main-product",
+      "block": "price",
+      "blockName": "Price",
+      "settingsCount": 0,
+      "image": "sections/product-brand-story/03-main-product/blocks/02-price.png"
+    },
+    {
+      "kind": "block",
+      "section": "main-product",
+      "block": "quantity_selector",
+      "blockName": "Quantity selector",
+      "settingsCount": 0,
+      "image": "sections/product-brand-story/03-main-product/blocks/03-quantity-selector.png"
+    },
+    {
+      "kind": "block",
+      "section": "main-product",
+      "block": "complementary_products",
+      "blockName": "Complementary products",
+      "settingsCount": 7,
+      "image": "sections/product-brand-story/03-main-product/blocks/04-complementary-products.png"
+    },
+    {
+      "kind": "block",
+      "section": "main-product",
+      "block": "size_chart",
+      "blockName": "Size chart",
+      "settingsCount": 1,
+      "image": "sections/product-brand-story/03-main-product/blocks/05-size-chart.png"
+    },
+    {
+      "kind": "block",
+      "section": "main-product",
+      "block": "variant_picker",
+      "blockName": "Variant picker",
+      "settingsCount": 7,
+      "image": "sections/product-brand-story/03-main-product/blocks/06-variant-picker.png"
+    },
+    {
+      "kind": "block",
+      "section": "main-product",
+      "block": "description",
+      "blockName": "Description",
+      "settingsCount": 1,
+      "image": "sections/product-brand-story/03-main-product/blocks/07-description.png"
+    },
+    {
+      "kind": "block",
+      "section": "main-product",
+      "block": "buy_buttons",
+      "blockName": "Buy buttons",
+      "settingsCount": 3,
+      "image": "sections/product-brand-story/03-main-product/blocks/08-buy-buttons.png"
+    },
+    {
+      "kind": "block",
+      "section": "main-product",
+      "block": "inventory_status",
+      "blockName": "Inventory status",
+      "settingsCount": 2,
+      "image": "sections/product-brand-story/03-main-product/blocks/09-inventory-status.png"
+    },
+    {
+      "kind": "block",
+      "section": "main-product",
+      "block": "sales_point",
+      "blockName": "Sales point",
+      "settingsCount": 2,
+      "image": "sections/product-brand-story/03-main-product/blocks/10-sales-point.png"
+    },
+    {
+      "kind": "block",
+      "section": "main-product",
+      "block": "text",
+      "blockName": "Text",
+      "settingsCount": 1,
+      "image": "sections/product-brand-story/03-main-product/blocks/11-text.png"
+    },
+    {
+      "kind": "block",
+      "section": "main-product",
+      "block": "trust_badge",
+      "blockName": "Trust badge",
+      "settingsCount": 1,
+      "image": "sections/product-brand-story/03-main-product/blocks/12-trust-badge.png"
+    },
+    {
+      "kind": "block",
+      "section": "main-product",
+      "block": "tab",
+      "blockName": "Tab",
+      "settingsCount": 3,
+      "image": "sections/product-brand-story/03-main-product/blocks/13-tab.png"
+    },
+    {
+      "kind": "block",
+      "section": "main-product",
+      "block": "share",
+      "blockName": "Share on social",
+      "settingsCount": 1,
+      "image": "sections/product-brand-story/03-main-product/blocks/14-share.png"
+    },
+    {
+      "kind": "block",
+      "section": "main-product",
+      "block": "separator",
+      "blockName": "Separator",
+      "settingsCount": 0,
+      "image": "sections/product-brand-story/03-main-product/blocks/15-separator.png"
+    },
+    {
+      "kind": "block",
+      "section": "main-product",
+      "block": "contact",
+      "blockName": "Contact form",
+      "settingsCount": 3,
+      "image": "sections/product-brand-story/03-main-product/blocks/16-contact.png"
+    },
+    {
+      "kind": "block",
+      "section": "main-product",
+      "block": "countdown_timer",
+      "blockName": "Countdown timer",
+      "settingsCount": 20,
+      "image": "sections/product-brand-story/03-main-product/blocks/17-countdown-timer.png"
+    },
+    {
+      "kind": "block",
+      "section": "main-product",
+      "block": "custom",
+      "blockName": "HTML",
+      "settingsCount": 1,
+      "image": "sections/product-brand-story/03-main-product/blocks/18-custom.png"
+    },
+    {
+      "kind": "section",
+      "page": "search",
+      "section": "main-search",
+      "sectionName": "Search",
+      "settingsCount": 9,
+      "image": "sections/search/01-main-search/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "page.about",
+      "section": "map",
+      "sectionName": "Map",
+      "settingsCount": 7,
+      "image": "sections/page-about/03-map/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "other",
+      "section": "media-with-text",
+      "sectionName": "Media with text",
+      "settingsCount": 19,
+      "image": "sections/other/11-media-with-text/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "media-with-text",
+      "block": "image",
+      "blockName": "Image",
+      "settingsCount": 1,
+      "image": "sections/other/11-media-with-text/blocks/01-image.png"
+    },
+    {
+      "kind": "block",
+      "section": "media-with-text",
+      "block": "video",
+      "blockName": "Video",
+      "settingsCount": 7,
+      "image": "sections/other/11-media-with-text/blocks/02-video.png"
+    },
+    {
+      "kind": "block",
+      "section": "media-with-text",
+      "block": "app",
+      "blockName": "Apps",
+      "settingsCount": 0,
+      "image": "sections/other/11-media-with-text/blocks/03-app.png"
+    },
+    {
+      "kind": "section",
+      "page": "global",
+      "section": "newsletter-popup",
+      "sectionName": "Popup",
+      "settingsCount": 16,
+      "image": "sections/global/07-newsletter-popup/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "newsletter-popup",
+      "block": "header",
+      "blockName": "Sticky reminder",
+      "settingsCount": 1,
+      "image": "sections/global/07-newsletter-popup/blocks/01-header.png"
+    },
+    {
+      "kind": "section",
+      "page": "password",
+      "section": "newsletter",
+      "sectionName": "Email signup",
+      "settingsCount": 11,
+      "image": "sections/password/01-newsletter/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "newsletter",
+      "block": "title",
+      "blockName": "Title",
+      "settingsCount": 2,
+      "image": "sections/password/01-newsletter/blocks/02-title.png"
+    },
+    {
+      "kind": "block",
+      "section": "newsletter",
+      "block": "text",
+      "blockName": "Text",
+      "settingsCount": 1,
+      "image": "sections/password/01-newsletter/blocks/03-text.png"
+    },
+    {
+      "kind": "block",
+      "section": "newsletter",
+      "block": "form",
+      "blockName": "Form",
+      "settingsCount": 0,
+      "image": "sections/password/01-newsletter/blocks/04-form.png"
+    },
+    {
+      "kind": "block",
+      "section": "newsletter",
+      "block": "share_buttons",
+      "blockName": "Share buttons",
+      "settingsCount": 0,
+      "image": "sections/password/01-newsletter/blocks/05-share-buttons.png"
+    },
+    {
+      "kind": "section",
+      "page": "password",
+      "section": "password-header",
+      "sectionName": "Header",
+      "settingsCount": 4,
+      "image": "sections/password/02-password-header/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "product.brand-story",
+      "section": "product-full-width",
+      "sectionName": "Full-width details",
+      "settingsCount": 2,
+      "image": "sections/product-brand-story/04-product-full-width/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "product-full-width",
+      "block": "description",
+      "blockName": "Description",
+      "settingsCount": 1,
+      "image": "sections/product-brand-story/04-product-full-width/blocks/02-description.png"
+    },
+    {
+      "kind": "block",
+      "section": "product-full-width",
+      "block": "text",
+      "blockName": "Text",
+      "settingsCount": 1,
+      "image": "sections/product-brand-story/04-product-full-width/blocks/03-text.png"
+    },
+    {
+      "kind": "block",
+      "section": "product-full-width",
+      "block": "tab",
+      "blockName": "Tab",
+      "settingsCount": 3,
+      "image": "sections/product-brand-story/04-product-full-width/blocks/04-tab.png"
+    },
+    {
+      "kind": "block",
+      "section": "product-full-width",
+      "block": "share",
+      "blockName": "Share on social",
+      "settingsCount": 1,
+      "image": "sections/product-brand-story/04-product-full-width/blocks/05-share.png"
+    },
+    {
+      "kind": "block",
+      "section": "product-full-width",
+      "block": "separator",
+      "blockName": "Separator",
+      "settingsCount": 0,
+      "image": "sections/product-brand-story/04-product-full-width/blocks/06-separator.png"
+    },
+    {
+      "kind": "block",
+      "section": "product-full-width",
+      "block": "contact",
+      "blockName": "Contact form",
+      "settingsCount": 3,
+      "image": "sections/product-brand-story/04-product-full-width/blocks/07-contact.png"
+    },
+    {
+      "kind": "block",
+      "section": "product-full-width",
+      "block": "custom",
+      "blockName": "HTML",
+      "settingsCount": 1,
+      "image": "sections/product-brand-story/04-product-full-width/blocks/08-custom.png"
+    },
+    {
+      "kind": "section",
+      "page": "product.brand-story",
+      "section": "product-recommendations",
+      "sectionName": "Related products",
+      "settingsCount": 14,
+      "image": "sections/product-brand-story/05-product-recommendations/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "collection.collection-landing",
+      "section": "promo-grid",
+      "sectionName": "Promotion grid",
+      "settingsCount": 9,
+      "image": "sections/collection-collection-landing/03-promo-grid/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "promo-grid",
+      "block": "advanced",
+      "blockName": "Advanced",
+      "settingsCount": 19,
+      "image": "sections/collection-collection-landing/03-promo-grid/blocks/02-advanced.png"
+    },
+    {
+      "kind": "block",
+      "section": "promo-grid",
+      "block": "banner",
+      "blockName": "Banner",
+      "settingsCount": 10,
+      "image": "sections/collection-collection-landing/03-promo-grid/blocks/03-banner.png"
+    },
+    {
+      "kind": "block",
+      "section": "promo-grid",
+      "block": "image",
+      "blockName": "Image",
+      "settingsCount": 3,
+      "image": "sections/collection-collection-landing/03-promo-grid/blocks/04-image.png"
+    },
+    {
+      "kind": "block",
+      "section": "promo-grid",
+      "block": "product",
+      "blockName": "Product",
+      "settingsCount": 13,
+      "image": "sections/collection-collection-landing/03-promo-grid/blocks/05-product.png"
+    },
+    {
+      "kind": "block",
+      "section": "promo-grid",
+      "block": "sale_collection",
+      "blockName": "Sale Collection",
+      "settingsCount": 11,
+      "image": "sections/collection-collection-landing/03-promo-grid/blocks/06-sale-collection.png"
+    },
+    {
+      "kind": "block",
+      "section": "promo-grid",
+      "block": "simple",
+      "blockName": "Simple",
+      "settingsCount": 11,
+      "image": "sections/collection-collection-landing/03-promo-grid/blocks/07-simple.png"
+    },
+    {
+      "kind": "section",
+      "page": "other",
+      "section": "promo-scrolling-bar",
+      "sectionName": "Promo scrolling bar",
+      "settingsCount": 24,
+      "image": "sections/other/12-promo-scrolling-bar/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "promo-scrolling-bar",
+      "block": "announcement",
+      "blockName": "Message",
+      "settingsCount": 2,
+      "image": "sections/other/12-promo-scrolling-bar/blocks/01-announcement.png"
+    },
+    {
+      "kind": "section",
+      "page": "global",
+      "section": "quick-view",
+      "sectionName": "Quick view",
+      "settingsCount": 38,
+      "image": "sections/global/08-quick-view/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "cart",
+      "section": "recently-viewed",
+      "sectionName": "Recently viewed",
+      "settingsCount": 13,
+      "image": "sections/cart/02-recently-viewed/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "page.about",
+      "section": "rich-text",
+      "sectionName": "Rich text",
+      "settingsCount": 3,
+      "image": "sections/page-about/04-rich-text/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "rich-text",
+      "block": "heading",
+      "blockName": "Heading",
+      "settingsCount": 2,
+      "image": "sections/page-about/04-rich-text/blocks/01-heading.png"
+    },
+    {
+      "kind": "block",
+      "section": "rich-text",
+      "block": "text",
+      "blockName": "Text",
+      "settingsCount": 2,
+      "image": "sections/page-about/04-rich-text/blocks/02-text.png"
+    },
+    {
+      "kind": "block",
+      "section": "rich-text",
+      "block": "button",
+      "blockName": "Button",
+      "settingsCount": 2,
+      "image": "sections/page-about/04-rich-text/blocks/03-button.png"
+    },
+    {
+      "kind": "block",
+      "section": "rich-text",
+      "block": "page",
+      "blockName": "Page",
+      "settingsCount": 1,
+      "image": "sections/page-about/04-rich-text/blocks/04-page.png"
+    },
+    {
+      "kind": "section",
+      "page": "other",
+      "section": "scrolling-text",
+      "sectionName": "Scrolling text",
+      "settingsCount": 15,
+      "image": "sections/other/13-scrolling-text/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "index",
+      "section": "shoppable-hero",
+      "sectionName": "Shoppable hero",
+      "settingsCount": 17,
+      "image": "sections/index/03-shoppable-hero/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "shoppable-hero",
+      "block": "hotspot",
+      "blockName": "Hotspot",
+      "settingsCount": 5,
+      "image": "sections/index/03-shoppable-hero/blocks/01-hotspot.png"
+    },
+    {
+      "kind": "section",
+      "page": "index",
+      "section": "slideshow",
+      "sectionName": "Hero (optional slideshow)",
+      "settingsCount": 6,
+      "image": "sections/index/04-slideshow/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "slideshow",
+      "block": "image",
+      "blockName": "Slide",
+      "settingsCount": 14,
+      "image": "sections/index/04-slideshow/blocks/01-image.png"
+    },
+    {
+      "kind": "section",
+      "page": "other",
+      "section": "store-availability",
+      "sectionName": "t:sections.store-availability.name",
+      "settingsCount": 0,
+      "image": "sections/other/14-store-availability/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "product.brand-story",
+      "section": "testimonials",
+      "sectionName": "Testimonials",
+      "settingsCount": 6,
+      "image": "sections/product-brand-story/06-testimonials/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "testimonials",
+      "block": "testimonial",
+      "blockName": "Testimonial",
+      "settingsCount": 5,
+      "image": "sections/product-brand-story/06-testimonials/blocks/01-testimonial.png"
+    },
+    {
+      "kind": "section",
+      "page": "index",
+      "section": "text-and-image",
+      "sectionName": "Image with text",
+      "settingsCount": 20,
+      "image": "sections/index/05-text-and-image/00-settings.png"
+    },
+    {
+      "kind": "section",
+      "page": "page.about",
+      "section": "text-columns",
+      "sectionName": "Text columns with images",
+      "settingsCount": 4,
+      "image": "sections/page-about/05-text-columns/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "text-columns",
+      "block": "text_block",
+      "blockName": "Column",
+      "settingsCount": 8,
+      "image": "sections/page-about/05-text-columns/blocks/01-text-block.png"
+    },
+    {
+      "kind": "section",
+      "page": "index",
+      "section": "text-with-icons",
+      "sectionName": "Text columns with icons",
+      "settingsCount": 15,
+      "image": "sections/index/06-text-with-icons/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "text-with-icons",
+      "block": "text_block",
+      "blockName": "Column",
+      "settingsCount": 4,
+      "image": "sections/index/06-text-with-icons/blocks/01-text-block.png"
+    },
+    {
+      "kind": "section",
+      "page": "other",
+      "section": "top-collection-list",
+      "sectionName": "Top Collection List",
+      "settingsCount": 40,
+      "image": "sections/other/15-top-collection-list/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "top-collection-list",
+      "block": "collection",
+      "blockName": "Collection",
+      "settingsCount": 7,
+      "image": "sections/other/15-top-collection-list/blocks/01-collection.png"
+    },
+    {
+      "kind": "section",
+      "page": "other",
+      "section": "top-products-tab",
+      "sectionName": "Collection Products Tabs",
+      "settingsCount": 28,
+      "image": "sections/other/16-top-products-tab/00-settings.png"
+    },
+    {
+      "kind": "block",
+      "section": "top-products-tab",
+      "block": "collection_tab",
+      "blockName": "Collection tab",
+      "settingsCount": 2,
+      "image": "sections/other/16-top-products-tab/blocks/01-collection-tab.png"
+    },
+    {
+      "kind": "theme-block",
+      "block": "_section-flex-pdp-buy-buttons",
+      "blockName": "Buy buttons",
+      "settingsCount": 1,
+      "image": "theme-blocks/01-section-flex-pdp-buy-buttons.png"
+    },
+    {
+      "kind": "theme-block",
+      "block": "_section-flex-pdp-description",
+      "blockName": "Description",
+      "settingsCount": 0,
+      "image": "theme-blocks/02-section-flex-pdp-description.png"
+    },
+    {
+      "kind": "theme-block",
+      "block": "_section-flex-pdp-divider",
+      "blockName": "Divider",
+      "settingsCount": 0,
+      "image": "theme-blocks/03-section-flex-pdp-divider.png"
+    },
+    {
+      "kind": "theme-block",
+      "block": "_section-flex-pdp-installments",
+      "blockName": "Payment installments",
+      "settingsCount": 1,
+      "image": "theme-blocks/04-section-flex-pdp-installments.png"
+    },
+    {
+      "kind": "theme-block",
+      "block": "_section-flex-pdp-inventory",
+      "blockName": "Inventory",
+      "settingsCount": 2,
+      "image": "theme-blocks/05-section-flex-pdp-inventory.png"
+    },
+    {
+      "kind": "theme-block",
+      "block": "_section-flex-pdp-media-gallery",
+      "blockName": "Media gallery",
+      "settingsCount": 3,
+      "image": "theme-blocks/06-section-flex-pdp-media-gallery.png"
+    },
+    {
+      "kind": "theme-block",
+      "block": "_section-flex-pdp-pick-up",
+      "blockName": "Pickup availability",
+      "settingsCount": 1,
+      "image": "theme-blocks/07-section-flex-pdp-pick-up.png"
+    },
+    {
+      "kind": "theme-block",
+      "block": "_section-flex-pdp-policies",
+      "blockName": "Policies",
+      "settingsCount": 1,
+      "image": "theme-blocks/08-section-flex-pdp-policies.png"
+    },
+    {
+      "kind": "theme-block",
+      "block": "_section-flex-pdp-price",
+      "blockName": "Price",
+      "settingsCount": 0,
+      "image": "theme-blocks/09-section-flex-pdp-price.png"
+    },
+    {
+      "kind": "theme-block",
+      "block": "_section-flex-pdp-quantity-picker",
+      "blockName": "Quantity picker",
+      "settingsCount": 2,
+      "image": "theme-blocks/10-section-flex-pdp-quantity-picker.png"
+    },
+    {
+      "kind": "theme-block",
+      "block": "_section-flex-pdp-sku",
+      "blockName": "SKU",
+      "settingsCount": 0,
+      "image": "theme-blocks/11-section-flex-pdp-sku.png"
+    },
+    {
+      "kind": "theme-block",
+      "block": "_section-flex-pdp-title",
+      "blockName": "Title",
+      "settingsCount": 0,
+      "image": "theme-blocks/12-section-flex-pdp-title.png"
+    },
+    {
+      "kind": "theme-block",
+      "block": "_section-flex-pdp-variant-picker",
+      "blockName": "Variant picker",
+      "settingsCount": 1,
+      "image": "theme-blocks/13-section-flex-pdp-variant-picker.png"
+    },
+    {
+      "kind": "theme-block",
+      "block": "_section-flex-pdp-vendor",
+      "blockName": "Vendor",
+      "settingsCount": 0,
+      "image": "theme-blocks/14-section-flex-pdp-vendor.png"
+    }
+  ],
+  "skipped": [
+    {
+      "kind": "block",
+      "section": "announcement",
+      "block": "@app",
+      "reason": "app block — its settings come from the app the merchant installs"
+    },
+    {
+      "kind": "block",
+      "section": "apps",
+      "block": "@app",
+      "reason": "app block — its settings come from the app the merchant installs"
+    },
+    {
+      "kind": "block",
+      "section": "countdown",
+      "block": "@app",
+      "reason": "app block — its settings come from the app the merchant installs"
+    },
+    {
+      "kind": "block",
+      "section": "featured-product",
+      "block": "@app",
+      "reason": "app block — its settings come from the app the merchant installs"
+    },
+    {
+      "kind": "block",
+      "section": "main-product-high-variant",
+      "block": "@app",
+      "reason": "app block — its settings come from the app the merchant installs"
+    },
+    {
+      "kind": "block",
+      "section": "main-product-high-variant",
+      "block": "@theme",
+      "reason": "accepts any theme block — those are captured under theme-blocks/"
+    },
+    {
+      "kind": "block",
+      "section": "main-product-high-variant",
+      "block": "_section-flex-pdp-buy-buttons",
+      "reason": "theme block \"_section-flex-pdp-buy-buttons\" — captured under theme-blocks/"
+    },
+    {
+      "kind": "block",
+      "section": "main-product-high-variant",
+      "block": "_section-flex-pdp-description",
+      "reason": "theme block \"_section-flex-pdp-description\" — captured under theme-blocks/"
+    },
+    {
+      "kind": "block",
+      "section": "main-product-high-variant",
+      "block": "_section-flex-pdp-divider",
+      "reason": "theme block \"_section-flex-pdp-divider\" — captured under theme-blocks/"
+    },
+    {
+      "kind": "block",
+      "section": "main-product-high-variant",
+      "block": "_section-flex-pdp-media-gallery",
+      "reason": "theme block \"_section-flex-pdp-media-gallery\" — captured under theme-blocks/"
+    },
+    {
+      "kind": "block",
+      "section": "main-product-high-variant",
+      "block": "_section-flex-pdp-policies",
+      "reason": "theme block \"_section-flex-pdp-policies\" — captured under theme-blocks/"
+    },
+    {
+      "kind": "block",
+      "section": "main-product-high-variant",
+      "block": "_section-flex-pdp-price",
+      "reason": "theme block \"_section-flex-pdp-price\" — captured under theme-blocks/"
+    },
+    {
+      "kind": "block",
+      "section": "main-product-high-variant",
+      "block": "_section-flex-pdp-quantity-picker",
+      "reason": "theme block \"_section-flex-pdp-quantity-picker\" — captured under theme-blocks/"
+    },
+    {
+      "kind": "block",
+      "section": "main-product-high-variant",
+      "block": "_section-flex-pdp-sku",
+      "reason": "theme block \"_section-flex-pdp-sku\" — captured under theme-blocks/"
+    },
+    {
+      "kind": "block",
+      "section": "main-product-high-variant",
+      "block": "_section-flex-pdp-title",
+      "reason": "theme block \"_section-flex-pdp-title\" — captured under theme-blocks/"
+    },
+    {
+      "kind": "block",
+      "section": "main-product-high-variant",
+      "block": "_section-flex-pdp-variant-picker",
+      "reason": "theme block \"_section-flex-pdp-variant-picker\" — captured under theme-blocks/"
+    },
+    {
+      "kind": "block",
+      "section": "main-product-high-variant",
+      "block": "_section-flex-pdp-vendor",
+      "reason": "theme block \"_section-flex-pdp-vendor\" — captured under theme-blocks/"
+    },
+    {
+      "kind": "block",
+      "section": "main-product-high-variant",
+      "block": "_section-flex-pdp-pick-up",
+      "reason": "theme block \"_section-flex-pdp-pick-up\" — captured under theme-blocks/"
+    },
+    {
+      "kind": "block",
+      "section": "main-product-high-variant",
+      "block": "_section-flex-pdp-installments",
+      "reason": "theme block \"_section-flex-pdp-installments\" — captured under theme-blocks/"
+    },
+    {
+      "kind": "block",
+      "section": "main-product",
+      "block": "@app",
+      "reason": "app block — its settings come from the app the merchant installs"
+    },
+    {
+      "kind": "block",
+      "section": "newsletter",
+      "block": "@app",
+      "reason": "app block — its settings come from the app the merchant installs"
+    },
+    {
+      "kind": "block",
+      "section": "product-full-width",
+      "block": "@app",
+      "reason": "app block — its settings come from the app the merchant installs"
+    },
+    {
+      "kind": "block",
+      "section": "promo-grid",
+      "block": "@app",
+      "reason": "app block — its settings come from the app the merchant installs"
+    }
+  ]
+}
