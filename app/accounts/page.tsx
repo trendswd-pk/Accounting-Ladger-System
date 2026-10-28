@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { Info, Phone, Plus, Search } from 'lucide-react'
 import ActionsDropdown from '@/components/ActionsDropdown'
 import {
@@ -411,9 +412,12 @@ export default function AccountsPage() {
               >
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h2 className="truncate text-base font-semibold text-gray-900 dark:text-gray-100">
+                    <Link
+                      href={`/transactions?accountId=${encodeURIComponent(row.id)}`}
+                      className="block truncate text-base font-semibold text-primary-700 hover:underline dark:text-primary-300"
+                    >
                       {row.name}
-                    </h2>
+                    </Link>
                     {row.phone ? (
                       <a
                         href={`tel:${phoneDigits}`}
@@ -509,8 +513,13 @@ export default function AccountsPage() {
                     <td className="whitespace-nowrap px-4 py-3 text-sm tabular-nums text-gray-500 dark:text-gray-400">
                       {pageStartIndex + index + 1}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {row.name}
+                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium">
+                      <Link
+                        href={`/transactions?accountId=${encodeURIComponent(row.id)}`}
+                        className="text-primary-700 hover:underline dark:text-primary-300"
+                      >
+                        {row.name}
+                      </Link>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
                       {row.phone || '—'}

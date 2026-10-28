@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import {
   FormModalBody,
@@ -118,12 +119,24 @@ export default function SetupTypeCrudPage({
     return accounts.filter((a) => a.cashTypeId === accountsPopupRow.id)
   }, [accounts, accountsPopupRow, kind])
 
+  const linkedAccountsTotal = useMemo(
+    () => linkedAccounts.reduce((sum, a) => sum + (Number(a.balance) || 0), 0),
+    [linkedAccounts]
+  )
+
   const openAccountsPopup = (row: SetupTypeRecord) => {
     setAccountsPopupRow(row)
     void loadAccounts()
   }
 
   const formatBalance = (n: number) => formatMoney(n, currency)
+
+  const balanceTotalColorClass =
+    linkedAccountsTotal > 0
+      ? 'text-green-700 dark:text-green-400'
+      : linkedAccountsTotal < 0
+        ? 'text-red-700 dark:text-red-400'
+        : 'text-gray-900 dark:text-gray-100'
 
   const openAdd = () => {
     setFormError(null)
@@ -569,9 +582,13 @@ export default function SetupTypeCrudPage({
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
+                            <Link
+                              href={`/transactions?accountId=${encodeURIComponent(acc.id)}`}
+                              className="block truncate text-sm font-semibold text-primary-700 hover:underline dark:text-primary-300"
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               {acc.name}
-                            </p>
+                            </Link>
                             {acc.phone ? (
                               <a
                                 href={`tel:${acc.phone.replace(/[^\d+]/g, '')}`}
@@ -596,6 +613,14 @@ export default function SetupTypeCrudPage({
                         </p>
                       </div>
                     ))}
+                    <div className="flex items-center justify-between rounded-lg border border-gray-300 bg-white px-3 py-2.5 dark:border-gray-500 dark:bg-gray-800">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        Total
+                      </span>
+                      <span className={`tabular-nums text-sm font-semibold ${balanceTotalColorClass}`}>
+                        {formatBalance(linkedAccountsTotal)}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Desktop table */}
@@ -627,8 +652,13 @@ export default function SetupTypeCrudPage({
                               <td className="whitespace-nowrap px-3 py-2 text-sm tabular-nums text-gray-500 dark:text-gray-400">
                                 {index + 1}
                               </td>
-                              <td className="whitespace-nowrap px-3 py-2 text-sm font-medium text-gray-900 dark:text-gray-100">
-                                {acc.name}
+                              <td className="whitespace-nowrap px-3 py-2 text-sm font-medium">
+                                <Link
+                                  href={`/transactions?accountId=${encodeURIComponent(acc.id)}`}
+                                  className="text-primary-700 hover:underline dark:text-primary-300"
+                                >
+                                  {acc.name}
+                                </Link>
                               </td>
                               <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-600 dark:text-gray-300">
                                 {acc.phone || '—'}
@@ -642,6 +672,21 @@ export default function SetupTypeCrudPage({
                             </tr>
                           ))}
                         </tbody>
+                        <tfoot className="border-t border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-900/40">
+                          <tr>
+                            <td
+                              colSpan={4}
+                              className="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+                            >
+                              Total
+                            </td>
+                            <td
+                              className={`whitespace-nowrap px-3 py-2.5 text-right text-sm tabular-nums font-semibold ${balanceTotalColorClass}`}
+                            >
+                              {formatBalance(linkedAccountsTotal)}
+                            </td>
+                          </tr>
+                        </tfoot>
                       </table>
                     </div>
                   </div>

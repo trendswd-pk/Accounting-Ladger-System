@@ -1,7 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Info, Plus, Search } from 'lucide-react'
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Filter, Info, Plus, Search, X } from 'lucide-react'
 import ActionsDropdown from '@/components/ActionsDropdown'
 import {
   FormModalBody,
@@ -74,7 +75,11 @@ function runningBalanceColorClass(amount: number): string {
   return 'text-gray-900 dark:text-gray-100'
 }
 
-export default function TransactionsPage() {
+function TransactionsPageInner() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const accountIdFilter = searchParams.get('accountId')?.trim() || ''
+
   const cached = getCachedTransactions()
   const [rows, setRows] = useState<TransactionRecord[]>(() => cached ?? [])
   const [ready, setReady] = useState(() => cached != null)
@@ -83,6 +88,10 @@ export default function TransactionsPage() {
   const [page, setPage] = useState(1)
   const [listPageSize, setListPageSize] = useState(DEFAULT_TABLE_PAGE_SIZE)
   const [searchQuery, setSearchQuery] = useState('')
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [typeFilter, setTypeFilter] = useState<TransactionEntryType | ''>('')
 
   const [accounts, setAccounts] = useState<AccountRecord[]>(() => getCachedAccounts() ?? [])
 
@@ -160,10 +169,32 @@ export default function TransactionsPage() {
     return unsub
   }, [loadRows, loadAccounts])
 
+  const filteredAccountName = useMemo(() => {
+    if (!accountIdFilter) return null
+    return (
+      accounts.find((a) => a.id === accountIdFilter)?.name ??
+      rows.find((r) => r.accountId === accountIdFilter)?.accountName ??
+      null
+    )
+  }, [accountIdFilter, accounts, rows])
+
   const filteredRows = useMemo(() => {
+    let list = rows
+    if (accountIdFilter) {
+      list = list.filter((row) => row.accountId === accountIdFilter)
+    }
+    if (dateFrom) {
+      list = list.filter((row) => row.transactionDate >= dateFrom)
+    }
+    if (dateTo) {
+      list = list.filter((row) => row.transactionDate <= dateTo)
+    }
+    if (typeFilter === 'credit' || typeFilter === 'debit') {
+      list = list.filter((row) => row.entryType === typeFilter)
+    }
     const q = searchQuery.trim().toLowerCase()
-    if (!q) return rows
-    return rows.filter((row) => {
+    if (!q) return list
+    return list.filter((row) => {
       const haystack = [
         String(row.entryNumber),
         row.transactionDate,
@@ -177,7 +208,16 @@ export default function TransactionsPage() {
         .toLowerCase()
       return haystack.includes(q)
     })
-  }, [rows, searchQuery])
+  }, [rows, searchQuery, accountIdFilter, dateFrom, dateTo, typeFilter])
+
+  const activeFilterCount = useMemo(() => {
+    let n = 0
+    if (accountIdFilter) n += 1
+    if (dateFrom) n += 1
+    if (dateTo) n += 1
+    if (typeFilter) n += 1
+    return n
+  }, [accountIdFilter, dateFrom, dateTo, typeFilter])
 
   const totalItems = filteredRows.length
   const totalPages = Math.max(1, Math.ceil(totalItems / listPageSize) || 1)
@@ -188,7 +228,37 @@ export default function TransactionsPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [searchQuery])
+  }, [searchQuery, accountIdFilter, dateFrom, dateTo, typeFilter])
+
+  useEffect(() => {
+    if (!filterOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFilterOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevOverflow
+    }
+  }, [filterOpen])
+
+  const clearAllFilters = () => {
+    setDateFrom('')
+    setDateTo('')
+    setTypeFilter('')
+    setSearchQuery('')
+    router.push('/transactions')
+  }
+
+  const filterByAccount = (id: string) => {
+    if (!id) {
+      router.push('/transactions')
+      return
+    }
+    router.push(`/transactions?accountId=${encodeURIComponent(id)}`)
+  }
 
   /** Per-account running balance: credit +, debit − (only that account’s entries). */
   const runningBalanceById = useMemo(() => {
@@ -460,8 +530,8 @@ export default function TransactionsPage() {
               ) : null}
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <div className="relative hidden w-56 lg:block lg:w-64">
+          <div className="flex h-10 shrink-0 items-center gap-2">
+            <div className="relative hidden h-10 w-56 lg:block lg:w-64">
               <Search
                 className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
                 aria-hidden
@@ -472,21 +542,39 @@ export default function TransactionsPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search transactions…"
                 aria-label="Search transactions"
-                className="w-full rounded-md border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                className="h-10 w-full rounded-md border border-gray-300 bg-white pl-9 pr-3 text-sm leading-none text-gray-900 placeholder:text-gray-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
               />
             </div>
             <button
               type="button"
-              onClick={openAdd}
-              className="rounded-md bg-primary-600 p-2.5 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 lg:hidden"
-              aria-label="Add Transaction"
+              onClick={() => setFilterOpen(true)}
+              className={`relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                activeFilterCount > 0
+                  ? 'border-primary-600 bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300'
+                  : 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700'
+              }`}
+              aria-label="Open filters"
+              aria-expanded={filterOpen}
             >
-              <Plus className="h-5 w-5" />
+              <Filter className="h-4 w-4" aria-hidden />
+              {activeFilterCount > 0 ? (
+                <span className="absolute -right-1.5 -top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary-600 px-1 text-[10px] font-semibold leading-none text-white">
+                  {activeFilterCount}
+                </span>
+              ) : null}
             </button>
             <button
               type="button"
               onClick={openAdd}
-              className="hidden rounded-md bg-primary-600 px-4 py-2 font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 lg:inline-flex"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 lg:hidden"
+              aria-label="Add Transaction"
+            >
+              <Plus className="h-4 w-4" aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={openAdd}
+              className="hidden h-10 items-center rounded-md bg-primary-600 px-4 text-sm font-medium leading-none text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 lg:inline-flex"
             >
               Add
             </button>
@@ -513,6 +601,163 @@ export default function TransactionsPage() {
           {listError}
         </div>
       ) : null}
+
+      {activeFilterCount > 0 ? (
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-sm text-primary-900 dark:border-primary-800 dark:bg-primary-900/30 dark:text-primary-100">
+          <span className="min-w-0 flex-1">
+            {accountIdFilter ? (
+              <>
+                Account:{' '}
+                <span className="font-semibold">{filteredAccountName ?? 'selected'}</span>
+                {(dateFrom || dateTo || typeFilter) && ' · '}
+              </>
+            ) : null}
+            {dateFrom || dateTo
+              ? `Date: ${dateFrom ? formatDisplayDate(dateFrom) : '…'} – ${dateTo ? formatDisplayDate(dateTo) : '…'}`
+              : null}
+            {(dateFrom || dateTo) && typeFilter ? ' · ' : null}
+            {typeFilter ? (
+              <>
+                Type: <span className="font-semibold capitalize">{typeFilter}</span>
+              </>
+            ) : null}
+          </span>
+          <button
+            type="button"
+            onClick={clearAllFilters}
+            className="inline-flex items-center gap-1 rounded-md bg-white/80 px-2 py-0.5 text-xs font-medium text-primary-800 hover:bg-white dark:bg-gray-800 dark:text-primary-200 dark:hover:bg-gray-700"
+          >
+            <X className="h-3.5 w-3.5" aria-hidden />
+            Clear filters
+          </button>
+        </div>
+      ) : null}
+
+      {/* Right filter drawer */}
+      <div
+        className={`fixed inset-0 z-50 bg-black/50 transition-opacity duration-200 ${
+          filterOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
+        }`}
+        onClick={() => setFilterOpen(false)}
+        aria-hidden={!filterOpen}
+      />
+      <aside
+        className={`fixed inset-y-0 right-0 z-50 flex w-80 max-w-[85vw] transform flex-col bg-white shadow-xl transition-transform duration-200 ease-out dark:bg-gray-800 ${
+          filterOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+        aria-label="Transaction filters"
+        aria-hidden={!filterOpen}
+      >
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 px-4 py-4 dark:border-gray-700">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Filters</h2>
+          <button
+            type="button"
+            onClick={() => setFilterOpen(false)}
+            className="rounded-md p-1.5 text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-300 dark:hover:bg-gray-700"
+            aria-label="Close filters"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4">
+          <div>
+            <label
+              htmlFor="filter-date-from"
+              className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
+              Date from
+            </label>
+            <input
+              id="filter-date-from"
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="filter-date-to"
+              className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
+              Date to
+            </label>
+            <input
+              id="filter-date-to"
+              type="date"
+              value={dateTo}
+              min={dateFrom || undefined}
+              onChange={(e) => setDateTo(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="filter-account"
+              className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
+              Account
+            </label>
+            <SearchableSelect
+              key={`filter-acc-${accountIdFilter || 'all'}`}
+              id="filter-account"
+              value={accountIdFilter}
+              onChange={filterByAccount}
+              options={accountOptions}
+              placeholder="All accounts…"
+              emptyMessage="No accounts"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <span className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Type
+            </span>
+            <div className="flex flex-col gap-2">
+              {(
+                [
+                  { id: '' as const, label: 'All' },
+                  { id: 'credit' as const, label: 'Credit' },
+                  { id: 'debit' as const, label: 'Debit' },
+                ] as const
+              ).map((option) => (
+                <button
+                  key={option.id || 'all'}
+                  type="button"
+                  onClick={() => setTypeFilter(option.id)}
+                  className={`rounded-md border px-3 py-2 text-left text-sm font-medium transition-colors ${
+                    typeFilter === option.id
+                      ? option.id === 'credit'
+                        ? 'border-green-600 bg-green-50 text-green-800 dark:bg-green-900/40 dark:text-green-300'
+                        : option.id === 'debit'
+                          ? 'border-red-600 bg-red-50 text-red-800 dark:bg-red-900/40 dark:text-red-300'
+                          : 'border-primary-600 bg-primary-50 text-primary-800 dark:bg-primary-900/40 dark:text-primary-200'
+                      : 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="flex shrink-0 gap-2 border-t border-gray-100 px-4 py-3 dark:border-gray-700">
+          <button
+            type="button"
+            onClick={clearAllFilters}
+            className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+          >
+            Reset
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterOpen(false)}
+            className="flex-1 rounded-md bg-primary-600 px-3 py-2 text-sm font-medium text-white hover:bg-primary-700"
+          >
+            Done
+          </button>
+        </div>
+      </aside>
 
       {/* Mobile cards */}
       <div className={`space-y-3 lg:hidden ${loading ? 'opacity-70' : ''}`}>
@@ -685,8 +930,17 @@ export default function TransactionsPage() {
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                       {formatDisplayDate(row.transactionDate)}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {row.accountName}
+                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          filterByAccount(row.accountId)
+                        }}
+                        className="text-left text-primary-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:text-primary-300"
+                      >
+                        {row.accountName}
+                      </button>
                     </td>
                     <td className="max-w-[12rem] truncate px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                       {row.narration || '—'}
@@ -1116,5 +1370,17 @@ export default function TransactionsPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function TransactionsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-4 text-sm text-gray-500 lg:p-8 dark:text-gray-400">Loading…</div>
+      }
+    >
+      <TransactionsPageInner />
+    </Suspense>
   )
 }
