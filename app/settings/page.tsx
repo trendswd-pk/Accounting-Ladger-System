@@ -1,7 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { DEFAULT_APP_SETTINGS, fetchAppSettings, saveAppSettings } from '@/lib/appSettings'
+import {
+  DEFAULT_APP_SETTINGS,
+  fetchAppSettings,
+  saveAppSettings,
+  type DefaultEntryMode,
+} from '@/lib/appSettings'
 import {
   applyThemePreference,
   getDefaultTheme,
@@ -15,6 +20,9 @@ export default function SettingsPage() {
   const [businessName, setBusinessName] = useState(DEFAULT_APP_SETTINGS.businessName)
   const [currency, setCurrency] = useState(DEFAULT_APP_SETTINGS.currency)
   const [theme, setTheme] = useState<ThemePreference>(getDefaultTheme())
+  const [defaultEntryMode, setDefaultEntryMode] = useState<DefaultEntryMode>(
+    DEFAULT_APP_SETTINGS.defaultEntryMode
+  )
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -27,6 +35,7 @@ export default function SettingsPage() {
         setBusinessName(s.businessName)
         setCurrency(s.currency)
         setTheme(s.theme)
+        setDefaultEntryMode(s.defaultEntryMode)
         applyThemePreference(s.theme)
       })
       .catch((err) => {
@@ -58,10 +67,12 @@ export default function SettingsPage() {
         businessName: name,
         currency,
         theme,
+        defaultEntryMode,
       })
       setBusinessName(saved.businessName)
       setCurrency(saved.currency)
       setTheme(saved.theme)
+      setDefaultEntryMode(saved.defaultEntryMode)
       applyThemePreference(saved.theme)
       setMessage({ type: 'success', text: 'Settings saved to Supabase.' })
     } catch (err) {
@@ -140,6 +151,36 @@ export default function SettingsPage() {
                 }`}
               >
                 {option}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <span className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Default transaction entry mode
+          </span>
+          <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+            Pre-selected when you open Add Transaction. You can still switch on the form.
+          </p>
+          <div className="flex gap-3">
+            {(
+              [
+                { id: 'normal' as const, label: 'Normal Entry' },
+                { id: 'transfer' as const, label: 'Transfer' },
+              ] as const
+            ).map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setDefaultEntryMode(option.id)}
+                className={`rounded-md border px-4 py-2 text-sm font-medium transition-colors ${
+                  defaultEntryMode === option.id
+                    ? 'border-primary-600 bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300'
+                    : 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700'
+                }`}
+              >
+                {option.label}
               </button>
             ))}
           </div>

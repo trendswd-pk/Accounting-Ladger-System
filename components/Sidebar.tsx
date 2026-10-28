@@ -15,7 +15,13 @@ import {
   ChevronDown,
   type LucideIcon,
 } from 'lucide-react'
-import { saveAppSettings } from '@/lib/appSettings'
+import {
+  DEFAULT_APP_SETTINGS,
+  fetchAppSettings,
+  getCachedAppSettings,
+  saveAppSettings,
+  subscribeAppSettings,
+} from '@/lib/appSettings'
 import {
   applyThemePreference,
   getActiveThemePreference,
@@ -66,10 +72,29 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
   const pathname = usePathname()
   const [theme, setTheme] = useState<ThemePreference>(getDefaultTheme())
   const [openMenu, setOpenMenu] = useState<string | null>(null)
+  const [businessName, setBusinessName] = useState(
+    () => getCachedAppSettings()?.businessName ?? DEFAULT_APP_SETTINGS.businessName
+  )
+
+  useEffect(() => {
+    let cancelled = false
+    void fetchAppSettings()
+      .then((s) => {
+        if (!cancelled) setBusinessName(s.businessName)
+      })
+      .catch(() => {})
+    const unsub = subscribeAppSettings((s) => setBusinessName(s.businessName))
+    return () => {
+      cancelled = true
+      unsub()
+    }
+  }, [])
 
   useEffect(() => {
     if (!open) return
     setTheme(getActiveThemePreference())
+    const cached = getCachedAppSettings()
+    if (cached?.businessName) setBusinessName(cached.businessName)
   }, [open])
 
   useEffect(() => {
@@ -130,13 +155,13 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
             onClick={onClose}
             className="flex min-w-0 flex-1 items-center gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
             aria-label="Go to home"
-            title="Home"
+            title={businessName}
           >
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-600 text-white">
               <BookOpen className="h-5 w-5" aria-hidden />
             </span>
             <span className="truncate text-lg font-bold tracking-tight text-primary-600 dark:text-primary-400">
-              Ledger
+              {businessName}
             </span>
           </Link>
           <button

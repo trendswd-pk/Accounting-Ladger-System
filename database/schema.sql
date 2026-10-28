@@ -87,8 +87,13 @@ CREATE TABLE IF NOT EXISTS public.app_settings (
   business_name TEXT NOT NULL DEFAULT 'My Business',
   currency TEXT NOT NULL DEFAULT 'PKR',
   theme TEXT NOT NULL DEFAULT 'dark' CHECK (theme IN ('light', 'dark')),
+  default_entry_mode TEXT NOT NULL DEFAULT 'normal'
+    CHECK (default_entry_mode IN ('normal', 'transfer')),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE public.app_settings
+  ADD COLUMN IF NOT EXISTS default_entry_mode TEXT NOT NULL DEFAULT 'normal';
 
 ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
 
@@ -153,6 +158,7 @@ AS $$
         'business_name', s.business_name,
         'currency', s.currency,
         'theme', s.theme,
+        'default_entry_mode', COALESCE(s.default_entry_mode, 'normal'),
         'updated_at', s.updated_at
       )
       FROM public.app_settings s
@@ -163,6 +169,7 @@ AS $$
       'business_name', 'My Business',
       'currency', 'PKR',
       'theme', 'dark',
+      'default_entry_mode', 'normal',
       'updated_at', now()
     )
   );

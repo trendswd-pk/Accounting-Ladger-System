@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server'
-import { DEFAULT_APP_SETTINGS, mapAppSettingsRow } from '@/lib/appSettings'
+import {
+  DEFAULT_APP_SETTINGS,
+  mapAppSettingsRow,
+  normalizeDefaultEntryMode,
+} from '@/lib/appSettings'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
 
 export const dynamic = 'force-dynamic'
@@ -15,6 +19,7 @@ type RpcSettings = {
   business_name: string
   currency: string
   theme: string
+  default_entry_mode?: string | null
   updated_at?: string
 }
 
@@ -34,13 +39,26 @@ async function readSettingsRow() {
 
   if (!isMissingRpc(error)) throw new Error(error.message)
 
-  // Fallback until database/rpcs.sql is applied
+  // Fallback until RPC is applied
   const { data: row, error: selectError } = await admin
     .from('app_settings')
-    .select('business_name, currency, theme, updated_at')
+    .select('business_name, currency, theme, default_entry_mode, updated_at')
     .eq('id', 1)
     .maybeSingle()
-  if (selectError) throw new Error(selectError.message)
+  if (selectError) {
+    // Column may not exist yet — retry without it
+    if (/default_entry_mode/i.test(selectError.message)) {
+      const { data: legacy, error: legacyError } = await admin
+        .from('app_settings')
+        .select('business_name, currency, theme, updated_at')
+        .eq('id', 1)
+        .maybeSingle()
+      if (legacyError) throw new Error(legacyError.message)
+      if (legacy) return mapAppSettingsRow(legacy)
+      return { ...DEFAULT_APP_SETTINGS }
+    }
+    throw new Error(selectError.message)
+  }
   if (row) return mapAppSettingsRow(row)
   return { ...DEFAULT_APP_SETTINGS }
 }
@@ -60,6 +78,7 @@ async function ensureSettingsRow() {
     business_name: DEFAULT_APP_SETTINGS.businessName,
     currency: DEFAULT_APP_SETTINGS.currency,
     theme: DEFAULT_APP_SETTINGS.theme,
+    default_entry_mode: DEFAULT_APP_SETTINGS.defaultEntryMode,
   })
   if (insertError && insertError.code !== '23505') throw new Error(insertError.message)
 }
@@ -94,6 +113,9 @@ export async function PATCH(request: Request) {
       const theme = body.theme === 'light' ? 'light' : body.theme === 'dark' ? 'dark' : null
       if (!theme) return json({ error: 'Theme must be light or dark.' }, 400)
       patch.theme = theme
+    }
+    if (body.defaultEntryMode !== undefined) {
+      patch.default_entry_mode = normalizeDefaultEntryMode(body.defaultEntryMode)
     }
 
     await ensureSettingsRow()

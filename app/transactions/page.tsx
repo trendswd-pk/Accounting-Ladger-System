@@ -17,6 +17,12 @@ import SearchableSelect from '@/components/SearchableSelect'
 import { TablePaginationNav } from '@/components/TablePaginationNav'
 import { fetchAccounts, getCachedAccounts, type AccountRecord } from '@/lib/accounts'
 import {
+  DEFAULT_APP_SETTINGS,
+  fetchAppSettings,
+  getCachedAppSettings,
+  type DefaultEntryMode,
+} from '@/lib/appSettings'
+import {
   createTransaction,
   deleteTransaction,
   fetchTransactions,
@@ -31,7 +37,7 @@ import { DEFAULT_TABLE_PAGE_SIZE, TABLE_PAGE_SIZE_OPTIONS } from '@/lib/tablePag
 const inputClass =
   'w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500'
 
-type FormMode = 'normal' | 'transfer'
+type FormMode = DefaultEntryMode
 
 function todayISO(): string {
   const d = new Date()
@@ -82,7 +88,12 @@ export default function TransactionsPage() {
   const [detailRow, setDetailRow] = useState<
     (TransactionRecord & { runningBalance: number }) | null
   >(null)
-  const [formMode, setFormMode] = useState<FormMode>('normal')
+  const [defaultEntryMode, setDefaultEntryMode] = useState<FormMode>(
+    () => getCachedAppSettings()?.defaultEntryMode ?? DEFAULT_APP_SETTINGS.defaultEntryMode
+  )
+  const [formMode, setFormMode] = useState<FormMode>(
+    () => getCachedAppSettings()?.defaultEntryMode ?? DEFAULT_APP_SETTINGS.defaultEntryMode
+  )
   const [transactionDate, setTransactionDate] = useState(() => todayISO())
   const [accountId, setAccountId] = useState('')
   const [fromAccountId, setFromAccountId] = useState('')
@@ -127,6 +138,9 @@ export default function TransactionsPage() {
   useEffect(() => {
     void loadRows()
     void loadAccounts().catch(() => {})
+    void fetchAppSettings()
+      .then((s) => setDefaultEntryMode(s.defaultEntryMode))
+      .catch(() => {})
   }, [loadRows, loadAccounts])
 
   const filteredRows = useMemo(() => {
@@ -215,7 +229,7 @@ export default function TransactionsPage() {
   const openAdd = () => {
     setFormError(null)
     setEditingId(null)
-    setFormMode('normal')
+    setFormMode(defaultEntryMode)
     setTransactionDate(todayISO())
     setAccountId('')
     setFromAccountId('')
@@ -225,6 +239,9 @@ export default function TransactionsPage() {
     setBalance('')
     setModalOpen(true)
     void loadAccounts().catch(() => {})
+    void fetchAppSettings()
+      .then((s) => setDefaultEntryMode(s.defaultEntryMode))
+      .catch(() => {})
   }
 
   const openEdit = (row: TransactionRecord) => {

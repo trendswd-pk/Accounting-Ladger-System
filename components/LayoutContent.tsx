@@ -8,11 +8,20 @@ import Sidebar from './Sidebar'
 import RequestProfilerIcon from './RequestProfilerIcon'
 import RequestProfilerPanel from './RequestProfilerPanel'
 import ScrollToTopButton from './ScrollToTopButton'
+import {
+  DEFAULT_APP_SETTINGS,
+  fetchAppSettings,
+  getCachedAppSettings,
+  subscribeAppSettings,
+} from '@/lib/appSettings'
 
 export default function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [navOpen, setNavOpen] = useState(false)
   const [profilerOpen, setProfilerOpen] = useState(false)
+  const [businessName, setBusinessName] = useState(
+    () => getCachedAppSettings()?.businessName ?? DEFAULT_APP_SETTINGS.businessName
+  )
   const mainScrollRef = useRef<HTMLElement | null>(null)
   const isDev = process.env.NODE_ENV === 'development'
 
@@ -20,6 +29,20 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
     setNavOpen(false)
     setProfilerOpen(false)
   }, [pathname])
+
+  useEffect(() => {
+    let cancelled = false
+    void fetchAppSettings()
+      .then((s) => {
+        if (!cancelled) setBusinessName(s.businessName)
+      })
+      .catch(() => {})
+    const unsub = subscribeAppSettings((s) => setBusinessName(s.businessName))
+    return () => {
+      cancelled = true
+      unsub()
+    }
+  }, [])
 
   return (
     <div className="flex h-screen flex-col bg-gray-50 dark:bg-gray-900">
@@ -37,13 +60,13 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
           href="/"
           className="flex min-w-0 flex-1 items-center gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
           aria-label="Go to home"
-          title="Home"
+          title={businessName}
         >
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-600 text-white">
             <BookOpen className="h-4 w-4" aria-hidden />
           </span>
           <span className="truncate text-base font-bold text-primary-600 dark:text-primary-400">
-            Accounting Ledger
+            {businessName}
           </span>
         </Link>
         {isDev ? (

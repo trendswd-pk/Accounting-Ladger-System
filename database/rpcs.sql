@@ -20,6 +20,7 @@ AS $$
         'business_name', s.business_name,
         'currency', s.currency,
         'theme', s.theme,
+        'default_entry_mode', COALESCE(s.default_entry_mode, 'normal'),
         'updated_at', s.updated_at
       )
       FROM public.app_settings s
@@ -30,6 +31,7 @@ AS $$
       'business_name', 'My Business',
       'currency', 'PKR',
       'theme', 'dark',
+      'default_entry_mode', 'normal',
       'updated_at', now()
     )
   );

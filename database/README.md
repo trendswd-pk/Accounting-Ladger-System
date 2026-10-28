@@ -8,6 +8,7 @@ Run in **Supabase → SQL Editor** (safe to re-run):
 4. [`transactions-entry-type.sql`](transactions-entry-type.sql) — credit/debit column (if table already created)  
 5. [`transactions-narration.sql`](transactions-narration.sql) — narration/details column (if table already created)  
 6. [`accounts-balance.sql`](accounts-balance.sql) — account Balance from transactions (re-run `rpc_list_accounts`)  
+7. [`settings-default-entry-mode.sql`](settings-default-entry-mode.sql) — default Normal/Transfer entry mode in General settings  
    Or piece-wise: [`rpcs.sql`](rpcs.sql) + [`file-attachments.sql`](file-attachments.sql)
 
 ## Storage split
