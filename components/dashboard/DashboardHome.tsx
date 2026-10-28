@@ -229,18 +229,18 @@ export default function DashboardHome() {
       href: '/receivable',
     },
     {
-      name: 'Expenses',
-      value: ready ? formatMoney(expenseBalance, currency) : '—',
-      icon: Receipt,
-      valueClassName: ready ? balanceColorClass(expenseBalance) : undefined,
-      href: '/expenses',
-    },
-    {
       name: 'Investment',
       value: ready ? formatMoney(investBalance, currency) : '—',
       icon: Briefcase,
       valueClassName: ready ? balanceColorClass(investBalance) : undefined,
       href: '/investment',
+    },
+    {
+      name: 'Expenses',
+      value: ready ? formatMoney(expenseBalance, currency) : '—',
+      icon: Receipt,
+      valueClassName: ready ? balanceColorClass(expenseBalance) : undefined,
+      href: '/expenses',
     },
     {
       name: 'Today Expense',
