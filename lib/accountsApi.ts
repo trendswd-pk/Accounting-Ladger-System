@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
-import { mapAccountRow } from '@/lib/accounts'
+import { mapAccountRow, type AccountRecord } from '@/lib/accounts'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
+import { normalizeEntryType } from '@/lib/transactions'
 
 const NO_STORE = { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
 
@@ -28,6 +29,59 @@ type RpcRow = {
   cash_type_name: string
   cash_type_code: string
   created_at: string
+  balance?: number | string | null
+}
+
+type JoinRow = {
+  id: string
+  name: string
+  phone: string | null
+  account_type_id: string
+  cash_type_id: string
+  created_at: string
+  account_types: { name: string; code: string } | { name: string; code: string }[] | null
+  cash_types: { name: string; code: string } | { name: string; code: string }[] | null
+}
+
+async function loadBalancesByAccountId(): Promise<Map<string, number>> {
+  const admin = getSupabaseAdmin()
+  const { data, error } = await admin
+    .from('transactions')
+    .select('account_id, entry_type, balance')
+
+  const map = new Map<string, number>()
+  if (error) {
+    // Table/column may not exist yet — treat as zero balances.
+    return map
+  }
+
+  for (const row of data ?? []) {
+    const accountId = String((row as { account_id?: string }).account_id ?? '')
+    if (!accountId) continue
+    const entryType = normalizeEntryType((row as { entry_type?: string }).entry_type)
+    const amount = Math.abs(Number((row as { balance?: number | string }).balance) || 0)
+    const signed = entryType === 'debit' ? -amount : amount
+    map.set(accountId, (map.get(accountId) ?? 0) + signed)
+  }
+  return map
+}
+
+function mapJoinWithBalance(r: JoinRow, balance: number): AccountRecord {
+  const at = Array.isArray(r.account_types) ? r.account_types[0] : r.account_types
+  const ct = Array.isArray(r.cash_types) ? r.cash_types[0] : r.cash_types
+  return mapAccountRow({
+    id: r.id,
+    name: r.name,
+    phone: r.phone,
+    account_type_id: r.account_type_id,
+    cash_type_id: r.cash_type_id,
+    account_type_name: at?.name ?? '',
+    account_type_code: at?.code ?? '',
+    cash_type_name: ct?.name ?? '',
+    cash_type_code: ct?.code ?? '',
+    created_at: r.created_at,
+    balance,
+  })
 }
 
 async function listViaJoin() {
@@ -45,34 +99,9 @@ async function listViaJoin() {
 
   if (error) throw new Error(error.message)
 
-  type JoinRow = {
-    id: string
-    name: string
-    phone: string | null
-    account_type_id: string
-    cash_type_id: string
-    created_at: string
-    account_types: { name: string; code: string } | { name: string; code: string }[] | null
-    cash_types: { name: string; code: string } | { name: string; code: string }[] | null
-  }
-
+  const balances = await loadBalancesByAccountId()
   const rows = (data ?? []) as unknown as JoinRow[]
-  return rows.map((r) => {
-    const at = Array.isArray(r.account_types) ? r.account_types[0] : r.account_types
-    const ct = Array.isArray(r.cash_types) ? r.cash_types[0] : r.cash_types
-    return mapAccountRow({
-      id: r.id,
-      name: r.name,
-      phone: r.phone,
-      account_type_id: r.account_type_id,
-      cash_type_id: r.cash_type_id,
-      account_type_name: at?.name ?? '',
-      account_type_code: at?.code ?? '',
-      cash_type_name: ct?.name ?? '',
-      cash_type_code: ct?.code ?? '',
-      created_at: r.created_at,
-    })
-  })
+  return rows.map((r) => mapJoinWithBalance(r, balances.get(r.id) ?? 0))
 }
 
 async function fetchAccountItem(id: string) {
@@ -91,30 +120,8 @@ async function fetchAccountItem(id: string) {
 
   if (error) throw new Error(error.message)
 
-  const r = data as unknown as {
-    id: string
-    name: string
-    phone: string | null
-    account_type_id: string
-    cash_type_id: string
-    created_at: string
-    account_types: { name: string; code: string } | { name: string; code: string }[] | null
-    cash_types: { name: string; code: string } | { name: string; code: string }[] | null
-  }
-  const at = Array.isArray(r.account_types) ? r.account_types[0] : r.account_types
-  const ct = Array.isArray(r.cash_types) ? r.cash_types[0] : r.cash_types
-  return mapAccountRow({
-    id: r.id,
-    name: r.name,
-    phone: r.phone,
-    account_type_id: r.account_type_id,
-    cash_type_id: r.cash_type_id,
-    account_type_name: at?.name ?? '',
-    account_type_code: at?.code ?? '',
-    cash_type_name: ct?.name ?? '',
-    cash_type_code: ct?.code ?? '',
-    created_at: r.created_at,
-  })
+  const balances = await loadBalancesByAccountId()
+  return mapJoinWithBalance(data as unknown as JoinRow, balances.get(id) ?? 0)
 }
 
 export async function listAccounts() {
@@ -129,7 +136,14 @@ export async function listAccounts() {
       return json({ error: error.message }, 500)
     }
     const rows = (Array.isArray(data) ? data : []) as RpcRow[]
-    return json({ items: rows.map(mapAccountRow), via: 'rpc' })
+    const items = rows.map(mapAccountRow)
+    // Prefer live ledger totals so Balance stays correct even if RPC is outdated.
+    const balances = await loadBalancesByAccountId()
+    const withBalances = items.map((item) => ({
+      ...item,
+      balance: balances.get(item.id) ?? item.balance ?? 0,
+    }))
+    return json({ items: withBalances, via: 'rpc' })
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : 'Server error' }, 500)
   }

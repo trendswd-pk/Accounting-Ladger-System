@@ -1,3 +1,4 @@
+import { invalidateAccountsCache } from '@/lib/accounts'
 import { recordRequestDeduped } from '@/lib/requestProfiler'
 
 export type TransactionEntryType = 'credit' | 'debit'
@@ -109,6 +110,7 @@ export async function createTransaction(input: TransactionInput): Promise<Transa
   if (!res.ok) throw new Error(data.error || 'Failed to create transaction')
   const item = data.item as TransactionRecord
   cache = [item, ...(cache ?? [])]
+  invalidateAccountsCache()
   return item
 }
 
@@ -125,6 +127,7 @@ export async function updateTransaction(
   if (!res.ok) throw new Error(data.error || 'Failed to update transaction')
   const item = data.item as TransactionRecord
   cache = (cache ?? []).map((r) => (r.id === item.id ? item : r))
+  invalidateAccountsCache()
   return item
 }
 
@@ -133,4 +136,5 @@ export async function deleteTransaction(id: string): Promise<void> {
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error((data as { error?: string }).error || 'Failed to delete transaction')
   cache = (cache ?? []).filter((r) => r.id !== id)
+  invalidateAccountsCache()
 }

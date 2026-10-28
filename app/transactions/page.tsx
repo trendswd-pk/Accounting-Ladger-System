@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Info, Plus } from 'lucide-react'
+import { Info, Plus, Search } from 'lucide-react'
 import ActionsDropdown from '@/components/ActionsDropdown'
 import {
   FormModalBody,
@@ -30,6 +30,8 @@ import { DEFAULT_TABLE_PAGE_SIZE, TABLE_PAGE_SIZE_OPTIONS } from '@/lib/tablePag
 
 const inputClass =
   'w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500'
+
+type FormMode = 'normal' | 'transfer'
 
 function todayISO(): string {
   const d = new Date()
@@ -70,20 +72,32 @@ export default function TransactionsPage() {
   const [listError, setListError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [listPageSize, setListPageSize] = useState(DEFAULT_TABLE_PAGE_SIZE)
+  const [searchQuery, setSearchQuery] = useState('')
 
   const [accounts, setAccounts] = useState<AccountRecord[]>(() => getCachedAccounts() ?? [])
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [detailRow, setDetailRow] = useState<
+    (TransactionRecord & { runningBalance: number }) | null
+  >(null)
+  const [formMode, setFormMode] = useState<FormMode>('normal')
   const [transactionDate, setTransactionDate] = useState(() => todayISO())
   const [accountId, setAccountId] = useState('')
+  const [fromAccountId, setFromAccountId] = useState('')
+  const [toAccountId, setToAccountId] = useState('')
   const [narration, setNarration] = useState('')
   const [entryType, setEntryType] = useState<TransactionEntryType | ''>('')
   const [balance, setBalance] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [infoOpen, setInfoOpen] = useState(false)
+
+  const accountOptions = useMemo(
+    () => accounts.map((a) => ({ value: a.id, label: a.name })),
+    [accounts]
+  )
 
   const loadAccounts = useCallback(async () => {
     const items = await fetchAccounts()
@@ -115,14 +129,37 @@ export default function TransactionsPage() {
     void loadAccounts().catch(() => {})
   }, [loadRows, loadAccounts])
 
-  const totalItems = rows.length
+  const filteredRows = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return rows
+    return rows.filter((row) => {
+      const haystack = [
+        String(row.entryNumber),
+        row.transactionDate,
+        formatDisplayDate(row.transactionDate),
+        row.accountName,
+        row.narration,
+        row.entryType,
+        String(row.balance),
+      ]
+        .join(' ')
+        .toLowerCase()
+      return haystack.includes(q)
+    })
+  }, [rows, searchQuery])
+
+  const totalItems = filteredRows.length
   const totalPages = Math.max(1, Math.ceil(totalItems / listPageSize) || 1)
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages)
   }, [page, totalPages])
 
-  /** Chronological running balance: credit adds, debit subtracts. */
+  useEffect(() => {
+    setPage(1)
+  }, [searchQuery])
+
+  /** Chronological running balance: credit adds, debit subtracts (full ledger). */
   const runningBalanceById = useMemo(() => {
     const chronological = [...rows].sort((a, b) => {
       const byDate = a.transactionDate.localeCompare(b.transactionDate)
@@ -140,11 +177,11 @@ export default function TransactionsPage() {
 
   const pageRows = useMemo(() => {
     const start = (page - 1) * listPageSize
-    return rows.slice(start, start + listPageSize).map((row) => ({
+    return filteredRows.slice(start, start + listPageSize).map((row) => ({
       ...row,
       runningBalance: runningBalanceById.get(row.id) ?? row.balance,
     }))
-  }, [rows, page, listPageSize, runningBalanceById])
+  }, [filteredRows, page, listPageSize, runningBalanceById])
 
   const pageStartIndex = (page - 1) * listPageSize
 
@@ -178,8 +215,11 @@ export default function TransactionsPage() {
   const openAdd = () => {
     setFormError(null)
     setEditingId(null)
+    setFormMode('normal')
     setTransactionDate(todayISO())
     setAccountId('')
+    setFromAccountId('')
+    setToAccountId('')
     setNarration('')
     setEntryType('')
     setBalance('')
@@ -190,8 +230,11 @@ export default function TransactionsPage() {
   const openEdit = (row: TransactionRecord) => {
     setFormError(null)
     setEditingId(row.id)
+    setFormMode('normal')
     setTransactionDate(row.transactionDate)
     setAccountId(row.accountId)
+    setFromAccountId('')
+    setToAccountId('')
     setNarration(row.narration)
     setEntryType(row.entryType)
     setBalance(String(row.balance))
@@ -212,17 +255,9 @@ export default function TransactionsPage() {
       setFormError('Transaction date is required.')
       return
     }
-    if (!accountId) {
-      setFormError('Account is required.')
-      return
-    }
     const narrationTrim = narration.trim()
     if (!narrationTrim) {
       setFormError('Narration is required.')
-      return
-    }
-    if (entryType !== 'credit' && entryType !== 'debit') {
-      setFormError('Type is required. Select Credit or Debit.')
       return
     }
     const balanceTrim = balance.trim()
@@ -235,23 +270,73 @@ export default function TransactionsPage() {
       setFormError('Balance must be a valid number.')
       return
     }
+    const amount = Math.abs(balanceNum)
+
+    const isTransfer = !editingId && formMode === 'transfer'
+
+    if (isTransfer) {
+      if (!fromAccountId) {
+        setFormError('From account (out) is required.')
+        return
+      }
+      if (!toAccountId) {
+        setFormError('To account (in) is required.')
+        return
+      }
+      if (fromAccountId === toAccountId) {
+        setFormError('From and To accounts must be different.')
+        return
+      }
+    } else {
+      if (!accountId) {
+        setFormError('Account is required.')
+        return
+      }
+      if (entryType !== 'credit' && entryType !== 'debit') {
+        setFormError('Type is required. Select Credit or Debit.')
+        return
+      }
+    }
 
     setSubmitting(true)
     setFormError(null)
     setLoading(true)
-    const payload = {
-      transactionDate,
-      accountId,
-      narration: narrationTrim,
-      entryType,
-      balance: Math.abs(balanceNum),
-    }
     try {
       if (editingId) {
-        const item = await updateTransaction(editingId, payload)
+        const item = await updateTransaction(editingId, {
+          transactionDate,
+          accountId,
+          narration: narrationTrim,
+          entryType: entryType as TransactionEntryType,
+          balance: amount,
+        })
         setRows((prev) => prev.map((r) => (r.id === item.id ? item : r)))
+      } else if (isTransfer) {
+        // Two independent entries: debit from Out, credit to In (not linked).
+        const debitItem = await createTransaction({
+          transactionDate,
+          accountId: fromAccountId,
+          narration: narrationTrim,
+          entryType: 'debit',
+          balance: amount,
+        })
+        const creditItem = await createTransaction({
+          transactionDate,
+          accountId: toAccountId,
+          narration: narrationTrim,
+          entryType: 'credit',
+          balance: amount,
+        })
+        setRows((prev) => [creditItem, debitItem, ...prev])
+        setPage(1)
       } else {
-        const item = await createTransaction(payload)
+        const item = await createTransaction({
+          transactionDate,
+          accountId,
+          narration: narrationTrim,
+          entryType: entryType as TransactionEntryType,
+          balance: amount,
+        })
         setRows((prev) => [item, ...prev])
         setPage(1)
       }
@@ -297,55 +382,87 @@ export default function TransactionsPage() {
 
   return (
     <div className="p-4 lg:p-8">
-      <div className="mb-4 flex items-center justify-between gap-3 lg:mb-6">
-        <div className="flex min-w-0 items-center gap-2">
-          <h1 className="truncate text-2xl font-bold text-gray-800 dark:text-gray-100 lg:text-3xl">
-            Transactions
-          </h1>
-          <div className="relative shrink-0">
+      <div className="mb-4 space-y-3 lg:mb-6">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <h1 className="truncate text-2xl font-bold text-gray-800 dark:text-gray-100 lg:text-3xl">
+              Transactions
+            </h1>
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setInfoOpen((v) => !v)}
+                className={`rounded-full p-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                  infoOpen
+                    ? 'text-primary-600 dark:text-primary-400'
+                    : 'text-gray-400 hover:text-primary-600 dark:text-gray-500 dark:hover:text-primary-400'
+                }`}
+                aria-label="About Transactions"
+                aria-expanded={infoOpen}
+                aria-controls="transactions-info-popover"
+              >
+                <Info className="h-5 w-5" aria-hidden />
+              </button>
+              {infoOpen ? (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setInfoOpen(false)} aria-hidden />
+                  <div
+                    id="transactions-info-popover"
+                    role="dialog"
+                    className="absolute left-0 top-full z-50 mt-2 w-64 max-w-[min(16rem,calc(100vw-2rem))] rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                  >
+                    Add and manage ledger transactions against your accounts.
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <div className="relative hidden w-56 lg:block lg:w-64">
+              <Search
+                className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+                aria-hidden
+              />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search transactions…"
+                aria-label="Search transactions"
+                className="w-full rounded-md border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+              />
+            </div>
             <button
               type="button"
-              onClick={() => setInfoOpen((v) => !v)}
-              className={`rounded-full p-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                infoOpen
-                  ? 'text-primary-600 dark:text-primary-400'
-                  : 'text-gray-400 hover:text-primary-600 dark:text-gray-500 dark:hover:text-primary-400'
-              }`}
-              aria-label="About Transactions"
-              aria-expanded={infoOpen}
-              aria-controls="transactions-info-popover"
+              onClick={openAdd}
+              className="rounded-md bg-primary-600 p-2.5 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 lg:hidden"
+              aria-label="Add Transaction"
             >
-              <Info className="h-5 w-5" aria-hidden />
+              <Plus className="h-5 w-5" />
             </button>
-            {infoOpen ? (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setInfoOpen(false)} aria-hidden />
-                <div
-                  id="transactions-info-popover"
-                  role="dialog"
-                  className="absolute left-0 top-full z-50 mt-2 w-64 max-w-[min(16rem,calc(100vw-2rem))] rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
-                >
-                  Add and manage ledger transactions against your accounts.
-                </div>
-              </>
-            ) : null}
+            <button
+              type="button"
+              onClick={openAdd}
+              className="hidden rounded-md bg-primary-600 px-4 py-2 font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 lg:inline-flex"
+            >
+              Add
+            </button>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={openAdd}
-          className="shrink-0 rounded-md bg-primary-600 p-2.5 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 lg:hidden"
-          aria-label="Add Transaction"
-        >
-          <Plus className="h-5 w-5" />
-        </button>
-        <button
-          type="button"
-          onClick={openAdd}
-          className="hidden rounded-md bg-primary-600 px-4 py-2 font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 lg:inline-flex"
-        >
-          Add
-        </button>
+        <div className="relative lg:hidden">
+          <Search
+            className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+            aria-hidden
+          />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search transactions…"
+            aria-label="Search transactions"
+            className="w-full rounded-md border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+          />
+        </div>
       </div>
 
       {listError ? (
@@ -373,11 +490,24 @@ export default function TransactionsPage() {
           <div className="rounded-xl border border-gray-100 bg-white px-4 py-8 text-center text-sm text-gray-500 shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
             No transactions yet. Tap + to add one.
           </div>
+        ) : filteredRows.length === 0 ? (
+          <div className="rounded-xl border border-gray-100 bg-white px-4 py-8 text-center text-sm text-gray-500 shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+            No transactions match your search.
+          </div>
         ) : (
           pageRows.map((row) => (
             <article
               key={row.id}
-              className="rounded-xl border border-gray-100 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
+              role="button"
+              tabIndex={0}
+              onClick={() => setDetailRow(row)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  setDetailRow(row)
+                }
+              }}
+              className="cursor-pointer rounded-xl border border-gray-100 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
             >
               <div className="mb-3 flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
@@ -395,13 +525,13 @@ export default function TransactionsPage() {
                     </span>
                   </div>
                 </div>
-                {actionsFor(row)}
+                <div onClick={(e) => e.stopPropagation()}>{actionsFor(row)}</div>
               </div>
               <div className="mb-3">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   Narration
                 </p>
-                <p className="mt-0.5 text-sm text-gray-700 dark:text-gray-200">
+                <p className="mt-0.5 truncate text-sm text-gray-700 dark:text-gray-200">
                   {row.narration.trim() ? row.narration : '—'}
                 </p>
               </div>
@@ -480,9 +610,30 @@ export default function TransactionsPage() {
                     No transactions yet. Click Add to create one.
                   </td>
                 </tr>
+              ) : filteredRows.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
+                  >
+                    No transactions match your search.
+                  </td>
+                </tr>
               ) : (
                 pageRows.map((row) => (
-                  <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/40">
+                  <tr
+                    key={row.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setDetailRow(row)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        setDetailRow(row)
+                      }
+                    }}
+                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40"
+                  >
                     <td className="whitespace-nowrap px-4 py-3 text-sm tabular-nums text-gray-500 dark:text-gray-400">
                       {row.entryNumber}
                     </td>
@@ -492,10 +643,8 @@ export default function TransactionsPage() {
                     <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
                       {row.accountName}
                     </td>
-                    <td className="max-w-[16rem] px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
-                      <span className="line-clamp-2" title={row.narration}>
-                        {row.narration || '—'}
-                      </span>
+                    <td className="max-w-[12rem] truncate px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
+                      {row.narration || '—'}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm">
                       <span
@@ -513,7 +662,12 @@ export default function TransactionsPage() {
                     <td className="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums font-medium text-gray-900 dark:text-gray-100">
                       {formatBalance(row.runningBalance)}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right">{actionsFor(row)}</td>
+                    <td
+                      className="whitespace-nowrap px-4 py-3 text-right"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {actionsFor(row)}
+                    </td>
                   </tr>
                 ))
               )}
@@ -548,6 +702,46 @@ export default function TransactionsPage() {
                 onSubmit={(e) => void handleSubmit(e)}
                 className="space-y-4"
               >
+                {!editingId ? (
+                  <div>
+                    <span className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Entry Mode
+                    </span>
+                    <div className="flex gap-2" role="group" aria-label="Entry mode">
+                      {(
+                        [
+                          { id: 'normal', label: 'Normal Entry' },
+                          { id: 'transfer', label: 'Transfer' },
+                        ] as const
+                      ).map((option) => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          aria-pressed={formMode === option.id}
+                          onClick={() => {
+                            setFormMode(option.id)
+                            setFormError(null)
+                            if (option.id === 'transfer') {
+                              setAccountId('')
+                              setEntryType('')
+                            } else {
+                              setFromAccountId('')
+                              setToAccountId('')
+                            }
+                          }}
+                          className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                            formMode === option.id
+                              ? 'border-primary-600 bg-primary-50 text-primary-800 dark:bg-primary-900/40 dark:text-primary-200'
+                              : 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
                 <div>
                   <label
                     htmlFor="txn-date"
@@ -564,30 +758,88 @@ export default function TransactionsPage() {
                     className={inputClass}
                   />
                 </div>
-                <div>
-                  <label
-                    htmlFor="txn-account"
-                    className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                  >
-                    Account Name <span className="text-red-500">*</span>
-                  </label>
-                  <SearchableSelect
-                    key={editingId ?? 'add'}
-                    id="txn-account"
-                    required
-                    value={accountId}
-                    onChange={setAccountId}
-                    options={accounts.map((a) => ({ value: a.id, label: a.name }))}
-                    placeholder="Search account…"
-                    emptyMessage={accounts.length === 0 ? 'No accounts yet' : 'No matches'}
-                    className={inputClass}
-                  />
-                  {accounts.length === 0 ? (
-                    <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                      No accounts yet. Add them under Accounts first.
-                    </p>
-                  ) : null}
-                </div>
+
+                {formMode === 'transfer' && !editingId ? (
+                  <>
+                    <div>
+                      <label
+                        htmlFor="txn-to-account"
+                        className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                      >
+                        To Account (In) <span className="text-red-500">*</span>
+                      </label>
+                      <SearchableSelect
+                        key="to-account"
+                        id="txn-to-account"
+                        required
+                        value={toAccountId}
+                        onChange={(id) => {
+                          setToAccountId(id)
+                          if (id && id === fromAccountId) setFromAccountId('')
+                        }}
+                        options={accountOptions.filter((o) => o.value !== fromAccountId)}
+                        placeholder="Search to account…"
+                        emptyMessage={accounts.length === 0 ? 'No accounts yet' : 'No matches'}
+                        className={inputClass}
+                      />
+                      <p className="mt-1 text-xs text-green-700 dark:text-green-400">
+                        Saved as Credit on this account
+                      </p>
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="txn-from-account"
+                        className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                      >
+                        From Account (Out) <span className="text-red-500">*</span>
+                      </label>
+                      <SearchableSelect
+                        key="from-account"
+                        id="txn-from-account"
+                        required
+                        value={fromAccountId}
+                        onChange={(id) => {
+                          setFromAccountId(id)
+                          if (id && id === toAccountId) setToAccountId('')
+                        }}
+                        options={accountOptions.filter((o) => o.value !== toAccountId)}
+                        placeholder="Search from account…"
+                        emptyMessage={accounts.length === 0 ? 'No accounts yet' : 'No matches'}
+                        className={inputClass}
+                      />
+                      <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                        Saved as Debit on this account
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <label
+                      htmlFor="txn-account"
+                      className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      Account Name <span className="text-red-500">*</span>
+                    </label>
+                    <SearchableSelect
+                      key={editingId ?? 'add-account'}
+                      id="txn-account"
+                      required
+                      value={accountId}
+                      onChange={setAccountId}
+                      options={accountOptions}
+                      placeholder="Search account…"
+                      emptyMessage={accounts.length === 0 ? 'No accounts yet' : 'No matches'}
+                      className={inputClass}
+                    />
+                  </div>
+                )}
+
+                {accounts.length === 0 ? (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    No accounts yet. Add them under Accounts first.
+                  </p>
+                ) : null}
+
                 <div>
                   <label
                     htmlFor="txn-narration"
@@ -605,30 +857,34 @@ export default function TransactionsPage() {
                     placeholder="Enter details…"
                   />
                 </div>
-                <div>
-                  <span className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Type <span className="text-red-500">*</span>
-                  </span>
-                  <div className="flex gap-2" role="group" aria-label="Entry type">
-                    {(['credit', 'debit'] as const).map((option) => (
-                      <button
-                        key={option}
-                        type="button"
-                        aria-pressed={entryType === option}
-                        onClick={() => setEntryType(option)}
-                        className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium capitalize transition-colors ${
-                          entryType === option
-                            ? option === 'credit'
-                              ? 'border-green-600 bg-green-50 text-green-800 dark:bg-green-900/40 dark:text-green-300'
-                              : 'border-red-600 bg-red-50 text-red-800 dark:bg-red-900/40 dark:text-red-300'
-                            : 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700'
-                        }`}
-                      >
-                        {option}
-                      </button>
-                    ))}
+
+                {formMode === 'normal' || editingId ? (
+                  <div>
+                    <span className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Type <span className="text-red-500">*</span>
+                    </span>
+                    <div className="flex gap-2" role="group" aria-label="Entry type">
+                      {(['credit', 'debit'] as const).map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          aria-pressed={entryType === option}
+                          onClick={() => setEntryType(option)}
+                          className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium capitalize transition-colors ${
+                            entryType === option
+                              ? option === 'credit'
+                                ? 'border-green-600 bg-green-50 text-green-800 dark:bg-green-900/40 dark:text-green-300'
+                                : 'border-red-600 bg-red-50 text-red-800 dark:bg-red-900/40 dark:text-red-300'
+                              : 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700'
+                          }`}
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                ) : null}
+
                 <div>
                   <label
                     htmlFor="txn-balance"
@@ -667,6 +923,104 @@ export default function TransactionsPage() {
                 className={formModalSecondaryButtonClass}
               >
                 Cancel
+              </button>
+            </FormModalFooter>
+          </div>
+        </div>
+      )}
+
+      {detailRow && (
+        <div
+          className={formModalOverlayClass}
+          onClick={() => setDetailRow(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="transaction-detail-title"
+        >
+          <div className={`${formModalPanelClass} max-w-md`} onClick={(e) => e.stopPropagation()}>
+            <FormModalHeader
+              titleId="transaction-detail-title"
+              title={
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="truncate">{detailRow.accountName}</span>
+                  <span
+                    className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium capitalize ${entryTypeBadgeClass(detailRow.entryType)}`}
+                  >
+                    {detailRow.entryType}
+                  </span>
+                </span>
+              }
+              onClose={() => setDetailRow(null)}
+            />
+            <FormModalBody>
+              <dl className="space-y-3 text-sm">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                      Transaction Date
+                    </dt>
+                    <dd className="mt-0.5 text-gray-900 dark:text-gray-100">
+                      {formatDisplayDate(detailRow.transactionDate)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                      SR.
+                    </dt>
+                    <dd className="mt-0.5 tabular-nums text-gray-900 dark:text-gray-100">
+                      {detailRow.entryNumber}
+                    </dd>
+                  </div>
+                </div>
+                <div>
+                  <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    Narration
+                  </dt>
+                  <dd className="mt-0.5 whitespace-pre-wrap break-words text-gray-800 dark:text-gray-200">
+                    {detailRow.narration.trim() ? detailRow.narration : '—'}
+                  </dd>
+                </div>
+                <div className="grid grid-cols-2 items-start gap-3">
+                  <div>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                      Balance
+                    </dt>
+                    <dd
+                      className={`mt-0.5 tabular-nums font-medium ${amountColorClass(detailRow.entryType)}`}
+                    >
+                      {detailRow.entryType === 'debit' ? '−' : '+'}
+                      {formatBalance(Math.abs(detailRow.balance))}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                      Running Balance
+                    </dt>
+                    <dd className="mt-0.5 tabular-nums font-medium text-gray-900 dark:text-gray-100">
+                      {formatBalance(detailRow.runningBalance)}
+                    </dd>
+                  </div>
+                </div>
+              </dl>
+            </FormModalBody>
+            <FormModalFooter className="justify-center sm:justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  const row = detailRow
+                  setDetailRow(null)
+                  openEdit(row)
+                }}
+                className={`${formModalPrimaryButtonClass} flex-none`}
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => setDetailRow(null)}
+                className={`${formModalSecondaryButtonClass} flex-none`}
+              >
+                Close
               </button>
             </FormModalFooter>
           </div>

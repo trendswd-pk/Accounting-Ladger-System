@@ -2,7 +2,7 @@
 -- Accounts (Dashboard → Accounts)
 -- =============================================================================
 -- Run in Supabase → SQL Editor after account_types + cash_types exist.
--- Balance is not stored — computed later from ledger entries.
+-- Balance is not stored — computed from transactions (credit +, debit −).
 -- =============================================================================
 
 CREATE TABLE IF NOT EXISTS public.accounts (
@@ -59,7 +59,18 @@ AS $$
         'account_type_code', at.code,
         'cash_type_name', ct.name,
         'cash_type_code', ct.code,
-        'created_at', a.created_at
+        'created_at', a.created_at,
+        'balance', COALESCE((
+          SELECT SUM(
+            CASE
+              WHEN LOWER(COALESCE(t.entry_type, 'credit')) = 'debit'
+                THEN -ABS(t.balance)
+              ELSE ABS(t.balance)
+            END
+          )
+          FROM public.transactions t
+          WHERE t.account_id = a.id
+        ), 0)
       )
       ORDER BY a.created_at ASC, a.name ASC
     ),

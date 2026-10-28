@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Info, Plus } from 'lucide-react'
+import { Info, Phone, Plus, Search } from 'lucide-react'
 import ActionsDropdown from '@/components/ActionsDropdown'
 import {
   FormModalBody,
@@ -40,6 +40,7 @@ export default function AccountsPage() {
   const [listError, setListError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [listPageSize, setListPageSize] = useState(DEFAULT_TABLE_PAGE_SIZE)
+  const [searchQuery, setSearchQuery] = useState('')
 
   const [accountTypes, setAccountTypes] = useState<SetupTypeRecord[]>(
     () => getCachedSetupTypes('account-types') ?? []
@@ -69,16 +70,10 @@ export default function AccountsPage() {
   }, [])
 
   const loadRows = useCallback(async () => {
-    const hit = getCachedAccounts()
-    if (hit) {
-      setRows(hit)
-      setReady(true)
-      setListError(null)
-      return
-    }
     setListError(null)
     try {
-      const items = await fetchAccounts()
+      // Always refresh so Balance stays in sync with transactions.
+      const items = await fetchAccounts({ force: true })
       setRows(items)
     } catch (err) {
       setRows([])
@@ -93,17 +88,38 @@ export default function AccountsPage() {
     void loadLookups().catch(() => {})
   }, [loadRows, loadLookups])
 
-  const totalItems = rows.length
+  const filteredRows = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return rows
+    return rows.filter((row) => {
+      const haystack = [
+        row.name,
+        row.phone,
+        row.accountTypeName,
+        row.cashTypeName,
+        String(row.balance),
+      ]
+        .join(' ')
+        .toLowerCase()
+      return haystack.includes(q)
+    })
+  }, [rows, searchQuery])
+
+  const totalItems = filteredRows.length
   const totalPages = Math.max(1, Math.ceil(totalItems / listPageSize) || 1)
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages)
   }, [page, totalPages])
 
+  useEffect(() => {
+    setPage(1)
+  }, [searchQuery])
+
   const pageRows = useMemo(() => {
     const start = (page - 1) * listPageSize
-    return rows.slice(start, start + listPageSize)
-  }, [rows, page, listPageSize])
+    return filteredRows.slice(start, start + listPageSize)
+  }, [filteredRows, page, listPageSize])
 
   const pageStartIndex = (page - 1) * listPageSize
 
@@ -226,9 +242,17 @@ export default function AccountsPage() {
     }
   }
 
-  const formatBalance = (balance: number | null) => {
-    if (balance == null) return '—'
-    return balance.toLocaleString('en-PK')
+  const formatBalance = (balance: number) => {
+    return balance.toLocaleString('en-PK', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    })
+  }
+
+  const balanceColorClass = (balance: number) => {
+    if (balance > 0) return 'text-green-700 dark:text-green-400'
+    if (balance < 0) return 'text-red-700 dark:text-red-400'
+    return 'text-gray-800 dark:text-gray-200'
   }
 
   const actionsFor = (row: AccountRecord) => (
@@ -252,59 +276,91 @@ export default function AccountsPage() {
 
   return (
     <div className="p-4 lg:p-8">
-      <div className="mb-4 flex items-center justify-between gap-3 lg:mb-6">
-        <div className="flex min-w-0 items-center gap-2">
-          <h1 className="truncate text-2xl font-bold text-gray-800 dark:text-gray-100 lg:text-3xl">
-            Accounts
-          </h1>
-          <div className="relative shrink-0">
+      <div className="mb-4 space-y-3 lg:mb-6">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <h1 className="truncate text-2xl font-bold text-gray-800 dark:text-gray-100 lg:text-3xl">
+              Accounts
+            </h1>
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setInfoOpen((v) => !v)}
+                className={`rounded-full p-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                  infoOpen
+                    ? 'text-primary-600 dark:text-primary-400'
+                    : 'text-gray-400 hover:text-primary-600 dark:text-gray-500 dark:hover:text-primary-400'
+                }`}
+                aria-label="About Accounts"
+                aria-expanded={infoOpen}
+                aria-controls="accounts-info-popover"
+              >
+                <Info className="h-5 w-5" aria-hidden />
+              </button>
+              {infoOpen ? (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setInfoOpen(false)}
+                    aria-hidden
+                  />
+                  <div
+                    id="accounts-info-popover"
+                    role="dialog"
+                    className="absolute left-0 top-full z-50 mt-2 w-64 max-w-[min(16rem,calc(100vw-2rem))] rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                  >
+                    Add and manage your ledger accounts here.
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <div className="relative hidden w-56 lg:block lg:w-64">
+              <Search
+                className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+                aria-hidden
+              />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search accounts…"
+                aria-label="Search accounts"
+                className="w-full rounded-md border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+              />
+            </div>
             <button
               type="button"
-              onClick={() => setInfoOpen((v) => !v)}
-              className={`rounded-full p-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                infoOpen
-                  ? 'text-primary-600 dark:text-primary-400'
-                  : 'text-gray-400 hover:text-primary-600 dark:text-gray-500 dark:hover:text-primary-400'
-              }`}
-              aria-label="About Accounts"
-              aria-expanded={infoOpen}
-              aria-controls="accounts-info-popover"
+              onClick={openAdd}
+              className="rounded-md bg-primary-600 p-2.5 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 lg:hidden"
+              aria-label="Add Account"
             >
-              <Info className="h-5 w-5" aria-hidden />
+              <Plus className="h-5 w-5" />
             </button>
-            {infoOpen ? (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setInfoOpen(false)}
-                  aria-hidden
-                />
-                <div
-                  id="accounts-info-popover"
-                  role="dialog"
-                  className="absolute left-0 top-full z-50 mt-2 w-64 max-w-[min(16rem,calc(100vw-2rem))] rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
-                >
-                  Add and manage your ledger accounts here.
-                </div>
-              </>
-            ) : null}
+            <button
+              type="button"
+              onClick={openAdd}
+              className="hidden rounded-md bg-primary-600 px-4 py-2 font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 lg:inline-flex"
+            >
+              Add
+            </button>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={openAdd}
-          className="shrink-0 rounded-md bg-primary-600 p-2.5 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 lg:hidden"
-          aria-label="Add Account"
-        >
-          <Plus className="h-5 w-5" />
-        </button>
-        <button
-          type="button"
-          onClick={openAdd}
-          className="hidden rounded-md bg-primary-600 px-4 py-2 font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 lg:inline-flex"
-        >
-          Add Account
-        </button>
+        <div className="relative lg:hidden">
+          <Search
+            className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+            aria-hidden
+          />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search accounts…"
+            aria-label="Search accounts"
+            className="w-full rounded-md border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+          />
+        </div>
       </div>
 
       {listError ? (
@@ -332,54 +388,60 @@ export default function AccountsPage() {
           <div className="rounded-xl border border-gray-100 bg-white px-4 py-8 text-center text-sm text-gray-500 shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
             No accounts yet. Tap + to add one.
           </div>
+        ) : filteredRows.length === 0 ? (
+          <div className="rounded-xl border border-gray-100 bg-white px-4 py-8 text-center text-sm text-gray-500 shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+            No accounts match your search.
+          </div>
         ) : (
-          pageRows.map((row, index) => (
-            <article
-              key={row.id}
-              className="rounded-xl border border-gray-100 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
-            >
-              <div className="mb-3 flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-                    SR. {pageStartIndex + index + 1}
-                  </p>
-                  <h2 className="mt-0.5 truncate text-base font-semibold text-gray-900 dark:text-gray-100">
-                    {row.name}
-                  </h2>
-                  <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-                    {row.phone || '—'}
-                  </p>
+          pageRows.map((row) => {
+            const phoneDigits = row.phone.replace(/[^\d+]/g, '')
+            return (
+              <article
+                key={row.id}
+                className="rounded-xl border border-gray-100 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
+              >
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="truncate text-base font-semibold text-gray-900 dark:text-gray-100">
+                      {row.name}
+                    </h2>
+                    {row.phone ? (
+                      <a
+                        href={`tel:${phoneDigits}`}
+                        className="mt-1 inline-flex items-center gap-1.5 text-sm text-primary-600 hover:underline dark:text-primary-400"
+                      >
+                        <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                        {row.phone}
+                      </a>
+                    ) : (
+                      <p className="mt-1 text-sm text-gray-400">—</p>
+                    )}
+                  </div>
+                  {actionsFor(row)}
                 </div>
-                {actionsFor(row)}
-              </div>
-              <dl className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    ACC Type
-                  </dt>
-                  <dd className="mt-0.5 text-gray-800 dark:text-gray-200">
-                    {row.accountTypeName}
-                  </dd>
+                <div className="flex items-end justify-between gap-3 text-sm">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                      Type
+                    </p>
+                    <p className="mt-0.5 truncate text-gray-800 dark:text-gray-200">
+                      {row.accountTypeName}
+                      {row.accountTypeName && row.cashTypeName ? ' · ' : ''}
+                      {row.cashTypeName}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                      Balance
+                    </p>
+                    <p className={`mt-0.5 tabular-nums font-medium ${balanceColorClass(row.balance)}`}>
+                      {formatBalance(row.balance)}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    Cash Type
-                  </dt>
-                  <dd className="mt-0.5 text-gray-800 dark:text-gray-200">
-                    {row.cashTypeName}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    Balance
-                  </dt>
-                  <dd className="mt-0.5 tabular-nums text-gray-800 dark:text-gray-200">
-                    {formatBalance(row.balance)}
-                  </dd>
-                </div>
-              </dl>
-            </article>
-          ))
+              </article>
+            )
+          })
         )}
         <div className="lg:hidden">{paginationBar}</div>
       </div>
@@ -423,7 +485,13 @@ export default function AccountsPage() {
               ) : rows.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                    No accounts yet. Click Add Account to create one.
+                    No accounts yet. Click Add to create one.
+                  </td>
+                </tr>
+              ) : filteredRows.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                    No accounts match your search.
                   </td>
                 </tr>
               ) : (
@@ -444,7 +512,9 @@ export default function AccountsPage() {
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                       {row.cashTypeName}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-gray-600 dark:text-gray-300">
+                    <td
+                      className={`whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums font-medium ${balanceColorClass(row.balance)}`}
+                    >
                       {formatBalance(row.balance)}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right">{actionsFor(row)}</td>

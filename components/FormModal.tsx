@@ -56,6 +56,12 @@ export function FormModalBody({ children }: { children: ReactNode }) {
   return <div className={formModalBodyClass}>{children}</div>
 }
 
-export function FormModalFooter({ children }: { children: ReactNode }) {
-  return <div className={formModalFooterClass}>{children}</div>
+export function FormModalFooter({
+  children,
+  className = '',
+}: {
+  children: ReactNode
+  className?: string
+}) {
+  return <div className={`${formModalFooterClass} ${className}`.trim()}>{children}</div>
 }

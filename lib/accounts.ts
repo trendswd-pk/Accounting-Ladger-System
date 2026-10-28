@@ -11,8 +11,8 @@ export type AccountRecord = {
   cashTypeName: string
   cashTypeCode: string
   createdAt: string
-  /** Placeholder until ledger entries compute it. */
-  balance: number | null
+  /** Net from transactions: credit +, debit −. */
+  balance: number
 }
 
 type RpcRow = {
@@ -26,6 +26,7 @@ type RpcRow = {
   cash_type_name: string
   cash_type_code: string
   created_at: string
+  balance?: number | string | null
 }
 
 const ENDPOINT = '/api/accounts'
@@ -33,6 +34,11 @@ let cache: AccountRecord[] | null = null
 let inflight: Promise<AccountRecord[]> | null = null
 
 export function mapAccountRow(row: RpcRow): AccountRecord {
+  const balanceRaw = row.balance
+  const balance =
+    balanceRaw == null || balanceRaw === ''
+      ? 0
+      : Number(balanceRaw) || 0
   return {
     id: row.id,
     name: row.name,
@@ -44,7 +50,7 @@ export function mapAccountRow(row: RpcRow): AccountRecord {
     cashTypeName: row.cash_type_name,
     cashTypeCode: row.cash_type_code,
     createdAt: row.created_at,
-    balance: null,
+    balance,
   }
 }
 
