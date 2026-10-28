@@ -8,6 +8,7 @@ export type TransactionRecord = {
   transactionDate: string
   accountId: string
   accountName: string
+  narration: string
   entryType: TransactionEntryType
   balance: number
   createdAt: string
@@ -19,6 +20,7 @@ type RpcRow = {
   transaction_date: string
   account_id: string
   account_name: string
+  narration?: string | null
   entry_type?: string | null
   balance: number | string
   created_at: string
@@ -39,6 +41,7 @@ export function mapTransactionRow(row: RpcRow): TransactionRecord {
     transactionDate: String(row.transaction_date).slice(0, 10),
     accountId: row.account_id,
     accountName: row.account_name,
+    narration: String(row.narration ?? ''),
     entryType: normalizeEntryType(row.entry_type),
     balance: Number(row.balance) || 0,
     createdAt: row.created_at,
@@ -91,6 +94,7 @@ export async function fetchTransactions(options?: { force?: boolean }): Promise<
 export type TransactionInput = {
   transactionDate: string
   accountId: string
+  narration: string
   entryType: TransactionEntryType
   balance: number
 }

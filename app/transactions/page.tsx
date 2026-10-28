@@ -13,6 +13,7 @@ import {
   formModalPrimaryButtonClass,
   formModalSecondaryButtonClass,
 } from '@/components/FormModal'
+import SearchableSelect from '@/components/SearchableSelect'
 import { TablePaginationNav } from '@/components/TablePaginationNav'
 import { fetchAccounts, getCachedAccounts, type AccountRecord } from '@/lib/accounts'
 import {
@@ -77,7 +78,8 @@ export default function TransactionsPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [transactionDate, setTransactionDate] = useState(() => todayISO())
   const [accountId, setAccountId] = useState('')
-  const [entryType, setEntryType] = useState<TransactionEntryType>('credit')
+  const [narration, setNarration] = useState('')
+  const [entryType, setEntryType] = useState<TransactionEntryType | ''>('')
   const [balance, setBalance] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -148,32 +150,27 @@ export default function TransactionsPage() {
 
   const paginationBar =
     totalItems > 0 ? (
-      <div className="mt-4 flex flex-col items-center justify-between gap-4 rounded-xl border border-gray-100 bg-white px-4 py-4 shadow-md dark:border-gray-700 dark:bg-gray-800 sm:flex-row lg:mt-0 lg:rounded-none lg:border-0 lg:border-t lg:border-gray-200 lg:bg-transparent lg:shadow-none dark:lg:border-gray-700 lg:dark:bg-transparent">
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-            <span className="whitespace-nowrap">Records per page</span>
-            <select
-              value={listPageSize}
-              onChange={(e) => {
-                setListPageSize(Number(e.target.value))
-                setPage(1)
-              }}
-              className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
-              aria-label="Records per page"
-            >
-              {TABLE_PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <div className="flex flex-wrap items-center justify-center gap-1 sm:justify-end">
-          <span className="mr-2 text-sm tabular-nums text-gray-600 dark:text-gray-400">
+      <div className="mt-4 flex flex-nowrap items-center justify-between gap-2 rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-md dark:border-gray-700 dark:bg-gray-800 lg:mt-0 lg:rounded-none lg:border-0 lg:border-t lg:border-gray-200 lg:bg-transparent lg:px-4 lg:shadow-none dark:lg:border-gray-700 lg:dark:bg-transparent">
+        <select
+          value={listPageSize}
+          onChange={(e) => {
+            setListPageSize(Number(e.target.value))
+            setPage(1)
+          }}
+          className="h-7 shrink-0 rounded-md border border-gray-300 bg-white px-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
+          aria-label="Records per page"
+        >
+          {TABLE_PAGE_SIZE_OPTIONS.map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </select>
+        <div className="flex min-w-0 flex-nowrap items-center justify-end gap-1">
+          <span className="mr-1 shrink-0 text-xs tabular-nums text-gray-600 dark:text-gray-400">
             {pageStartIndex + 1}–{Math.min(pageStartIndex + listPageSize, totalItems)} of {totalItems}
           </span>
-          <TablePaginationNav page={page} totalPages={totalPages} onPageChange={setPage} />
+          <TablePaginationNav page={page} totalPages={totalPages} onPageChange={setPage} size="sm" />
         </div>
       </div>
     ) : null
@@ -182,8 +179,9 @@ export default function TransactionsPage() {
     setFormError(null)
     setEditingId(null)
     setTransactionDate(todayISO())
-    setAccountId(accounts[0]?.id ?? '')
-    setEntryType('credit')
+    setAccountId('')
+    setNarration('')
+    setEntryType('')
     setBalance('')
     setModalOpen(true)
     void loadAccounts().catch(() => {})
@@ -194,6 +192,7 @@ export default function TransactionsPage() {
     setEditingId(row.id)
     setTransactionDate(row.transactionDate)
     setAccountId(row.accountId)
+    setNarration(row.narration)
     setEntryType(row.entryType)
     setBalance(String(row.balance))
     setModalOpen(true)
@@ -217,9 +216,23 @@ export default function TransactionsPage() {
       setFormError('Account is required.')
       return
     }
-    const balanceNum = Number(balance)
-    if (!Number.isFinite(balanceNum)) {
-      setFormError('Balance must be a number.')
+    const narrationTrim = narration.trim()
+    if (!narrationTrim) {
+      setFormError('Narration is required.')
+      return
+    }
+    if (entryType !== 'credit' && entryType !== 'debit') {
+      setFormError('Type is required. Select Credit or Debit.')
+      return
+    }
+    const balanceTrim = balance.trim()
+    if (!balanceTrim) {
+      setFormError('Balance is required.')
+      return
+    }
+    const balanceNum = Number(balanceTrim)
+    if (!Number.isFinite(balanceNum) || balanceNum < 0) {
+      setFormError('Balance must be a valid number.')
       return
     }
 
@@ -229,6 +242,7 @@ export default function TransactionsPage() {
     const payload = {
       transactionDate,
       accountId,
+      narration: narrationTrim,
       entryType,
       balance: Math.abs(balanceNum),
     }
@@ -330,7 +344,7 @@ export default function TransactionsPage() {
           onClick={openAdd}
           className="hidden rounded-md bg-primary-600 px-4 py-2 font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 lg:inline-flex"
         >
-          Add Transaction
+          Add
         </button>
       </div>
 
@@ -366,32 +380,32 @@ export default function TransactionsPage() {
               className="rounded-xl border border-gray-100 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
             >
               <div className="mb-3 flex items-start justify-between gap-3">
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-                    SR. {row.entryNumber}
+                    SR. {row.entryNumber} - {formatDisplayDate(row.transactionDate)}
                   </p>
-                  <h2 className="mt-0.5 truncate text-base font-semibold text-gray-900 dark:text-gray-100">
-                    {row.accountName}
-                  </h2>
-                  <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-                    {formatDisplayDate(row.transactionDate)}
-                  </p>
-                </div>
-                {actionsFor(row)}
-              </div>
-              <dl className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    Type
-                  </dt>
-                  <dd className="mt-0.5">
+                  <div className="mt-0.5 flex min-w-0 items-center gap-2">
+                    <h2 className="truncate text-base font-semibold text-gray-900 dark:text-gray-100">
+                      {row.accountName}
+                    </h2>
                     <span
-                      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${entryTypeBadgeClass(row.entryType)}`}
+                      className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium capitalize ${entryTypeBadgeClass(row.entryType)}`}
                     >
                       {row.entryType}
                     </span>
-                  </dd>
+                  </div>
                 </div>
+                {actionsFor(row)}
+              </div>
+              <div className="mb-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Narration
+                </p>
+                <p className="mt-0.5 text-sm text-gray-700 dark:text-gray-200">
+                  {row.narration.trim() ? row.narration : '—'}
+                </p>
+              </div>
+              <dl className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     Balance
@@ -432,6 +446,9 @@ export default function TransactionsPage() {
                   Account Name
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Narration
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   Type
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
@@ -450,17 +467,17 @@ export default function TransactionsPage() {
             >
               {!ready ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500">
+                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-500">
                     Loading…
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
-                    No transactions yet. Click Add Transaction to create one.
+                    No transactions yet. Click Add to create one.
                   </td>
                 </tr>
               ) : (
@@ -474,6 +491,11 @@ export default function TransactionsPage() {
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
                       {row.accountName}
+                    </td>
+                    <td className="max-w-[16rem] px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
+                      <span className="line-clamp-2" title={row.narration}>
+                        {row.narration || '—'}
+                      </span>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm">
                       <span
@@ -531,11 +553,12 @@ export default function TransactionsPage() {
                     htmlFor="txn-date"
                     className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
                   >
-                    Transaction Date
+                    Transaction Date <span className="text-red-500">*</span>
                   </label>
                   <input
                     id="txn-date"
                     type="date"
+                    required
                     value={transactionDate}
                     onChange={(e) => setTransactionDate(e.target.value)}
                     className={inputClass}
@@ -546,21 +569,19 @@ export default function TransactionsPage() {
                     htmlFor="txn-account"
                     className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
                   >
-                    Account Name
+                    Account Name <span className="text-red-500">*</span>
                   </label>
-                  <select
+                  <SearchableSelect
+                    key={editingId ?? 'add'}
                     id="txn-account"
+                    required
                     value={accountId}
-                    onChange={(e) => setAccountId(e.target.value)}
+                    onChange={setAccountId}
+                    options={accounts.map((a) => ({ value: a.id, label: a.name }))}
+                    placeholder="Search account…"
+                    emptyMessage={accounts.length === 0 ? 'No accounts yet' : 'No matches'}
                     className={inputClass}
-                  >
-                    <option value="">Select account…</option>
-                    {accounts.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name}
-                      </option>
-                    ))}
-                  </select>
+                  />
                   {accounts.length === 0 ? (
                     <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
                       No accounts yet. Add them under Accounts first.
@@ -568,14 +589,32 @@ export default function TransactionsPage() {
                   ) : null}
                 </div>
                 <div>
+                  <label
+                    htmlFor="txn-narration"
+                    className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    Narration <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    id="txn-narration"
+                    required
+                    rows={3}
+                    value={narration}
+                    onChange={(e) => setNarration(e.target.value)}
+                    className={inputClass}
+                    placeholder="Enter details…"
+                  />
+                </div>
+                <div>
                   <span className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Type
+                    Type <span className="text-red-500">*</span>
                   </span>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2" role="group" aria-label="Entry type">
                     {(['credit', 'debit'] as const).map((option) => (
                       <button
                         key={option}
                         type="button"
+                        aria-pressed={entryType === option}
                         onClick={() => setEntryType(option)}
                         className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium capitalize transition-colors ${
                           entryType === option
@@ -595,7 +634,7 @@ export default function TransactionsPage() {
                     htmlFor="txn-balance"
                     className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
                   >
-                    Balance
+                    Balance <span className="text-red-500">*</span>
                   </label>
                   <input
                     id="txn-balance"
@@ -603,10 +642,11 @@ export default function TransactionsPage() {
                     inputMode="decimal"
                     step="any"
                     min="0"
+                    required
                     value={balance}
                     onChange={(e) => setBalance(e.target.value)}
                     className={inputClass}
-                    placeholder="0"
+                    placeholder="Enter amount"
                   />
                 </div>
               </form>

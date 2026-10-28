@@ -35,7 +35,8 @@ AS $$
         'transaction_date', t.transaction_date,
         'account_id', t.account_id,
         'account_name', a.name,
-        'entry_type', t.entry_type,
+        'narration', COALESCE(t.narration, ''),
+        'entry_type', COALESCE(t.entry_type, 'credit'),
         'balance', t.balance,
         'created_at', t.created_at
       )

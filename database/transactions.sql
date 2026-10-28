@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS public.transactions (
   account_id UUID NOT NULL REFERENCES public.accounts (id) ON DELETE RESTRICT,
   entry_type TEXT NOT NULL DEFAULT 'credit'
     CHECK (entry_type IN ('credit', 'debit')),
+  narration TEXT NOT NULL DEFAULT '',
   balance NUMERIC(18, 2) NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -19,6 +20,9 @@ CREATE TABLE IF NOT EXISTS public.transactions (
 
 ALTER TABLE public.transactions
   ADD COLUMN IF NOT EXISTS entry_type TEXT NOT NULL DEFAULT 'credit';
+
+ALTER TABLE public.transactions
+  ADD COLUMN IF NOT EXISTS narration TEXT NOT NULL DEFAULT '';
 
 DO $$
 BEGIN
@@ -75,6 +79,7 @@ AS $$
         'transaction_date', t.transaction_date,
         'account_id', t.account_id,
         'account_name', a.name,
+        'narration', COALESCE(t.narration, ''),
         'entry_type', COALESCE(t.entry_type, 'credit'),
         'balance', t.balance,
         'created_at', t.created_at

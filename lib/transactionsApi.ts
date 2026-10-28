@@ -23,15 +23,43 @@ type RpcRow = {
   transaction_date: string
   account_id: string
   account_name: string
+  narration?: string | null
   entry_type?: string | null
   balance: number | string
   created_at: string
 }
 
 const SELECT_COLS = `
-  id, entry_number, transaction_date, account_id, entry_type, balance, created_at,
+  id, entry_number, transaction_date, account_id, narration, entry_type, balance, created_at,
   accounts ( name )
 `
+
+type JoinRow = {
+  id: string
+  entry_number: number | string
+  transaction_date: string
+  account_id: string
+  narration?: string | null
+  entry_type?: string | null
+  balance: number | string
+  created_at: string
+  accounts: { name: string } | { name: string }[] | null
+}
+
+function mapJoinRow(r: JoinRow) {
+  const acc = Array.isArray(r.accounts) ? r.accounts[0] : r.accounts
+  return mapTransactionRow({
+    id: r.id,
+    entry_number: r.entry_number,
+    transaction_date: r.transaction_date,
+    account_id: r.account_id,
+    account_name: acc?.name ?? '',
+    narration: r.narration,
+    entry_type: r.entry_type,
+    balance: r.balance,
+    created_at: r.created_at,
+  })
+}
 
 async function listViaJoin() {
   const admin = getSupabaseAdmin()
@@ -42,31 +70,8 @@ async function listViaJoin() {
 
   if (error) throw new Error(error.message)
 
-  type JoinRow = {
-    id: string
-    entry_number: number | string
-    transaction_date: string
-    account_id: string
-    entry_type?: string | null
-    balance: number | string
-    created_at: string
-    accounts: { name: string } | { name: string }[] | null
-  }
-
   const rows = (data ?? []) as unknown as JoinRow[]
-  return rows.map((r) => {
-    const acc = Array.isArray(r.accounts) ? r.accounts[0] : r.accounts
-    return mapTransactionRow({
-      id: r.id,
-      entry_number: r.entry_number,
-      transaction_date: r.transaction_date,
-      account_id: r.account_id,
-      account_name: acc?.name ?? '',
-      entry_type: r.entry_type,
-      balance: r.balance,
-      created_at: r.created_at,
-    })
-  })
+  return rows.map(mapJoinRow)
 }
 
 async function fetchTransactionItem(id: string) {
@@ -78,28 +83,7 @@ async function fetchTransactionItem(id: string) {
     .single()
 
   if (error) throw new Error(error.message)
-
-  const r = data as unknown as {
-    id: string
-    entry_number: number | string
-    transaction_date: string
-    account_id: string
-    entry_type?: string | null
-    balance: number | string
-    created_at: string
-    accounts: { name: string } | { name: string }[] | null
-  }
-  const acc = Array.isArray(r.accounts) ? r.accounts[0] : r.accounts
-  return mapTransactionRow({
-    id: r.id,
-    entry_number: r.entry_number,
-    transaction_date: r.transaction_date,
-    account_id: r.account_id,
-    account_name: acc?.name ?? '',
-    entry_type: r.entry_type,
-    balance: r.balance,
-    created_at: r.created_at,
-  })
+  return mapJoinRow(data as unknown as JoinRow)
 }
 
 export async function listTransactions() {
@@ -123,17 +107,20 @@ export async function listTransactions() {
 export async function createTransactionRow(body: {
   transactionDate?: string
   accountId?: string
+  narration?: string
   entryType?: string
   balance?: number | string
 }) {
   try {
     const transactionDate = String(body.transactionDate ?? '').trim().slice(0, 10)
     const accountId = String(body.accountId ?? '').trim()
+    const narration = String(body.narration ?? '').trim()
     const entryType = normalizeEntryType(body.entryType)
     const balance = Math.abs(Number(body.balance))
 
     if (!transactionDate) return json({ error: 'Transaction date is required.' }, 400)
     if (!accountId) return json({ error: 'Account is required.' }, 400)
+    if (!narration) return json({ error: 'Narration is required.' }, 400)
     if (!Number.isFinite(balance)) return json({ error: 'Balance must be a number.' }, 400)
 
     const admin = getSupabaseAdmin()
@@ -142,6 +129,7 @@ export async function createTransactionRow(body: {
       .insert({
         transaction_date: transactionDate,
         account_id: accountId,
+        narration,
         entry_type: entryType,
         balance,
       })
@@ -161,6 +149,7 @@ export async function updateTransactionRow(
   body: {
     transactionDate?: string
     accountId?: string
+    narration?: string
     entryType?: string
     balance?: number | string
   }
@@ -169,11 +158,13 @@ export async function updateTransactionRow(
     if (!id) return json({ error: 'Missing id.' }, 400)
     const transactionDate = String(body.transactionDate ?? '').trim().slice(0, 10)
     const accountId = String(body.accountId ?? '').trim()
+    const narration = String(body.narration ?? '').trim()
     const entryType = normalizeEntryType(body.entryType)
     const balance = Math.abs(Number(body.balance))
 
     if (!transactionDate) return json({ error: 'Transaction date is required.' }, 400)
     if (!accountId) return json({ error: 'Account is required.' }, 400)
+    if (!narration) return json({ error: 'Narration is required.' }, 400)
     if (!Number.isFinite(balance)) return json({ error: 'Balance must be a number.' }, 400)
 
     const admin = getSupabaseAdmin()
@@ -182,6 +173,7 @@ export async function updateTransactionRow(
       .update({
         transaction_date: transactionDate,
         account_id: accountId,
+        narration,
         entry_type: entryType,
         balance,
         updated_at: new Date().toISOString(),
