@@ -23,6 +23,13 @@ import {
   type AccountRecord,
 } from '@/lib/accounts'
 import {
+  DEFAULT_APP_SETTINGS,
+  fetchAppSettings,
+  getCachedAppSettings,
+  subscribeAppSettings,
+} from '@/lib/appSettings'
+import { formatMoney } from '@/lib/money'
+import {
   fetchSetupTypes,
   getCachedSetupTypes,
   type SetupTypeRecord,
@@ -59,6 +66,9 @@ export default function AccountsPage() {
   const [formError, setFormError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [infoOpen, setInfoOpen] = useState(false)
+  const [currency, setCurrency] = useState(
+    () => getCachedAppSettings()?.currency ?? DEFAULT_APP_SETTINGS.currency
+  )
 
   const loadLookups = useCallback(async () => {
     const [ats, cts] = await Promise.all([
@@ -86,6 +96,10 @@ export default function AccountsPage() {
   useEffect(() => {
     void loadRows()
     void loadLookups().catch(() => {})
+    void fetchAppSettings()
+      .then((s) => setCurrency(s.currency))
+      .catch(() => {})
+    return subscribeAppSettings((s) => setCurrency(s.currency))
   }, [loadRows, loadLookups])
 
   const filteredRows = useMemo(() => {
@@ -242,12 +256,7 @@ export default function AccountsPage() {
     }
   }
 
-  const formatBalance = (balance: number) => {
-    return balance.toLocaleString('en-PK', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    })
-  }
+  const formatBalance = (balance: number) => formatMoney(balance, currency)
 
   const balanceColorClass = (balance: number) => {
     if (balance > 0) return 'text-green-700 dark:text-green-400'

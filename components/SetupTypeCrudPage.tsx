@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import {
   FormModalBody,
@@ -12,6 +12,18 @@ import {
   formModalPrimaryButtonClass,
   formModalSecondaryButtonClass,
 } from '@/components/FormModal'
+import {
+  fetchAccounts,
+  getCachedAccounts,
+  type AccountRecord,
+} from '@/lib/accounts'
+import {
+  DEFAULT_APP_SETTINGS,
+  fetchAppSettings,
+  getCachedAppSettings,
+  subscribeAppSettings,
+} from '@/lib/appSettings'
+import { formatMoney } from '@/lib/money'
 import {
   createSetupType,
   deleteSetupType,
@@ -52,6 +64,20 @@ export default function SetupTypeCrudPage({
   const [active, setActive] = useState(true)
   const [formError, setFormError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [accounts, setAccounts] = useState<AccountRecord[]>(() => getCachedAccounts() ?? [])
+  const [accountsPopupRow, setAccountsPopupRow] = useState<SetupTypeRecord | null>(null)
+  const [currency, setCurrency] = useState(
+    () => getCachedAppSettings()?.currency ?? DEFAULT_APP_SETTINGS.currency
+  )
+
+  const loadAccounts = useCallback(async () => {
+    try {
+      const items = await fetchAccounts()
+      setAccounts(items)
+    } catch {
+      // keep cached / empty
+    }
+  }, [])
 
   const loadRows = useCallback(async () => {
     const hit = getCachedSetupTypes(kind)
@@ -77,7 +103,27 @@ export default function SetupTypeCrudPage({
 
   useEffect(() => {
     void loadRows()
-  }, [loadRows])
+    void loadAccounts()
+    void fetchAppSettings()
+      .then((s) => setCurrency(s.currency))
+      .catch(() => {})
+    return subscribeAppSettings((s) => setCurrency(s.currency))
+  }, [loadRows, loadAccounts])
+
+  const linkedAccounts = useMemo(() => {
+    if (!accountsPopupRow) return []
+    if (kind === 'account-types') {
+      return accounts.filter((a) => a.accountTypeId === accountsPopupRow.id)
+    }
+    return accounts.filter((a) => a.cashTypeId === accountsPopupRow.id)
+  }, [accounts, accountsPopupRow, kind])
+
+  const openAccountsPopup = (row: SetupTypeRecord) => {
+    setAccountsPopupRow(row)
+    void loadAccounts()
+  }
+
+  const formatBalance = (n: number) => formatMoney(n, currency)
 
   const openAdd = () => {
     setFormError(null)
@@ -244,10 +290,19 @@ export default function SetupTypeCrudPage({
           rows.map((row) => (
             <article
               key={row.id}
-              className="rounded-xl border border-gray-100 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
+              role="button"
+              tabIndex={0}
+              onClick={() => openAccountsPopup(row)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  openAccountsPopup(row)
+                }
+              }}
+              className="cursor-pointer rounded-xl border border-gray-100 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
             >
               <div className="mb-3 flex items-start justify-between gap-3">
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <h2 className="truncate text-base font-semibold text-gray-900 dark:text-gray-100">
                     {row.name}
                   </h2>
@@ -255,7 +310,7 @@ export default function SetupTypeCrudPage({
                     {row.code}
                   </p>
                 </div>
-                {actionsFor(row)}
+                <div onClick={(e) => e.stopPropagation()}>{actionsFor(row)}</div>
               </div>
               <dl className="grid grid-cols-2 gap-3 text-sm">
                 <div className="col-span-2 min-w-0">
@@ -327,8 +382,14 @@ export default function SetupTypeCrudPage({
               ) : (
                 rows.map((row) => (
                   <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/40">
-                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {row.name}
+                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium">
+                      <button
+                        type="button"
+                        onClick={() => openAccountsPopup(row)}
+                        className="text-left text-primary-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:text-primary-300"
+                      >
+                        {row.name}
+                      </button>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-primary-600 dark:text-primary-400">
                       {row.code}
@@ -468,6 +529,132 @@ export default function SetupTypeCrudPage({
                 className={formModalSecondaryButtonClass}
               >
                 Cancel
+              </button>
+            </FormModalFooter>
+          </div>
+        </div>
+      )}
+
+      {accountsPopupRow && (
+        <div
+          className={formModalOverlayClass}
+          onClick={() => setAccountsPopupRow(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="linked-accounts-title"
+        >
+          <div
+            className={`${formModalPanelClass} max-w-2xl`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <FormModalHeader
+              titleId="linked-accounts-title"
+              title={accountsPopupRow.name}
+              onClose={() => setAccountsPopupRow(null)}
+            />
+            <FormModalBody>
+              <p className="mb-3 text-sm text-gray-600 dark:text-gray-300">
+                {linkedAccounts.length === 0
+                  ? `No accounts use this ${singularLabel.toLowerCase()} yet.`
+                  : `${linkedAccounts.length} account${linkedAccounts.length === 1 ? '' : 's'} linked`}
+              </p>
+              {linkedAccounts.length > 0 ? (
+                <>
+                  {/* Mobile cards */}
+                  <div className="space-y-2 sm:hidden">
+                    {linkedAccounts.map((acc) => (
+                      <div
+                        key={acc.id}
+                        className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-900/40"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
+                              {acc.name}
+                            </p>
+                            {acc.phone ? (
+                              <a
+                                href={`tel:${acc.phone.replace(/[^\d+]/g, '')}`}
+                                className="mt-0.5 inline-block text-sm text-primary-600 hover:underline dark:text-primary-400"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {acc.phone}
+                              </a>
+                            ) : (
+                              <p className="mt-0.5 text-sm text-gray-400">—</p>
+                            )}
+                          </div>
+                          <p className="shrink-0 tabular-nums text-sm font-medium text-gray-900 dark:text-gray-100">
+                            {formatBalance(acc.balance)}
+                          </p>
+                        </div>
+                        <p className="mt-2 text-xs text-gray-600 dark:text-gray-300">
+                          <span className="font-semibold uppercase tracking-wider text-gray-400">
+                            {kind === 'account-types' ? 'Cash' : 'ACC'} ·{' '}
+                          </span>
+                          {kind === 'account-types' ? acc.cashTypeName : acc.accountTypeName}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop table */}
+                  <div className="hidden overflow-hidden rounded-lg border border-gray-200 dark:border-gray-600 sm:block">
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead className="bg-gray-50 dark:bg-gray-900/40">
+                          <tr>
+                            <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                              SR.
+                            </th>
+                            <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                              Account
+                            </th>
+                            <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                              Phone
+                            </th>
+                            <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                              {kind === 'account-types' ? 'Cash Type' : 'ACC Type'}
+                            </th>
+                            <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                              Balance
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                          {linkedAccounts.map((acc, index) => (
+                            <tr key={acc.id}>
+                              <td className="whitespace-nowrap px-3 py-2 text-sm tabular-nums text-gray-500 dark:text-gray-400">
+                                {index + 1}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-2 text-sm font-medium text-gray-900 dark:text-gray-100">
+                                {acc.name}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-600 dark:text-gray-300">
+                                {acc.phone || '—'}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-700 dark:text-gray-200">
+                                {kind === 'account-types' ? acc.cashTypeName : acc.accountTypeName}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-2 text-right text-sm tabular-nums text-gray-900 dark:text-gray-100">
+                                {formatBalance(acc.balance)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              ) : null}
+            </FormModalBody>
+            <FormModalFooter className="justify-center sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setAccountsPopupRow(null)}
+                className={`${formModalSecondaryButtonClass} flex-none`}
+              >
+                Close
               </button>
             </FormModalFooter>
           </div>

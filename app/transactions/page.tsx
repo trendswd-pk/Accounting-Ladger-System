@@ -20,8 +20,10 @@ import {
   DEFAULT_APP_SETTINGS,
   fetchAppSettings,
   getCachedAppSettings,
+  subscribeAppSettings,
   type DefaultEntryMode,
 } from '@/lib/appSettings'
+import { formatMoney } from '@/lib/money'
 import {
   createTransaction,
   deleteTransaction,
@@ -54,10 +56,6 @@ function formatDisplayDate(iso: string): string {
   return `${d}-${m}-${y}`
 }
 
-function formatBalance(n: number): string {
-  return n.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
-}
-
 function entryTypeBadgeClass(type: TransactionEntryType): string {
   return type === 'credit'
     ? 'bg-green-100 text-green-800 dark:bg-green-900/35 dark:text-green-300'
@@ -68,6 +66,12 @@ function amountColorClass(type: TransactionEntryType): string {
   return type === 'credit'
     ? 'text-green-700 dark:text-green-400'
     : 'text-red-700 dark:text-red-400'
+}
+
+function runningBalanceColorClass(amount: number): string {
+  if (amount > 0) return 'text-green-700 dark:text-green-400'
+  if (amount < 0) return 'text-red-700 dark:text-red-400'
+  return 'text-gray-900 dark:text-gray-100'
 }
 
 export default function TransactionsPage() {
@@ -88,12 +92,17 @@ export default function TransactionsPage() {
   const [detailRow, setDetailRow] = useState<
     (TransactionRecord & { runningBalance: number }) | null
   >(null)
+  const [currency, setCurrency] = useState(
+    () => getCachedAppSettings()?.currency ?? DEFAULT_APP_SETTINGS.currency
+  )
   const [defaultEntryMode, setDefaultEntryMode] = useState<FormMode>(
     () => getCachedAppSettings()?.defaultEntryMode ?? DEFAULT_APP_SETTINGS.defaultEntryMode
   )
   const [formMode, setFormMode] = useState<FormMode>(
     () => getCachedAppSettings()?.defaultEntryMode ?? DEFAULT_APP_SETTINGS.defaultEntryMode
   )
+
+  const formatBalance = (n: number) => formatMoney(n, currency)
   const [transactionDate, setTransactionDate] = useState(() => todayISO())
   const [accountId, setAccountId] = useState('')
   const [fromAccountId, setFromAccountId] = useState('')
@@ -139,8 +148,16 @@ export default function TransactionsPage() {
     void loadRows()
     void loadAccounts().catch(() => {})
     void fetchAppSettings()
-      .then((s) => setDefaultEntryMode(s.defaultEntryMode))
+      .then((s) => {
+        setDefaultEntryMode(s.defaultEntryMode)
+        setCurrency(s.currency)
+      })
       .catch(() => {})
+    const unsub = subscribeAppSettings((s) => {
+      setDefaultEntryMode(s.defaultEntryMode)
+      setCurrency(s.currency)
+    })
+    return unsub
   }, [loadRows, loadAccounts])
 
   const filteredRows = useMemo(() => {
@@ -173,18 +190,27 @@ export default function TransactionsPage() {
     setPage(1)
   }, [searchQuery])
 
-  /** Chronological running balance: credit adds, debit subtracts (full ledger). */
+  /** Per-account running balance: credit +, debit − (only that account’s entries). */
   const runningBalanceById = useMemo(() => {
-    const chronological = [...rows].sort((a, b) => {
-      const byDate = a.transactionDate.localeCompare(b.transactionDate)
-      if (byDate !== 0) return byDate
-      return a.entryNumber - b.entryNumber
-    })
+    const byAccount = new Map<string, TransactionRecord[]>()
+    for (const row of rows) {
+      const list = byAccount.get(row.accountId)
+      if (list) list.push(row)
+      else byAccount.set(row.accountId, [row])
+    }
+
     const map = new Map<string, number>()
-    let running = 0
-    for (const row of chronological) {
-      running += signedTransactionAmount(row)
-      map.set(row.id, running)
+    for (const list of byAccount.values()) {
+      list.sort((a, b) => {
+        const byDate = a.transactionDate.localeCompare(b.transactionDate)
+        if (byDate !== 0) return byDate
+        return a.entryNumber - b.entryNumber
+      })
+      let running = 0
+      for (const row of list) {
+        running += signedTransactionAmount(row)
+        map.set(row.id, running)
+      }
     }
     return map
   }, [rows])
@@ -558,7 +584,7 @@ export default function TransactionsPage() {
                     Balance
                   </dt>
                   <dd className={`mt-0.5 tabular-nums font-medium ${amountColorClass(row.entryType)}`}>
-                    {row.entryType === 'debit' ? '−' : '+'}
+                    {row.entryType === 'debit' ? '− ' : '+ '}
                     {formatBalance(Math.abs(row.balance))}
                   </dd>
                 </div>
@@ -566,7 +592,9 @@ export default function TransactionsPage() {
                   <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     Running Balance
                   </dt>
-                  <dd className="mt-0.5 tabular-nums font-medium text-gray-900 dark:text-gray-100">
+                  <dd
+                    className={`mt-0.5 tabular-nums font-medium ${runningBalanceColorClass(row.runningBalance)}`}
+                  >
                     {formatBalance(row.runningBalance)}
                   </dd>
                 </div>
@@ -673,10 +701,12 @@ export default function TransactionsPage() {
                     <td
                       className={`whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums font-medium ${amountColorClass(row.entryType)}`}
                     >
-                      {row.entryType === 'debit' ? '−' : '+'}
+                      {row.entryType === 'debit' ? '− ' : '+ '}
                       {formatBalance(Math.abs(row.balance))}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums font-medium text-gray-900 dark:text-gray-100">
+                    <td
+                      className={`whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums font-medium ${runningBalanceColorClass(row.runningBalance)}`}
+                    >
                       {formatBalance(row.runningBalance)}
                     </td>
                     <td
@@ -1005,7 +1035,7 @@ export default function TransactionsPage() {
                     <dd
                       className={`mt-0.5 tabular-nums font-medium ${amountColorClass(detailRow.entryType)}`}
                     >
-                      {detailRow.entryType === 'debit' ? '−' : '+'}
+                      {detailRow.entryType === 'debit' ? '− ' : '+ '}
                       {formatBalance(Math.abs(detailRow.balance))}
                     </dd>
                   </div>
@@ -1013,7 +1043,9 @@ export default function TransactionsPage() {
                     <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                       Running Balance
                     </dt>
-                    <dd className="mt-0.5 tabular-nums font-medium text-gray-900 dark:text-gray-100">
+                    <dd
+                      className={`mt-0.5 tabular-nums font-medium ${runningBalanceColorClass(detailRow.runningBalance)}`}
+                    >
                       {formatBalance(detailRow.runningBalance)}
                     </dd>
                   </div>
