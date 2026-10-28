@@ -4,6 +4,7 @@ Run in **Supabase → SQL Editor** (safe to re-run):
 
 1. [`schema.sql`](schema.sql) — core tables, seeds, RPCs, `file_attachments`  
 2. [`accounts.sql`](accounts.sql) — `accounts` table + `rpc_list_accounts`  
+3. [`transactions.sql`](transactions.sql) — `transactions` table + `rpc_list_transactions`  
    Or piece-wise: [`rpcs.sql`](rpcs.sql) + [`file-attachments.sql`](file-attachments.sql)
 
 ## Storage split

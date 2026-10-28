@@ -27,6 +27,7 @@ Open [http://localhost:3000](http://localhost:3000).
 ## Current pages
 
 - **Dashboard** (`/`) — overview placeholders
+- **Transactions** (`/transactions`) — ledger entries (date, account, balance)
 - **Accounts** (`/accounts`) — ledger accounts (ACC type / cash type / balance placeholder)
 - **Account Type** (`/settings/account-type`) — Supabase CRUD table
 - **Cash Type** (`/settings/cash-type`) — Supabase CRUD table

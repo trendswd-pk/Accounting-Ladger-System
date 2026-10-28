@@ -8,6 +8,7 @@ import {
   Settings,
   BookOpen,
   WalletCards,
+  ArrowLeftRight,
   Sun,
   Moon,
   X,
@@ -36,6 +37,7 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   { name: 'Dashboard', path: '/', icon: LayoutDashboard },
+  { name: 'Transactions', path: '/transactions', icon: ArrowLeftRight },
   { name: 'Accounts', path: '/accounts', icon: WalletCards },
   {
     name: 'Settings',
