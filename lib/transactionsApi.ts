@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { mapTransactionRow } from '@/lib/transactions'
+import { mapTransactionRow, normalizeEntryType } from '@/lib/transactions'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
 
 const NO_STORE = { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
@@ -23,20 +23,21 @@ type RpcRow = {
   transaction_date: string
   account_id: string
   account_name: string
+  entry_type?: string | null
   balance: number | string
   created_at: string
 }
+
+const SELECT_COLS = `
+  id, entry_number, transaction_date, account_id, entry_type, balance, created_at,
+  accounts ( name )
+`
 
 async function listViaJoin() {
   const admin = getSupabaseAdmin()
   const { data, error } = await admin
     .from('transactions')
-    .select(
-      `
-      id, entry_number, transaction_date, account_id, balance, created_at,
-      accounts ( name )
-    `
-    )
+    .select(SELECT_COLS)
     .order('entry_number', { ascending: false })
 
   if (error) throw new Error(error.message)
@@ -46,6 +47,7 @@ async function listViaJoin() {
     entry_number: number | string
     transaction_date: string
     account_id: string
+    entry_type?: string | null
     balance: number | string
     created_at: string
     accounts: { name: string } | { name: string }[] | null
@@ -60,6 +62,7 @@ async function listViaJoin() {
       transaction_date: r.transaction_date,
       account_id: r.account_id,
       account_name: acc?.name ?? '',
+      entry_type: r.entry_type,
       balance: r.balance,
       created_at: r.created_at,
     })
@@ -70,12 +73,7 @@ async function fetchTransactionItem(id: string) {
   const admin = getSupabaseAdmin()
   const { data, error } = await admin
     .from('transactions')
-    .select(
-      `
-      id, entry_number, transaction_date, account_id, balance, created_at,
-      accounts ( name )
-    `
-    )
+    .select(SELECT_COLS)
     .eq('id', id)
     .single()
 
@@ -86,6 +84,7 @@ async function fetchTransactionItem(id: string) {
     entry_number: number | string
     transaction_date: string
     account_id: string
+    entry_type?: string | null
     balance: number | string
     created_at: string
     accounts: { name: string } | { name: string }[] | null
@@ -97,6 +96,7 @@ async function fetchTransactionItem(id: string) {
     transaction_date: r.transaction_date,
     account_id: r.account_id,
     account_name: acc?.name ?? '',
+    entry_type: r.entry_type,
     balance: r.balance,
     created_at: r.created_at,
   })
@@ -123,12 +123,14 @@ export async function listTransactions() {
 export async function createTransactionRow(body: {
   transactionDate?: string
   accountId?: string
+  entryType?: string
   balance?: number | string
 }) {
   try {
     const transactionDate = String(body.transactionDate ?? '').trim().slice(0, 10)
     const accountId = String(body.accountId ?? '').trim()
-    const balance = Number(body.balance)
+    const entryType = normalizeEntryType(body.entryType)
+    const balance = Math.abs(Number(body.balance))
 
     if (!transactionDate) return json({ error: 'Transaction date is required.' }, 400)
     if (!accountId) return json({ error: 'Account is required.' }, 400)
@@ -140,6 +142,7 @@ export async function createTransactionRow(body: {
       .insert({
         transaction_date: transactionDate,
         account_id: accountId,
+        entry_type: entryType,
         balance,
       })
       .select('id')
@@ -155,13 +158,19 @@ export async function createTransactionRow(body: {
 
 export async function updateTransactionRow(
   id: string,
-  body: { transactionDate?: string; accountId?: string; balance?: number | string }
+  body: {
+    transactionDate?: string
+    accountId?: string
+    entryType?: string
+    balance?: number | string
+  }
 ) {
   try {
     if (!id) return json({ error: 'Missing id.' }, 400)
     const transactionDate = String(body.transactionDate ?? '').trim().slice(0, 10)
     const accountId = String(body.accountId ?? '').trim()
-    const balance = Number(body.balance)
+    const entryType = normalizeEntryType(body.entryType)
+    const balance = Math.abs(Number(body.balance))
 
     if (!transactionDate) return json({ error: 'Transaction date is required.' }, 400)
     if (!accountId) return json({ error: 'Account is required.' }, 400)
@@ -173,6 +182,7 @@ export async function updateTransactionRow(
       .update({
         transaction_date: transactionDate,
         account_id: accountId,
+        entry_type: entryType,
         balance,
         updated_at: new Date().toISOString(),
       })

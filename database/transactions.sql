@@ -2,7 +2,7 @@
 -- Transactions (Dashboard → Transactions)
 -- =============================================================================
 -- Run after accounts table exists.
--- entry_number = permanent SR.; balance is the entry amount for now.
+-- entry_number = permanent SR.; entry_type = credit|debit; balance = amount.
 -- =============================================================================
 
 CREATE TABLE IF NOT EXISTS public.transactions (
@@ -10,10 +10,28 @@ CREATE TABLE IF NOT EXISTS public.transactions (
   entry_number BIGSERIAL UNIQUE,
   transaction_date DATE NOT NULL DEFAULT CURRENT_DATE,
   account_id UUID NOT NULL REFERENCES public.accounts (id) ON DELETE RESTRICT,
+  entry_type TEXT NOT NULL DEFAULT 'credit'
+    CHECK (entry_type IN ('credit', 'debit')),
   balance NUMERIC(18, 2) NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE public.transactions
+  ADD COLUMN IF NOT EXISTS entry_type TEXT NOT NULL DEFAULT 'credit';
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'transactions_entry_type_check'
+  ) THEN
+    ALTER TABLE public.transactions
+      ADD CONSTRAINT transactions_entry_type_check
+      CHECK (entry_type IN ('credit', 'debit'));
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_transactions_date
   ON public.transactions (transaction_date DESC, entry_number DESC);
@@ -57,6 +75,7 @@ AS $$
         'transaction_date', t.transaction_date,
         'account_id', t.account_id,
         'account_name', a.name,
+        'entry_type', COALESCE(t.entry_type, 'credit'),
         'balance', t.balance,
         'created_at', t.created_at
       )

@@ -20,7 +20,9 @@ import {
   deleteTransaction,
   fetchTransactions,
   getCachedTransactions,
+  signedTransactionAmount,
   updateTransaction,
+  type TransactionEntryType,
   type TransactionRecord,
 } from '@/lib/transactions'
 import { DEFAULT_TABLE_PAGE_SIZE, TABLE_PAGE_SIZE_OPTIONS } from '@/lib/tablePagination'
@@ -47,6 +49,18 @@ function formatBalance(n: number): string {
   return n.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
+function entryTypeBadgeClass(type: TransactionEntryType): string {
+  return type === 'credit'
+    ? 'bg-green-100 text-green-800 dark:bg-green-900/35 dark:text-green-300'
+    : 'bg-red-100 text-red-800 dark:bg-red-900/35 dark:text-red-300'
+}
+
+function amountColorClass(type: TransactionEntryType): string {
+  return type === 'credit'
+    ? 'text-green-700 dark:text-green-400'
+    : 'text-red-700 dark:text-red-400'
+}
+
 export default function TransactionsPage() {
   const cached = getCachedTransactions()
   const [rows, setRows] = useState<TransactionRecord[]>(() => cached ?? [])
@@ -61,8 +75,9 @@ export default function TransactionsPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
-  const [transactionDate, setTransactionDate] = useState(todayISO)
+  const [transactionDate, setTransactionDate] = useState(() => todayISO())
   const [accountId, setAccountId] = useState('')
+  const [entryType, setEntryType] = useState<TransactionEntryType>('credit')
   const [balance, setBalance] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -105,10 +120,29 @@ export default function TransactionsPage() {
     if (page > totalPages) setPage(totalPages)
   }, [page, totalPages])
 
+  /** Chronological running balance: credit adds, debit subtracts. */
+  const runningBalanceById = useMemo(() => {
+    const chronological = [...rows].sort((a, b) => {
+      const byDate = a.transactionDate.localeCompare(b.transactionDate)
+      if (byDate !== 0) return byDate
+      return a.entryNumber - b.entryNumber
+    })
+    const map = new Map<string, number>()
+    let running = 0
+    for (const row of chronological) {
+      running += signedTransactionAmount(row)
+      map.set(row.id, running)
+    }
+    return map
+  }, [rows])
+
   const pageRows = useMemo(() => {
     const start = (page - 1) * listPageSize
-    return rows.slice(start, start + listPageSize)
-  }, [rows, page, listPageSize])
+    return rows.slice(start, start + listPageSize).map((row) => ({
+      ...row,
+      runningBalance: runningBalanceById.get(row.id) ?? row.balance,
+    }))
+  }, [rows, page, listPageSize, runningBalanceById])
 
   const pageStartIndex = (page - 1) * listPageSize
 
@@ -149,6 +183,7 @@ export default function TransactionsPage() {
     setEditingId(null)
     setTransactionDate(todayISO())
     setAccountId(accounts[0]?.id ?? '')
+    setEntryType('credit')
     setBalance('')
     setModalOpen(true)
     void loadAccounts().catch(() => {})
@@ -159,6 +194,7 @@ export default function TransactionsPage() {
     setEditingId(row.id)
     setTransactionDate(row.transactionDate)
     setAccountId(row.accountId)
+    setEntryType(row.entryType)
     setBalance(String(row.balance))
     setModalOpen(true)
     void loadAccounts().catch(() => {})
@@ -193,7 +229,8 @@ export default function TransactionsPage() {
     const payload = {
       transactionDate,
       accountId,
-      balance: balanceNum,
+      entryType,
+      balance: Math.abs(balanceNum),
     }
     try {
       if (editingId) {
@@ -345,10 +382,31 @@ export default function TransactionsPage() {
               <dl className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    Type
+                  </dt>
+                  <dd className="mt-0.5">
+                    <span
+                      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${entryTypeBadgeClass(row.entryType)}`}
+                    >
+                      {row.entryType}
+                    </span>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     Balance
                   </dt>
-                  <dd className="mt-0.5 tabular-nums text-gray-800 dark:text-gray-200">
-                    {formatBalance(row.balance)}
+                  <dd className={`mt-0.5 tabular-nums font-medium ${amountColorClass(row.entryType)}`}>
+                    {row.entryType === 'debit' ? '−' : '+'}
+                    {formatBalance(Math.abs(row.balance))}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    Running Balance
+                  </dt>
+                  <dd className="mt-0.5 tabular-nums font-medium text-gray-900 dark:text-gray-100">
+                    {formatBalance(row.runningBalance)}
                   </dd>
                 </div>
               </dl>
@@ -373,8 +431,14 @@ export default function TransactionsPage() {
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   Account Name
                 </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Type
+                </th>
                 <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   Balance
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Running Balance
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   Action
@@ -386,14 +450,14 @@ export default function TransactionsPage() {
             >
               {!ready ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">
+                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500">
                     Loading…
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={7}
                     className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
                     No transactions yet. Click Add Transaction to create one.
@@ -411,8 +475,21 @@ export default function TransactionsPage() {
                     <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
                       {row.accountName}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-gray-700 dark:text-gray-200">
-                      {formatBalance(row.balance)}
+                    <td className="whitespace-nowrap px-4 py-3 text-sm">
+                      <span
+                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${entryTypeBadgeClass(row.entryType)}`}
+                      >
+                        {row.entryType}
+                      </span>
+                    </td>
+                    <td
+                      className={`whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums font-medium ${amountColorClass(row.entryType)}`}
+                    >
+                      {row.entryType === 'debit' ? '−' : '+'}
+                      {formatBalance(Math.abs(row.balance))}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums font-medium text-gray-900 dark:text-gray-100">
+                      {formatBalance(row.runningBalance)}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right">{actionsFor(row)}</td>
                   </tr>
@@ -491,6 +568,29 @@ export default function TransactionsPage() {
                   ) : null}
                 </div>
                 <div>
+                  <span className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Type
+                  </span>
+                  <div className="flex gap-2">
+                    {(['credit', 'debit'] as const).map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => setEntryType(option)}
+                        className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium capitalize transition-colors ${
+                          entryType === option
+                            ? option === 'credit'
+                              ? 'border-green-600 bg-green-50 text-green-800 dark:bg-green-900/40 dark:text-green-300'
+                              : 'border-red-600 bg-red-50 text-red-800 dark:bg-red-900/40 dark:text-red-300'
+                            : 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
                   <label
                     htmlFor="txn-balance"
                     className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
@@ -502,6 +602,7 @@ export default function TransactionsPage() {
                     type="number"
                     inputMode="decimal"
                     step="any"
+                    min="0"
                     value={balance}
                     onChange={(e) => setBalance(e.target.value)}
                     className={inputClass}

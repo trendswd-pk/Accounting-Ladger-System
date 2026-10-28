@@ -1,11 +1,14 @@
 import { recordRequestDeduped } from '@/lib/requestProfiler'
 
+export type TransactionEntryType = 'credit' | 'debit'
+
 export type TransactionRecord = {
   id: string
   entryNumber: number
   transactionDate: string
   accountId: string
   accountName: string
+  entryType: TransactionEntryType
   balance: number
   createdAt: string
 }
@@ -16,6 +19,7 @@ type RpcRow = {
   transaction_date: string
   account_id: string
   account_name: string
+  entry_type?: string | null
   balance: number | string
   created_at: string
 }
@@ -24,6 +28,10 @@ const ENDPOINT = '/api/transactions'
 let cache: TransactionRecord[] | null = null
 let inflight: Promise<TransactionRecord[]> | null = null
 
+export function normalizeEntryType(value: unknown): TransactionEntryType {
+  return value === 'debit' ? 'debit' : 'credit'
+}
+
 export function mapTransactionRow(row: RpcRow): TransactionRecord {
   return {
     id: row.id,
@@ -31,9 +39,16 @@ export function mapTransactionRow(row: RpcRow): TransactionRecord {
     transactionDate: String(row.transaction_date).slice(0, 10),
     accountId: row.account_id,
     accountName: row.account_name,
+    entryType: normalizeEntryType(row.entry_type),
     balance: Number(row.balance) || 0,
     createdAt: row.created_at,
   }
+}
+
+/** Signed amount for running balance: credit +, debit − */
+export function signedTransactionAmount(row: Pick<TransactionRecord, 'entryType' | 'balance'>): number {
+  const amount = Math.abs(row.balance)
+  return row.entryType === 'debit' ? -amount : amount
 }
 
 export function getCachedTransactions(): TransactionRecord[] | null {
@@ -76,6 +91,7 @@ export async function fetchTransactions(options?: { force?: boolean }): Promise<
 export type TransactionInput = {
   transactionDate: string
   accountId: string
+  entryType: TransactionEntryType
   balance: number
 }
 

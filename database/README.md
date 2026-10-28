@@ -5,6 +5,7 @@ Run in **Supabase → SQL Editor** (safe to re-run):
 1. [`schema.sql`](schema.sql) — core tables, seeds, RPCs, `file_attachments`  
 2. [`accounts.sql`](accounts.sql) — `accounts` table + `rpc_list_accounts`  
 3. [`transactions.sql`](transactions.sql) — `transactions` table + `rpc_list_transactions`  
+4. [`transactions-entry-type.sql`](transactions-entry-type.sql) — credit/debit column (if table already created)  
    Or piece-wise: [`rpcs.sql`](rpcs.sql) + [`file-attachments.sql`](file-attachments.sql)
 
 ## Storage split
