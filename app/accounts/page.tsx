@@ -139,33 +139,28 @@ export default function AccountsPage() {
   const pageStartIndex = (page - 1) * listPageSize
 
   const paginationBar =
-    totalItems > 0 ? (
-      <div className="mt-4 flex flex-col items-center justify-between gap-4 rounded-xl border border-gray-100 bg-white px-4 py-4 shadow-md dark:border-gray-700 dark:bg-gray-800 sm:flex-row lg:mt-0 lg:rounded-none lg:border-0 lg:border-t lg:border-gray-200 lg:bg-transparent lg:shadow-none dark:lg:border-gray-700 lg:dark:bg-transparent">
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-            <span className="whitespace-nowrap">Records per page</span>
-            <select
-              value={listPageSize}
-              onChange={(e) => {
-                setListPageSize(Number(e.target.value))
-                setPage(1)
-              }}
-              className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
-              aria-label="Records per page"
-            >
-              {TABLE_PAGE_SIZE_OPTIONS.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <div className="flex flex-wrap items-center justify-center gap-1 sm:justify-end">
-          <span className="mr-2 text-sm tabular-nums text-gray-600 dark:text-gray-400">
+    totalItems > DEFAULT_TABLE_PAGE_SIZE ? (
+      <div className="mt-4 flex flex-nowrap items-center justify-between gap-2 rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-md dark:border-gray-700 dark:bg-gray-800 lg:mt-0 lg:rounded-none lg:border-0 lg:border-t lg:border-gray-200 lg:bg-transparent lg:px-4 lg:shadow-none dark:lg:border-gray-700 lg:dark:bg-transparent">
+        <select
+          value={listPageSize}
+          onChange={(e) => {
+            setListPageSize(Number(e.target.value))
+            setPage(1)
+          }}
+          className="h-7 shrink-0 rounded-md border border-gray-300 bg-white px-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
+          aria-label="Records per page"
+        >
+          {TABLE_PAGE_SIZE_OPTIONS.map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </select>
+        <div className="flex min-w-0 flex-nowrap items-center justify-end gap-1">
+          <span className="mr-1 shrink-0 text-xs tabular-nums text-gray-600 dark:text-gray-400">
             {pageStartIndex + 1}–{Math.min(pageStartIndex + listPageSize, totalItems)} of {totalItems}
           </span>
-          <TablePaginationNav page={page} totalPages={totalPages} onPageChange={setPage} />
+          <TablePaginationNav page={page} totalPages={totalPages} onPageChange={setPage} size="sm" />
         </div>
       </div>
     ) : null
@@ -413,7 +408,7 @@ export default function AccountsPage() {
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <Link
-                      href={`/transactions?accountId=${encodeURIComponent(row.id)}`}
+                      href={`/transactions?accountId=${encodeURIComponent(row.id)}&from=${encodeURIComponent('/accounts')}`}
                       className="block truncate text-base font-semibold text-primary-700 hover:underline dark:text-primary-300"
                     >
                       {row.name}
@@ -515,7 +510,7 @@ export default function AccountsPage() {
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm font-medium">
                       <Link
-                        href={`/transactions?accountId=${encodeURIComponent(row.id)}`}
+                        href={`/transactions?accountId=${encodeURIComponent(row.id)}&from=${encodeURIComponent('/accounts')}`}
                         className="text-primary-700 hover:underline dark:text-primary-300"
                       >
                         {row.name}

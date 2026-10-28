@@ -9,6 +9,11 @@ import {
   BookOpen,
   WalletCards,
   ArrowLeftRight,
+  Banknote,
+  Briefcase,
+  Receipt,
+  TrendingDown,
+  TrendingUp,
   Sun,
   Moon,
   X,
@@ -45,6 +50,19 @@ const menuItems: MenuItem[] = [
   { name: 'Dashboard', path: '/', icon: LayoutDashboard },
   { name: 'Transactions', path: '/transactions', icon: ArrowLeftRight },
   { name: 'Accounts', path: '/accounts', icon: WalletCards },
+  { name: 'Cash & Savings', path: '/cash-savings', icon: Banknote },
+  { name: 'Payable', path: '/payable', icon: TrendingDown },
+  { name: 'Receivable', path: '/receivable', icon: TrendingUp },
+  {
+    name: 'Expenses',
+    path: '/expenses',
+    icon: Receipt,
+    subItems: [
+      { name: 'Expenses', path: '/expenses' },
+      { name: 'Monthly Expense', path: '/expenses/monthly' },
+    ],
+  },
+  { name: 'Investment', path: '/investment', icon: Briefcase },
   {
     name: 'Settings',
     path: '/settings',
@@ -59,6 +77,7 @@ const menuItems: MenuItem[] = [
 
 function isSubPathActive(pathname: string, sub: SubItem): boolean {
   if (sub.path === '/settings') return pathname === '/settings'
+  if (sub.path === '/expenses') return pathname === '/expenses'
   return pathname === sub.path || pathname.startsWith(sub.path + '/')
 }
 

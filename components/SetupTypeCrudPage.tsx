@@ -130,6 +130,10 @@ export default function SetupTypeCrudPage({
   }
 
   const formatBalance = (n: number) => formatMoney(n, currency)
+  const transactionsReturnPath =
+    kind === 'account-types' ? '/settings/account-type' : '/settings/cash-type'
+  const accountTransactionsHref = (accountId: string) =>
+    `/transactions?accountId=${encodeURIComponent(accountId)}&from=${encodeURIComponent(transactionsReturnPath)}`
 
   const balanceTotalColorClass =
     linkedAccountsTotal > 0
@@ -583,7 +587,7 @@ export default function SetupTypeCrudPage({
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
                             <Link
-                              href={`/transactions?accountId=${encodeURIComponent(acc.id)}`}
+                              href={accountTransactionsHref(acc.id)}
                               className="block truncate text-sm font-semibold text-primary-700 hover:underline dark:text-primary-300"
                               onClick={(e) => e.stopPropagation()}
                             >
@@ -654,7 +658,7 @@ export default function SetupTypeCrudPage({
                               </td>
                               <td className="whitespace-nowrap px-3 py-2 text-sm font-medium">
                                 <Link
-                                  href={`/transactions?accountId=${encodeURIComponent(acc.id)}`}
+                                  href={accountTransactionsHref(acc.id)}
                                   className="text-primary-700 hover:underline dark:text-primary-300"
                                 >
                                   {acc.name}

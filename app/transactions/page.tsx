@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Filter, Info, Plus, Search, X } from 'lucide-react'
+import { ArrowLeft, Filter, Info, Plus, Search, X } from 'lucide-react'
 import ActionsDropdown from '@/components/ActionsDropdown'
 import {
   FormModalBody,
@@ -75,10 +75,25 @@ function runningBalanceColorClass(amount: number): string {
   return 'text-gray-900 dark:text-gray-100'
 }
 
+function safeReturnPath(raw: string | null): string | null {
+  if (!raw) return null
+  let path = raw.trim()
+  try {
+    path = decodeURIComponent(path)
+  } catch {
+    /* keep raw */
+  }
+  path = path.trim()
+  if (!path.startsWith('/') || path.startsWith('//') || path.includes('://')) return null
+  if (path === '/transactions' || path.startsWith('/transactions?')) return null
+  return path
+}
+
 function TransactionsPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const accountIdFilter = searchParams.get('accountId')?.trim() || ''
+  const returnTo = safeReturnPath(searchParams.get('from'))
 
   const cached = getCachedTransactions()
   const [rows, setRows] = useState<TransactionRecord[]>(() => cached ?? [])
@@ -249,15 +264,15 @@ function TransactionsPageInner() {
     setDateTo('')
     setTypeFilter('')
     setSearchQuery('')
-    router.push('/transactions')
+    router.push(returnTo || '/transactions')
   }
 
   const filterByAccount = (id: string) => {
-    if (!id) {
-      router.push('/transactions')
-      return
-    }
-    router.push(`/transactions?accountId=${encodeURIComponent(id)}`)
+    const qs = new URLSearchParams()
+    if (id) qs.set('accountId', id)
+    if (returnTo) qs.set('from', returnTo)
+    const q = qs.toString()
+    router.push(q ? `/transactions?${q}` : '/transactions')
   }
 
   /** Per-account running balance: credit +, debit − (only that account’s entries). */
@@ -296,7 +311,7 @@ function TransactionsPageInner() {
   const pageStartIndex = (page - 1) * listPageSize
 
   const paginationBar =
-    totalItems > 0 ? (
+    totalItems > DEFAULT_TABLE_PAGE_SIZE ? (
       <div className="mt-4 flex flex-nowrap items-center justify-between gap-2 rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-md dark:border-gray-700 dark:bg-gray-800 lg:mt-0 lg:rounded-none lg:border-0 lg:border-t lg:border-gray-200 lg:bg-transparent lg:px-4 lg:shadow-none dark:lg:border-gray-700 lg:dark:bg-transparent">
         <select
           value={listPageSize}
@@ -498,6 +513,16 @@ function TransactionsPageInner() {
       <div className="mb-4 space-y-3 lg:mb-6">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
+            {returnTo ? (
+              <button
+                type="button"
+                onClick={() => router.push(returnTo)}
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-gray-100"
+                aria-label="Go back"
+              >
+                <ArrowLeft className="h-5 w-5" aria-hidden />
+              </button>
+            ) : null}
             <h1 className="truncate text-2xl font-bold text-gray-800 dark:text-gray-100 lg:text-3xl">
               Transactions
             </h1>

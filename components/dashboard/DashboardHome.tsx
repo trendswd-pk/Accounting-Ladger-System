@@ -1,95 +1,370 @@
 'use client'
 
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
-  BookOpen,
-  Scale,
+  Banknote,
+  Briefcase,
+  Calendar,
+  CalendarDays,
+  Info,
+  Plus,
+  Receipt,
+  TrendingDown,
   TrendingUp,
   Wallet,
-  ArrowRight,
-  Settings,
 } from 'lucide-react'
+import TransactionFormModal from '@/components/TransactionFormModal'
+import {
+  fetchAccounts,
+  getCachedAccounts,
+  type AccountRecord,
+} from '@/lib/accounts'
+import {
+  isCashInPocketAccount,
+  isCashSavingsAccount,
+  isExpenseAccount,
+  isInvestAccount,
+  isPayableAccount,
+  isReceivableAccount,
+} from '@/lib/accountFilters'
+import {
+  DEFAULT_APP_SETTINGS,
+  fetchAppSettings,
+  getCachedAppSettings,
+  subscribeAppSettings,
+} from '@/lib/appSettings'
+import { formatMoney } from '@/lib/money'
+import {
+  fetchTransactions,
+  getCachedTransactions,
+  type TransactionRecord,
+} from '@/lib/transactions'
 
-const statCards = [
-  {
-    name: 'Cash Balance',
-    value: '—',
-    hint: 'Coming soon',
-    icon: Wallet,
-  },
-  {
-    name: 'Receivables',
-    value: '—',
-    hint: 'Coming soon',
-    icon: TrendingUp,
-  },
-  {
-    name: 'Payables',
-    value: '—',
-    hint: 'Coming soon',
-    icon: Scale,
-  },
-  {
-    name: 'Ledger Entries',
-    value: '—',
-    hint: 'Coming soon',
-    icon: BookOpen,
-  },
-]
+function sumBalances(list: AccountRecord[]): number {
+  return list.reduce((sum, a) => sum + (Number(a.balance) || 0), 0)
+}
+
+function balanceColorClass(amount: number): string {
+  if (amount > 0) return 'text-green-700 dark:text-green-400'
+  if (amount < 0) return 'text-red-700 dark:text-red-400'
+  return 'text-gray-900 dark:text-gray-100'
+}
+
+/** Expense totals: spend shows red, credit/refund green */
+function expenseColorClass(amount: number): string {
+  if (amount > 0) return 'text-red-700 dark:text-red-400'
+  if (amount < 0) return 'text-green-700 dark:text-green-400'
+  return 'text-gray-900 dark:text-gray-100'
+}
+
+function expenseAmount(row: Pick<TransactionRecord, 'entryType' | 'balance'>): number {
+  const amount = Math.abs(Number(row.balance) || 0)
+  return row.entryType === 'debit' ? amount : -amount
+}
+
+function todayISO(): string {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function yesterdayISO(): string {
+  const d = new Date()
+  d.setDate(d.getDate() - 1)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
 
 export default function DashboardHome() {
+  const cachedAccounts = getCachedAccounts()
+  const cachedTx = getCachedTransactions()
+  const [accounts, setAccounts] = useState<AccountRecord[]>(() => cachedAccounts ?? [])
+  const [transactions, setTransactions] = useState<TransactionRecord[]>(() => cachedTx ?? [])
+  const [ready, setReady] = useState(() => cachedAccounts != null)
+  const [currency, setCurrency] = useState(
+    () => getCachedAppSettings()?.currency ?? DEFAULT_APP_SETTINGS.currency
+  )
+  const [infoOpen, setInfoOpen] = useState(false)
+  const [txnModalOpen, setTxnModalOpen] = useState(false)
+
+  const refreshDashboard = useCallback(async () => {
+    try {
+      const [items, txs] = await Promise.all([
+        fetchAccounts({ force: true }),
+        fetchTransactions({ force: true }),
+      ])
+      setAccounts(items)
+      setTransactions(txs)
+    } catch {
+      /* keep current */
+    } finally {
+      setReady(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const [items, txs] = await Promise.all([
+          fetchAccounts({ force: true }),
+          fetchTransactions({ force: true }),
+        ])
+        if (!cancelled) {
+          setAccounts(items)
+          setTransactions(txs)
+        }
+      } catch {
+        if (!cancelled && !cachedAccounts) setAccounts([])
+      } finally {
+        if (!cancelled) setReady(true)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    void fetchAppSettings()
+      .then((s) => setCurrency(s.currency))
+      .catch(() => {})
+    return subscribeAppSettings((s) => setCurrency(s.currency))
+  }, [])
+
+  const pocketAccounts = useMemo(
+    () => accounts.filter(isCashInPocketAccount),
+    [accounts]
+  )
+  const cashSavingsAccounts = useMemo(
+    () => accounts.filter(isCashSavingsAccount),
+    [accounts]
+  )
+  const payableAccounts = useMemo(() => accounts.filter(isPayableAccount), [accounts])
+  const receivableAccounts = useMemo(
+    () => accounts.filter(isReceivableAccount),
+    [accounts]
+  )
+  const expenseAccounts = useMemo(() => accounts.filter(isExpenseAccount), [accounts])
+  const investAccounts = useMemo(() => accounts.filter(isInvestAccount), [accounts])
+
+  const expenseAccountIds = useMemo(
+    () => new Set(expenseAccounts.map((a) => a.id)),
+    [expenseAccounts]
+  )
+
+  const pocketBalance = useMemo(() => sumBalances(pocketAccounts), [pocketAccounts])
+  const cashInHandBalance = useMemo(
+    () => sumBalances(cashSavingsAccounts),
+    [cashSavingsAccounts]
+  )
+  const loanBalance = useMemo(() => sumBalances(payableAccounts), [payableAccounts])
+  const receivableBalance = useMemo(
+    () => sumBalances(receivableAccounts),
+    [receivableAccounts]
+  )
+  const expenseBalance = useMemo(() => sumBalances(expenseAccounts), [expenseAccounts])
+  const investBalance = useMemo(() => sumBalances(investAccounts), [investAccounts])
+
+  const todayDate = todayISO()
+  const yesterdayDate = yesterdayISO()
+
+  const todayExpense = useMemo(() => {
+    let total = 0
+    for (const tx of transactions) {
+      if (!expenseAccountIds.has(tx.accountId)) continue
+      if (tx.transactionDate.slice(0, 10) !== todayDate) continue
+      total += expenseAmount(tx)
+    }
+    return total
+  }, [transactions, expenseAccountIds, todayDate])
+
+  const yesterdayExpense = useMemo(() => {
+    let total = 0
+    for (const tx of transactions) {
+      if (!expenseAccountIds.has(tx.accountId)) continue
+      if (tx.transactionDate.slice(0, 10) !== yesterdayDate) continue
+      total += expenseAmount(tx)
+    }
+    return total
+  }, [transactions, expenseAccountIds, yesterdayDate])
+
+  const statCards: {
+    name: string
+    value: string
+    icon: typeof Wallet
+    valueClassName?: string
+    href?: string
+  }[] = [
+    {
+      name: 'Cash in Pocket',
+      value: ready ? formatMoney(pocketBalance, currency) : '—',
+      icon: Wallet,
+      valueClassName: ready ? balanceColorClass(pocketBalance) : undefined,
+    },
+    {
+      name: 'Cash in Hand',
+      value: ready ? formatMoney(cashInHandBalance, currency) : '—',
+      icon: Banknote,
+      valueClassName: ready ? balanceColorClass(cashInHandBalance) : undefined,
+      href: '/cash-savings',
+    },
+    {
+      name: 'Payable',
+      value: ready ? formatMoney(loanBalance, currency) : '—',
+      icon: TrendingDown,
+      valueClassName: ready ? balanceColorClass(loanBalance) : undefined,
+      href: '/payable',
+    },
+    {
+      name: 'Receivable',
+      value: ready ? formatMoney(receivableBalance, currency) : '—',
+      icon: TrendingUp,
+      valueClassName: ready ? balanceColorClass(receivableBalance) : undefined,
+      href: '/receivable',
+    },
+    {
+      name: 'Expenses',
+      value: ready ? formatMoney(expenseBalance, currency) : '—',
+      icon: Receipt,
+      valueClassName: ready ? balanceColorClass(expenseBalance) : undefined,
+      href: '/expenses',
+    },
+    {
+      name: 'Investment',
+      value: ready ? formatMoney(investBalance, currency) : '—',
+      icon: Briefcase,
+      valueClassName: ready ? balanceColorClass(investBalance) : undefined,
+      href: '/investment',
+    },
+    {
+      name: 'Today Expense',
+      value: ready ? formatMoney(todayExpense, currency) : '—',
+      icon: Calendar,
+      valueClassName: ready ? expenseColorClass(todayExpense) : undefined,
+      href: '/expenses/monthly',
+    },
+    {
+      name: 'Yesterday Expense',
+      value: ready ? formatMoney(yesterdayExpense, currency) : '—',
+      icon: CalendarDays,
+      valueClassName: ready ? expenseColorClass(yesterdayExpense) : undefined,
+      href: '/expenses/monthly',
+    },
+  ]
+
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
-          Dashboard
-        </h1>
-        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-          Overview of your books — balances, ledgers, and recent activity.
-        </p>
+    <div className="w-full p-4 lg:p-8">
+      <div className="mb-4 lg:mb-6">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+              Dashboard
+            </h1>
+            <div className="relative inline-flex shrink-0">
+              <button
+                type="button"
+                onClick={() => setInfoOpen((v) => !v)}
+                className={`rounded-full p-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                  infoOpen
+                    ? 'text-primary-600 dark:text-primary-400'
+                    : 'text-gray-400 hover:text-primary-600 dark:text-gray-500 dark:hover:text-primary-400'
+                }`}
+                aria-label="About Dashboard"
+                aria-expanded={infoOpen}
+                aria-controls="dashboard-info-popover"
+              >
+                <Info className="h-5 w-5" aria-hidden />
+              </button>
+              {infoOpen ? (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setInfoOpen(false)}
+                    aria-hidden
+                  />
+                  <div
+                    id="dashboard-info-popover"
+                    role="dialog"
+                    className="absolute left-0 top-full z-50 mt-2 w-64 max-w-[min(16rem,calc(100vw-2rem))] rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                  >
+                    Overview of your books — balances, ledgers, and recent activity.
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </div>
+          <div className="flex h-10 shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setTxnModalOpen(true)}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 lg:hidden"
+              aria-label="Add Transaction"
+            >
+              <Plus className="h-4 w-4" aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={() => setTxnModalOpen(true)}
+              className="hidden h-10 items-center rounded-md bg-primary-600 px-4 text-sm font-medium leading-none text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 lg:inline-flex"
+            >
+              Add
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <TransactionFormModal
+        open={txnModalOpen}
+        onClose={() => setTxnModalOpen(false)}
+        onSaved={() => {
+          void refreshDashboard()
+        }}
+      />
+
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {statCards.map((card) => {
           const Icon = card.icon
-          return (
-            <div
-              key={card.name}
-              className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800/90"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{card.name}</p>
-                  <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                    {card.value}
-                  </p>
-                  <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">{card.hint}</p>
-                </div>
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400">
-                  <Icon className="h-5 w-5" aria-hidden />
-                </span>
+          const className =
+            'flex min-h-[4.25rem] items-center rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800/90 sm:min-h-[5rem] sm:p-5' +
+            (card.href
+              ? ' transition-colors hover:border-primary-300 hover:bg-primary-50/40 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:hover:border-primary-700 dark:hover:bg-primary-900/20'
+              : '')
+          const body = (
+            <div className="flex w-full items-center gap-2 sm:gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400 sm:h-9 sm:w-9">
+                <Icon className="h-4 w-4" aria-hidden />
+              </span>
+              <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
+                <p className="truncate text-xs font-medium leading-snug text-gray-500 dark:text-gray-400 sm:text-sm">
+                  {card.name}
+                </p>
+                <p
+                  className={`text-base font-semibold leading-snug tabular-nums sm:text-xl lg:text-2xl ${
+                    card.valueClassName ?? 'text-gray-900 dark:text-gray-100'
+                  }`}
+                >
+                  {card.value}
+                </p>
               </div>
+            </div>
+          )
+          return card.href ? (
+            <Link key={card.name} href={card.href} className={className}>
+              {body}
+            </Link>
+          ) : (
+            <div key={card.name} className={className}>
+              {body}
             </div>
           )
         })}
       </div>
-
-      <section className="mt-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800/90">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Get started</h2>
-        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-          Configure your business profile and preferences, then start posting journal entries.
-        </p>
-        <div className="mt-5 flex flex-wrap gap-3">
-          <Link
-            href="/settings"
-            className="inline-flex items-center gap-2 rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
-          >
-            <Settings className="h-4 w-4" aria-hidden />
-            Open Settings
-            <ArrowRight className="h-4 w-4" aria-hidden />
-          </Link>
-        </div>
-      </section>
     </div>
   )
 }
