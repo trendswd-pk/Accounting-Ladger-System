@@ -1,7 +1,7 @@
 'use client'
 
-import { useMemo } from 'react'
 import Link from 'next/link'
+import { useLayoutEffect, useMemo, useRef } from 'react'
 import {
   Area,
   AreaChart,
@@ -16,34 +16,10 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import type { AccountRecord } from '@/lib/accounts'
+import type { DashboardExpenseSummary } from '@/lib/dashboardExpenseSummary'
 import { formatMoney } from '@/lib/money'
-import {
-  expenseSpendAmount,
-  type TransactionRecord,
-} from '@/lib/transactions'
 
-const MONTH_SHORT = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-] as const
-
-const MIX_COLORS = [
-  '#38bdf8', // cash in pocket
-  '#0ea5e9', // cash & savings
-  '#22c55e', // receivable
-  '#ef4444', // payable
-]
+const MIX_COLORS = ['#0d9488', '#2563eb', '#8b5cf6', '#f43f5e'] as const
 
 type MixSlice = {
   key: string
@@ -56,15 +32,12 @@ type MixSlice = {
 type DashboardChartsProps = {
   currency: string
   ready: boolean
-  /** Accounts-only charts (balance mix) can render before this is true */
-  txReady: boolean
+  summaryReady: boolean
   cashInPocket: number
   cashSavings: number
   payable: number
   receivable: number
-  expenseAccountIds: Set<string>
-  transactions: TransactionRecord[]
-  expenseAccounts: AccountRecord[]
+  summary: DashboardExpenseSummary | null
 }
 
 function ChartCard({
@@ -79,14 +52,16 @@ function ChartCard({
   children: React.ReactNode
 }) {
   return (
-    <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800/90">
-      <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-4 py-3 dark:border-gray-700 sm:px-5">
+    <section className="flex min-h-[16rem] flex-col rounded-xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-5">
+      <div className="mb-3 flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <h2 className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
             {title}
           </h2>
           {subtitle ? (
-            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{subtitle}</p>
+            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+              {subtitle}
+            </p>
           ) : null}
         </div>
         {href ? (
@@ -99,7 +74,7 @@ function ChartCard({
           </Link>
         ) : null}
       </div>
-      <div className="min-h-[14rem] flex-1 p-3 sm:p-4">{children}</div>
+      <div className="min-h-[14rem] flex-1">{children}</div>
     </section>
   )
 }
@@ -111,7 +86,7 @@ function ChartTooltip({
   currency,
 }: {
   active?: boolean
-  payload?: Array<{ name?: string; value?: number; color?: string }>
+  payload?: Array<{ value?: number; name?: string; color?: string }>
   label?: string
   currency: string
 }) {
@@ -131,18 +106,50 @@ function ChartTooltip({
   )
 }
 
+/** Recharts Pie sets tabindex=0 on sectors; neutralize under aria-hidden for a11y. */
+function useStripFocusUnderAriaHidden(ref: React.RefObject<HTMLElement | null>) {
+  useLayoutEffect(() => {
+    const root = ref.current
+    if (!root) return
+
+    const strip = () => {
+      root.querySelectorAll<HTMLElement>('[tabindex]').forEach((el) => {
+        if (el.getAttribute('tabindex') !== '-1') {
+          el.setAttribute('tabindex', '-1')
+        }
+      })
+      root.querySelectorAll<SVGElement>('g, path, text').forEach((el) => {
+        if (el.hasAttribute('tabindex') && el.getAttribute('tabindex') !== '-1') {
+          el.setAttribute('tabindex', '-1')
+        }
+      })
+    }
+
+    strip()
+    const mo = new MutationObserver(strip)
+    mo.observe(root, {
+      attributes: true,
+      attributeFilter: ['tabindex'],
+      childList: true,
+      subtree: true,
+    })
+    return () => mo.disconnect()
+  }, [ref])
+}
+
 export default function DashboardCharts({
   currency,
   ready,
-  txReady,
+  summaryReady,
   cashInPocket,
   cashSavings,
   payable,
   receivable,
-  expenseAccountIds,
-  transactions,
-  expenseAccounts,
+  summary,
 }: DashboardChartsProps) {
+  const pieDecorRef = useRef<HTMLDivElement>(null)
+  useStripFocusUnderAriaHidden(pieDecorRef)
+
   const mixData = useMemo((): MixSlice[] => {
     const slices: MixSlice[] = [
       {
@@ -182,74 +189,9 @@ export default function DashboardCharts({
     [mixData]
   )
 
-  const monthlyExpenseData = useMemo(() => {
-    const now = new Date()
-    const points: Array<{ key: string; label: string; expense: number }> = []
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-      const y = d.getFullYear()
-      const m = d.getMonth()
-      const prefix = `${y}-${String(m + 1).padStart(2, '0')}`
-      let expense = 0
-      for (const tx of transactions) {
-        if (!expenseAccountIds.has(tx.accountId)) continue
-        if (!tx.transactionDate.slice(0, 10).startsWith(prefix)) continue
-        expense += expenseSpendAmount(tx)
-      }
-      points.push({
-        key: prefix,
-        label: `${MONTH_SHORT[m]} ${String(y).slice(2)}`,
-        expense: Math.max(0, expense),
-      })
-    }
-    return points
-  }, [transactions, expenseAccountIds])
-
-  const dailyExpenseData = useMemo(() => {
-    const now = new Date()
-    const y = now.getFullYear()
-    const m = now.getMonth()
-    const days = now.getDate()
-    const prefix = `${y}-${String(m + 1).padStart(2, '0')}`
-    const points: Array<{ day: string; expense: number }> = []
-    for (let day = 1; day <= days; day++) {
-      const date = `${prefix}-${String(day).padStart(2, '0')}`
-      let expense = 0
-      for (const tx of transactions) {
-        if (!expenseAccountIds.has(tx.accountId)) continue
-        if (tx.transactionDate.slice(0, 10) !== date) continue
-        expense += expenseSpendAmount(tx)
-      }
-      points.push({
-        day: String(day),
-        expense: Math.max(0, expense),
-      })
-    }
-    return points
-  }, [transactions, expenseAccountIds])
-
-  const topExpenseAccounts = useMemo(() => {
-    const byId = new Map<string, number>()
-    const now = new Date()
-    const prefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-    for (const tx of transactions) {
-      if (!expenseAccountIds.has(tx.accountId)) continue
-      if (!tx.transactionDate.slice(0, 10).startsWith(prefix)) continue
-      byId.set(
-        tx.accountId,
-        (byId.get(tx.accountId) ?? 0) + expenseSpendAmount(tx)
-      )
-    }
-    return expenseAccounts
-      .map((a) => ({
-        id: a.id,
-        name: a.name,
-        total: Math.max(0, byId.get(a.id) ?? 0),
-      }))
-      .filter((r) => r.total > 0)
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 6)
-  }, [transactions, expenseAccountIds, expenseAccounts])
+  const monthlyExpenseData = summary?.monthly ?? []
+  const dailyExpenseData = summary?.daily ?? []
+  const topExpenseAccounts = summary?.topAccounts ?? []
 
   if (!ready) {
     return (
@@ -279,7 +221,7 @@ export default function DashboardCharts({
             <div className="flex h-full min-h-[14rem] flex-col gap-3 sm:flex-row sm:items-center">
               <div className="mx-auto flex w-44 shrink-0 flex-col items-center sm:mx-0">
                 {/* Decorative: legend below is the accessible summary */}
-                <div className="h-44 w-44" aria-hidden="true">
+                <div ref={pieDecorRef} className="h-44 w-44" aria-hidden="true">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -291,18 +233,12 @@ export default function DashboardCharts({
                         paddingAngle={2}
                         stroke="transparent"
                         isAnimationActive={false}
+                        rootTabIndex={-1}
                       >
                         {mixData.map((s) => (
-                          <Cell
-                            key={s.key}
-                            fill={s.color}
-                            aria-label={`${s.name}: ${formatMoney(s.value, currency)}`}
-                          />
+                          <Cell key={s.key} fill={s.color} />
                         ))}
                       </Pie>
-                      <Tooltip
-                        content={<ChartTooltip currency={currency} />}
-                      />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -337,7 +273,7 @@ export default function DashboardCharts({
                           </span>
                         </span>
                         <span className="shrink-0 text-xs tabular-nums text-gray-800 dark:text-gray-100">
-                          {pct.toFixed(2)}%
+                          {pct.toFixed(2)}% · {formatMoney(s.value, currency)}
                         </span>
                       </Link>
                     </li>
@@ -353,7 +289,7 @@ export default function DashboardCharts({
           subtitle="Last 6 months"
           href="/expenses/monthly"
         >
-          {!txReady ? (
+          {!summaryReady ? (
             <div className="h-full min-h-[14rem] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-700/50" />
           ) : (
             <ResponsiveContainer width="100%" height="100%" minHeight={220}>
@@ -394,10 +330,10 @@ export default function DashboardCharts({
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard
           title="Daily expenses"
-          subtitle={`${MONTH_SHORT[new Date().getMonth()]} · this month`}
+          subtitle={`${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][new Date().getMonth()]} · this month`}
           href="/expenses/daily"
         >
-          {!txReady ? (
+          {!summaryReady ? (
             <div className="h-full min-h-[14rem] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-700/50" />
           ) : (
             <ResponsiveContainer width="100%" height="100%" minHeight={220}>
@@ -447,7 +383,7 @@ export default function DashboardCharts({
           subtitle="This month"
           href="/expenses"
         >
-          {!txReady ? (
+          {!summaryReady ? (
             <div className="h-full min-h-[14rem] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-700/50" />
           ) : topExpenseAccounts.length === 0 ? (
             <p className="flex h-full items-center justify-center text-sm text-gray-500 dark:text-gray-400">

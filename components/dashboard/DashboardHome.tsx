@@ -16,22 +16,6 @@ import {
   Wallet,
 } from 'lucide-react'
 import TransactionFormModal from '@/components/TransactionFormModal'
-
-const DashboardCharts = dynamic(
-  () => import('@/components/dashboard/DashboardCharts'),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="mt-6 space-y-4" aria-hidden>
-        <div className="h-72 animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800/80" />
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className="h-64 animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800/80" />
-          <div className="h-64 animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800/80" />
-        </div>
-      </div>
-    ),
-  }
-)
 import {
   fetchAccounts,
   getCachedAccounts,
@@ -51,13 +35,29 @@ import {
   sameIdList,
   watchAppSettings,
 } from '@/lib/appSettings'
-import { formatMoney } from '@/lib/money'
 import {
-  expenseSpendAmount,
-  fetchTransactions,
-  getCachedTransactions,
-  type TransactionRecord,
-} from '@/lib/transactions'
+  fetchDashboardExpenseSummary,
+  getCachedDashboardExpenseSummary,
+  invalidateDashboardExpenseSummaryCache,
+  type DashboardExpenseSummary,
+} from '@/lib/dashboardExpenseSummary'
+import { formatMoney } from '@/lib/money'
+
+const DashboardCharts = dynamic(
+  () => import('@/components/dashboard/DashboardCharts'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="mt-6 space-y-4" aria-hidden>
+        <div className="h-72 animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800/80" />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="h-64 animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800/80" />
+          <div className="h-64 animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800/80" />
+        </div>
+      </div>
+    ),
+  }
+)
 
 function sumBalances(list: AccountRecord[]): number {
   return list.reduce((sum, a) => sum + (Number(a.balance) || 0), 0)
@@ -76,30 +76,27 @@ function expenseColorClass(amount: number): string {
   return 'text-gray-900 dark:text-gray-100'
 }
 
-function todayISO(): string {
-  const d = new Date()
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-
-function yesterdayISO(): string {
-  const d = new Date()
-  d.setDate(d.getDate() - 1)
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
+function scheduleIdle(cb: () => void): () => void {
+  if (typeof window === 'undefined') return () => {}
+  const ric = window.requestIdleCallback
+  if (typeof ric === 'function') {
+    const id = ric(() => cb(), { timeout: 1800 })
+    return () => window.cancelIdleCallback(id)
+  }
+  const t = window.setTimeout(cb, 200)
+  return () => window.clearTimeout(t)
 }
 
 export default function DashboardHome() {
   const cachedAccounts = getCachedAccounts()
-  const cachedTx = getCachedTransactions()
+  const cachedSummary = getCachedDashboardExpenseSummary()
   const [accounts, setAccounts] = useState<AccountRecord[]>(() => cachedAccounts ?? [])
-  const [transactions, setTransactions] = useState<TransactionRecord[]>(() => cachedTx ?? [])
+  const [summary, setSummary] = useState<DashboardExpenseSummary | null>(
+    () => cachedSummary
+  )
   const [ready, setReady] = useState(() => cachedAccounts != null)
-  const [txReady, setTxReady] = useState(() => cachedTx != null)
+  const [summaryReady, setSummaryReady] = useState(() => cachedSummary != null)
+  const [chartsMounted, setChartsMounted] = useState(false)
   const [currency, setCurrency] = useState(
     () => getCachedAppSettings()?.currency ?? DEFAULT_APP_SETTINGS.currency
   )
@@ -120,6 +117,18 @@ export default function DashboardHome() {
   const [infoOpen, setInfoOpen] = useState(false)
   const [txnModalOpen, setTxnModalOpen] = useState(false)
 
+  const loadSummary = useCallback(async (force: boolean) => {
+    try {
+      if (force) invalidateDashboardExpenseSummaryCache()
+      const next = await fetchDashboardExpenseSummary({ force })
+      setSummary(next)
+    } catch {
+      /* keep current */
+    } finally {
+      setSummaryReady(true)
+    }
+  }, [])
+
   const refreshDashboard = useCallback(async () => {
     try {
       const items = await fetchAccounts({ force: true })
@@ -128,19 +137,11 @@ export default function DashboardHome() {
     } catch {
       /* keep current */
     }
-    try {
-      const txs = await fetchTransactions({ force: true })
-      setTransactions(txs)
-    } catch {
-      /* keep current */
-    } finally {
-      setTxReady(true)
-    }
-  }, [])
+    await loadSummary(true)
+  }, [loadSummary])
 
   useEffect(() => {
     let cancelled = false
-    // Accounts first — unlocks above-the-fold cards / LCP without waiting on heavy txs
     void (async () => {
       try {
         const items = await fetchAccounts({ force: true })
@@ -151,20 +152,24 @@ export default function DashboardHome() {
         if (!cancelled) setReady(true)
       }
     })()
-    void (async () => {
-      try {
-        const txs = await fetchTransactions({ force: true })
-        if (!cancelled) setTransactions(txs)
-      } catch {
-        if (!cancelled && getCachedTransactions() == null) setTransactions([])
-      } finally {
-        if (!cancelled) setTxReady(true)
-      }
-    })()
     return () => {
       cancelled = true
     }
   }, [])
+
+  // Defer expense summary + chart bundle until after first paint (cuts mobile TBT)
+  useEffect(() => {
+    let cancelled = false
+    const cancelIdle = scheduleIdle(() => {
+      if (cancelled) return
+      setChartsMounted(true)
+      void loadSummary(true)
+    })
+    return () => {
+      cancelled = true
+      cancelIdle()
+    }
+  }, [loadSummary])
 
   useEffect(() => {
     return watchAppSettings((s) => {
@@ -222,11 +227,6 @@ export default function DashboardHome() {
   const expenseAccounts = useMemo(() => accounts.filter(isExpenseAccount), [accounts])
   const investAccounts = useMemo(() => accounts.filter(isInvestAccount), [accounts])
 
-  const expenseAccountIds = useMemo(
-    () => new Set(expenseAccounts.map((a) => a.id)),
-    [expenseAccounts]
-  )
-
   const pocketBalance = useMemo(() => sumBalances(pocketAccounts), [pocketAccounts])
   const cashInHandBalance = useMemo(
     () => sumBalances(cashSavingsAccounts),
@@ -240,28 +240,8 @@ export default function DashboardHome() {
   const expenseBalance = useMemo(() => sumBalances(expenseAccounts), [expenseAccounts])
   const investBalance = useMemo(() => sumBalances(investAccounts), [investAccounts])
 
-  const todayDate = todayISO()
-  const yesterdayDate = yesterdayISO()
-
-  const todayExpense = useMemo(() => {
-    let total = 0
-    for (const tx of transactions) {
-      if (!expenseAccountIds.has(tx.accountId)) continue
-      if (tx.transactionDate.slice(0, 10) !== todayDate) continue
-      total += expenseSpendAmount(tx)
-    }
-    return total
-  }, [transactions, expenseAccountIds, todayDate])
-
-  const yesterdayExpense = useMemo(() => {
-    let total = 0
-    for (const tx of transactions) {
-      if (!expenseAccountIds.has(tx.accountId)) continue
-      if (tx.transactionDate.slice(0, 10) !== yesterdayDate) continue
-      total += expenseSpendAmount(tx)
-    }
-    return total
-  }, [transactions, expenseAccountIds, yesterdayDate])
+  const todayExpense = summary?.todayExpense ?? 0
+  const yesterdayExpense = summary?.yesterdayExpense ?? 0
 
   const statCards: {
     name: string
@@ -313,16 +293,18 @@ export default function DashboardHome() {
     },
     {
       name: 'Today Expense',
-      value: txReady ? formatMoney(todayExpense, currency) : '—',
+      value: summaryReady ? formatMoney(todayExpense, currency) : '—',
       icon: Calendar,
-      valueClassName: txReady ? expenseColorClass(todayExpense) : undefined,
+      valueClassName: summaryReady ? expenseColorClass(todayExpense) : undefined,
       href: '/expenses/daily',
     },
     {
       name: 'Yesterday Expense',
-      value: txReady ? formatMoney(yesterdayExpense, currency) : '—',
+      value: summaryReady ? formatMoney(yesterdayExpense, currency) : '—',
       icon: CalendarDays,
-      valueClassName: txReady ? expenseColorClass(yesterdayExpense) : undefined,
+      valueClassName: summaryReady
+        ? expenseColorClass(yesterdayExpense)
+        : undefined,
       href: '/expenses/daily',
     },
   ]
@@ -441,18 +423,26 @@ export default function DashboardHome() {
         })}
       </div>
 
-      <DashboardCharts
-        currency={currency}
-        ready={ready}
-        txReady={txReady}
-        cashInPocket={pocketBalance}
-        cashSavings={cashInHandBalance}
-        payable={loanBalance}
-        receivable={receivableBalance}
-        expenseAccountIds={expenseAccountIds}
-        transactions={transactions}
-        expenseAccounts={expenseAccounts}
-      />
+      {chartsMounted ? (
+        <DashboardCharts
+          currency={currency}
+          ready={ready}
+          summaryReady={summaryReady}
+          cashInPocket={pocketBalance}
+          cashSavings={cashInHandBalance}
+          payable={loanBalance}
+          receivable={receivableBalance}
+          summary={summary}
+        />
+      ) : (
+        <div className="mt-6 space-y-4" aria-hidden>
+          <div className="h-72 animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800/80" />
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="h-64 animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800/80" />
+            <div className="h-64 animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800/80" />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

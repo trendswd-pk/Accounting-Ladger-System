@@ -89,11 +89,19 @@ CREATE TABLE IF NOT EXISTS public.app_settings (
   theme TEXT NOT NULL DEFAULT 'dark' CHECK (theme IN ('light', 'dark')),
   default_entry_mode TEXT NOT NULL DEFAULT 'normal'
     CHECK (default_entry_mode IN ('normal', 'transfer')),
+  logo_url TEXT,
+  favicon_url TEXT,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 ALTER TABLE public.app_settings
   ADD COLUMN IF NOT EXISTS default_entry_mode TEXT NOT NULL DEFAULT 'normal';
+
+ALTER TABLE public.app_settings
+  ADD COLUMN IF NOT EXISTS logo_url TEXT;
+
+ALTER TABLE public.app_settings
+  ADD COLUMN IF NOT EXISTS favicon_url TEXT;
 
 ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
 

@@ -8,6 +8,10 @@ export type AppSettings = {
   currency: string
   theme: ThemePreference
   defaultEntryMode: DefaultEntryMode
+  /** Optional header logo (R2 public URL). When set, replaces the name in the header. */
+  logoUrl: string | null
+  /** Optional browser tab favicon (R2 public URL). */
+  faviconUrl: string | null
   cashSavingsCashTypeIds: string[]
   cashSavingsAccountTypeIds: string[]
   /** Shared filter for Payable (−) and Receivable (+) pages/cards. */
@@ -21,6 +25,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   currency: 'PKR',
   theme: 'dark',
   defaultEntryMode: 'normal',
+  logoUrl: null,
+  faviconUrl: null,
   cashSavingsCashTypeIds: [],
   cashSavingsAccountTypeIds: [],
   payableReceivableCashTypeIds: [],
@@ -32,6 +38,8 @@ type DbRow = {
   currency: string
   theme: string
   default_entry_mode?: string | null
+  logo_url?: string | null
+  favicon_url?: string | null
   cash_savings_cash_type_ids?: unknown
   cash_savings_account_type_ids?: unknown
   payable_receivable_cash_type_ids?: unknown
@@ -59,6 +67,13 @@ export function normalizeUuidIdList(value: unknown): string[] {
     ids.push(id)
   }
   return ids
+}
+
+/** Empty / whitespace → null (optional branding URL). */
+export function normalizeOptionalUrl(value: unknown): string | null {
+  if (value == null) return null
+  const url = String(value).trim()
+  return url || null
 }
 
 /** @deprecated use normalizeUuidIdList */
@@ -101,6 +116,8 @@ export function mapAppSettingsRow(row: DbRow): AppSettings {
     currency: row.currency || DEFAULT_APP_SETTINGS.currency,
     theme,
     defaultEntryMode: normalizeDefaultEntryMode(row.default_entry_mode),
+    logoUrl: normalizeOptionalUrl(row.logo_url),
+    faviconUrl: normalizeOptionalUrl(row.favicon_url),
     cashSavingsCashTypeIds: normalizeUuidIdList(row.cash_savings_cash_type_ids),
     cashSavingsAccountTypeIds: normalizeUuidIdList(row.cash_savings_account_type_ids),
     payableReceivableCashTypeIds: firstNonEmptyIdList(
@@ -204,12 +221,44 @@ export type AppSettingsPatch = Partial<
     | 'currency'
     | 'theme'
     | 'defaultEntryMode'
+    | 'logoUrl'
+    | 'faviconUrl'
     | 'cashSavingsCashTypeIds'
     | 'cashSavingsAccountTypeIds'
     | 'payableReceivableCashTypeIds'
     | 'payableReceivableAccountTypeIds'
   >
 >
+
+/** Apply favicon (and apple-touch-icon) from settings into document head. */
+export function applyFaviconUrl(url: string | null | undefined): void {
+  if (typeof document === 'undefined') return
+  const href = normalizeOptionalUrl(url)
+
+  const ensureLink = (rel: string): HTMLLinkElement => {
+    let link = document.head.querySelector<HTMLLinkElement>(
+      `link[data-app-branding="1"][rel="${rel}"]`
+    )
+    if (!link) {
+      link = document.createElement('link')
+      link.rel = rel
+      link.dataset.appBranding = '1'
+      document.head.appendChild(link)
+    }
+    return link
+  }
+
+  if (!href) {
+    document.head
+      .querySelectorAll('link[data-app-branding="1"]')
+      .forEach((el) => el.remove())
+    return
+  }
+
+  ensureLink('icon').href = href
+  ensureLink('shortcut icon').href = href
+  ensureLink('apple-touch-icon').href = href
+}
 
 export async function saveAppSettings(input: AppSettingsPatch): Promise<AppSettings> {
   const res = await fetch(SETTINGS_ENDPOINT, {

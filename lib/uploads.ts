@@ -1,10 +1,8 @@
 /**
- * Client helpers: upload file bytes to Cloudflare R2, keep metadata in Supabase.
+ * Client helpers: upload file bytes to Cloudflare R2 via same-origin API.
  *
- * Flow:
- *  1. POST /api/uploads/presign  → { uploadUrl, storageKey, publicUrl }
- *  2. PUT file directly to R2 (browser → R2, not through Next.js)
- *  3. POST /api/uploads/complete → verify object + insert file_attachments row
+ * Flow: POST /api/uploads (multipart) → server PUTs to R2 → returns file_attachments row.
+ * File bytes live on R2; only metadata is stored in Supabase.
  */
 
 export const UPLOAD_MAX_BYTES = 100 * 1024 * 1024 // 100MB
@@ -16,11 +14,24 @@ export const UPLOAD_ALLOWED_EXTENSIONS = [
   'jpeg',
   'webp',
   'gif',
+  'svg',
+  'ico',
   'csv',
   'xlsx',
   'xls',
   'doc',
   'docx',
+] as const
+
+/** Image types suitable for logo / favicon branding uploads. */
+export const BRAND_IMAGE_EXTENSIONS = [
+  'png',
+  'jpg',
+  'jpeg',
+  'webp',
+  'gif',
+  'svg',
+  'ico',
 ] as const
 
 export type FileAttachment = {
@@ -45,6 +56,11 @@ export function isAllowedUploadName(fileName: string): boolean {
   return (UPLOAD_ALLOWED_EXTENSIONS as readonly string[]).includes(ext)
 }
 
+export function isBrandImageName(fileName: string): boolean {
+  const ext = getFileExtension(fileName)
+  return (BRAND_IMAGE_EXTENSIONS as readonly string[]).includes(ext)
+}
+
 export function inferUploadMimeType(fileName: string, browserType?: string): string {
   const t = (browserType || '').trim()
   if (t && t !== 'application/octet-stream') return t
@@ -56,6 +72,8 @@ export function inferUploadMimeType(fileName: string, browserType?: string): str
     jpeg: 'image/jpeg',
     webp: 'image/webp',
     gif: 'image/gif',
+    svg: 'image/svg+xml',
+    ico: 'image/x-icon',
     csv: 'text/csv',
     xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     xls: 'application/vnd.ms-excel',
@@ -74,17 +92,19 @@ async function readError(res: Response, fallback: string): Promise<string> {
   }
 }
 
-/** XHR PUT with progress (fetch cannot report upload progress). */
-export function putFileToPresignedUrl(
-  uploadUrl: string,
+/** Same-origin XHR POST with upload progress. */
+function postFileToUploadApi(
   file: File,
-  contentType: string,
+  folder: string,
   onProgress?: (percent: number) => void
-): Promise<void> {
+): Promise<FileAttachment> {
   return new Promise((resolve, reject) => {
+    const form = new FormData()
+    form.append('file', file)
+    if (folder) form.append('folder', folder)
+
     const xhr = new XMLHttpRequest()
-    xhr.open('PUT', uploadUrl)
-    xhr.setRequestHeader('Content-Type', contentType)
+    xhr.open('POST', '/api/uploads')
     xhr.upload.onprogress = (e) => {
       if (!e.lengthComputable || !onProgress) return
       onProgress(Math.round((e.loaded / e.total) * 100))
@@ -92,13 +112,29 @@ export function putFileToPresignedUrl(
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
         onProgress?.(100)
-        resolve()
+        try {
+          const body = JSON.parse(xhr.responseText) as { attachment: FileAttachment }
+          if (!body.attachment?.publicUrl) {
+            reject(new Error('Upload response was incomplete.'))
+            return
+          }
+          resolve(body.attachment)
+        } catch {
+          reject(new Error('Upload response was invalid.'))
+        }
         return
       }
-      reject(new Error(`R2 upload failed (${xhr.status}).`))
+      let message = `Upload failed (${xhr.status}).`
+      try {
+        const data = JSON.parse(xhr.responseText) as { error?: string }
+        if (data.error) message = data.error
+      } catch {
+        /* keep status message */
+      }
+      reject(new Error(message))
     }
-    xhr.onerror = () => reject(new Error('R2 upload network error.'))
-    xhr.send(file)
+    xhr.onerror = () => reject(new Error('Upload network error.'))
+    xhr.send(form)
   })
 }
 
@@ -116,44 +152,8 @@ export async function uploadFileToR2(
     throw new Error(`Allowed file types: ${UPLOAD_ALLOWED_EXTENSIONS.join(', ')}`)
   }
 
-  const contentType = inferUploadMimeType(file.name, file.type)
   options?.onProgress?.(0)
-
-  const presignRes = await fetch('/api/uploads/presign', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      fileName: file.name,
-      fileSize: file.size,
-      contentType,
-      folder: options?.folder ?? '',
-    }),
-  })
-  if (!presignRes.ok) throw new Error(await readError(presignRes, 'Could not start upload.'))
-
-  const presign = (await presignRes.json()) as {
-    storageKey: string
-    uploadUrl: string
-    contentType: string
-  }
-
-  await putFileToPresignedUrl(presign.uploadUrl, file, presign.contentType, options?.onProgress)
-
-  const completeRes = await fetch('/api/uploads/complete', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      fileName: file.name,
-      storageKey: presign.storageKey,
-      mimeType: contentType,
-      sizeBytes: file.size,
-      folder: options?.folder ?? '',
-    }),
-  })
-  if (!completeRes.ok) throw new Error(await readError(completeRes, 'Upload failed.'))
-
-  const body = (await completeRes.json()) as { attachment: FileAttachment }
-  return body.attachment
+  return postFileToUploadApi(file, options?.folder ?? '', options?.onProgress)
 }
 
 export async function deleteUploadedFile(id: string): Promise<void> {

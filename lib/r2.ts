@@ -4,8 +4,8 @@ import { createHash, createHmac, randomUUID } from 'node:crypto'
  * Minimal Cloudflare R2 client over the S3 API (same approach as Courier-Dashboard).
  * Server-only — never import from a client component.
  *
- * Pattern: browser gets a presigned PUT URL → uploads directly to R2 →
- * API verifies with HEAD and stores metadata in Supabase (not the file bytes).
+ * Preferred pattern: browser POSTs file to /api/uploads → server PUTs to R2 →
+ * metadata saved in Supabase (avoids bucket CORS). Presigned PUT remains available.
  */
 
 const REGION = 'auto'
@@ -216,6 +216,25 @@ async function signedRequest(
     },
     body,
   })
+}
+
+export async function putR2Object(
+  cfg: R2Config,
+  key: string,
+  body: ArrayBuffer,
+  contentType: string
+): Promise<string | null> {
+  try {
+    const res = await signedRequest(cfg, 'PUT', key, body, {
+      'content-type': (contentType || 'application/octet-stream').trim(),
+    })
+    if (!res.ok) {
+      return `R2 upload failed (${res.status}): ${(await res.text()).slice(0, 200)}`
+    }
+    return null
+  } catch (err) {
+    return err instanceof Error ? err.message : 'R2 upload failed.'
+  }
 }
 
 export async function headR2Object(

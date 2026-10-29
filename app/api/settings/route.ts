@@ -3,6 +3,7 @@ import {
   DEFAULT_APP_SETTINGS,
   mapAppSettingsRow,
   normalizeDefaultEntryMode,
+  normalizeOptionalUrl,
   normalizeUuidIdList,
 } from '@/lib/appSettings'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
@@ -21,6 +22,8 @@ type RpcSettings = {
   currency: string
   theme: string
   default_entry_mode?: string | null
+  logo_url?: string | null
+  favicon_url?: string | null
   cash_savings_cash_type_ids?: unknown
   cash_savings_account_type_ids?: unknown
   payable_receivable_cash_type_ids?: unknown
@@ -42,6 +45,7 @@ function isMissingRpc(error: { message?: string; code?: string } | null): boolea
 }
 
 const COLUMN_SETS = [
+  'business_name, currency, theme, default_entry_mode, logo_url, favicon_url, cash_savings_cash_type_ids, cash_savings_account_type_ids, payable_receivable_cash_type_ids, payable_receivable_account_type_ids, updated_at',
   'business_name, currency, theme, default_entry_mode, cash_savings_cash_type_ids, cash_savings_account_type_ids, payable_receivable_cash_type_ids, payable_receivable_account_type_ids, updated_at',
   'business_name, currency, theme, default_entry_mode, cash_savings_cash_type_ids, cash_savings_account_type_ids, payable_cash_type_ids, payable_account_type_ids, receivable_cash_type_ids, receivable_account_type_ids, updated_at',
   'business_name, currency, theme, default_entry_mode, cash_savings_cash_type_ids, cash_savings_account_type_ids, updated_at',
@@ -138,6 +142,12 @@ export async function PATCH(request: Request) {
     if (body.defaultEntryMode !== undefined) {
       patch.default_entry_mode = normalizeDefaultEntryMode(body.defaultEntryMode)
     }
+    if (body.logoUrl !== undefined) {
+      patch.logo_url = normalizeOptionalUrl(body.logoUrl)
+    }
+    if (body.faviconUrl !== undefined) {
+      patch.favicon_url = normalizeOptionalUrl(body.faviconUrl)
+    }
     for (const key of ID_LIST_PATCH_KEYS) {
       if (body[key.body] !== undefined) {
         patch[key.column] = normalizeUuidIdList(body[key.body])
@@ -148,6 +158,18 @@ export async function PATCH(request: Request) {
     const admin = getSupabaseAdmin()
     const { error } = await admin.from('app_settings').update(patch).eq('id', 1)
     if (error) {
+      if (
+        /logo_url|favicon_url/i.test(error.message) &&
+        /does not exist|Could not find/i.test(error.message)
+      ) {
+        return json(
+          {
+            error:
+              'Branding columns missing. Run database/settings-branding.sql in Supabase.',
+          },
+          500
+        )
+      }
       if (
         /cash_savings_|payable_receivable_/i.test(error.message) &&
         /does not exist|Could not find/i.test(error.message)

@@ -33,6 +33,11 @@ import {
   getDefaultTheme,
   type ThemePreference,
 } from '@/lib/theme'
+import {
+  BRAND_IMAGE_EXTENSIONS,
+  isBrandImageName,
+  uploadFileToR2,
+} from '@/lib/uploads'
 
 const actionBtnClass =
   'inline-flex h-9 items-center rounded-md border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
@@ -113,6 +118,135 @@ function SettingRow({
   )
 }
 
+const brandAccept = BRAND_IMAGE_EXTENSIONS.map((ext) => `.${ext}`).join(',')
+
+function BrandAssetField({
+  id,
+  label,
+  description,
+  value,
+  previewClassName,
+  disabled,
+  onUploaded,
+  onClear,
+  onError,
+}: {
+  id: string
+  label: string
+  description: string
+  value: string | null
+  previewClassName: string
+  disabled?: boolean
+  onUploaded: (url: string) => void
+  onClear: () => void
+  onError: (message: string) => void
+}) {
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [hintOpen, setHintOpen] = useState(false)
+
+  const handleFile = async (file: File | undefined) => {
+    if (!file) return
+    if (!isBrandImageName(file.name)) {
+      onError(`Use an image file (${BRAND_IMAGE_EXTENSIONS.join(', ')}).`)
+      return
+    }
+    setUploading(true)
+    try {
+      const attachment = await uploadFileToR2(file, { folder: 'branding' })
+      onUploaded(attachment.publicUrl)
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Upload failed.')
+    } finally {
+      setUploading(false)
+      if (inputRef.current) inputRef.current.value = ''
+    }
+  }
+
+  return (
+    <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <div className="flex shrink-0 items-center gap-1.5">
+        <label htmlFor={id} className="text-sm font-medium text-gray-900 dark:text-gray-100">
+          {label}
+        </label>
+        <div className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => setHintOpen((v) => !v)}
+            className={`rounded-full p-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+              hintOpen
+                ? 'text-primary-600 dark:text-primary-400'
+                : 'text-gray-400 hover:text-primary-600 dark:text-gray-500 dark:hover:text-primary-400'
+            }`}
+            aria-label={`About ${label}`}
+            aria-expanded={hintOpen}
+          >
+            <Info className="h-3.5 w-3.5" aria-hidden />
+          </button>
+          {hintOpen ? (
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setHintOpen(false)}
+                aria-hidden
+              />
+              <div
+                role="dialog"
+                className="absolute left-0 top-full z-50 mt-1.5 w-64 max-w-[min(16rem,calc(100vw-2rem))] rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs leading-relaxed text-gray-700 shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+              >
+                {description}
+              </div>
+            </>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700/50">
+          {value ? (
+            // eslint-disable-next-line @next/next/no-img-element -- remote R2 branding URL
+            <img src={value} alt="" className={previewClassName} />
+          ) : (
+            <span className="text-[10px] leading-none text-gray-400 dark:text-gray-500">
+              —
+            </span>
+          )}
+        </div>
+        <input
+          ref={inputRef}
+          id={id}
+          type="file"
+          accept={brandAccept}
+          className="sr-only"
+          disabled={disabled || uploading}
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            void handleFile(file)
+          }}
+        />
+        <button
+          type="button"
+          disabled={disabled || uploading}
+          onClick={() => inputRef.current?.click()}
+          className={actionBtnClass}
+        >
+          {uploading ? 'Uploading…' : value ? 'Replace' : 'Upload'}
+        </button>
+        {value ? (
+          <button
+            type="button"
+            disabled={disabled || uploading}
+            onClick={onClear}
+            className={actionBtnClass}
+          >
+            Remove
+          </button>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
 export default function SettingsPage() {
   const [businessName, setBusinessName] = useState(DEFAULT_APP_SETTINGS.businessName)
   const [currency, setCurrency] = useState(DEFAULT_APP_SETTINGS.currency)
@@ -120,6 +254,8 @@ export default function SettingsPage() {
   const [defaultEntryMode, setDefaultEntryMode] = useState<DefaultEntryMode>(
     DEFAULT_APP_SETTINGS.defaultEntryMode
   )
+  const [logoUrl, setLogoUrl] = useState<string | null>(DEFAULT_APP_SETTINGS.logoUrl)
+  const [faviconUrl, setFaviconUrl] = useState<string | null>(DEFAULT_APP_SETTINGS.faviconUrl)
   const [cashSavingsCashTypeIds, setCashSavingsCashTypeIds] = useState<string[]>(
     () => DEFAULT_APP_SETTINGS.cashSavingsCashTypeIds
   )
@@ -193,6 +329,8 @@ export default function SettingsPage() {
         setCurrency(settings.currency)
         setTheme(settings.theme)
         setDefaultEntryMode(settings.defaultEntryMode)
+        setLogoUrl(settings.logoUrl)
+        setFaviconUrl(settings.faviconUrl)
         applyThemePreference(settings.theme)
 
         const pickSavedOrDefault = (
@@ -281,6 +419,8 @@ export default function SettingsPage() {
         currency,
         theme,
         defaultEntryMode,
+        logoUrl,
+        faviconUrl,
         cashSavingsCashTypeIds,
         cashSavingsAccountTypeIds,
         payableReceivableCashTypeIds,
@@ -290,6 +430,8 @@ export default function SettingsPage() {
       setCurrency(saved.currency)
       setTheme(saved.theme)
       setDefaultEntryMode(saved.defaultEntryMode)
+      setLogoUrl(saved.logoUrl)
+      setFaviconUrl(saved.faviconUrl)
       setCashSavingsCashTypeIds(saved.cashSavingsCashTypeIds)
       setCashSavingsAccountTypeIds(saved.cashSavingsAccountTypeIds)
       setPayableReceivableCashTypeIds(saved.payableReceivableCashTypeIds)
@@ -362,7 +504,7 @@ export default function SettingsPage() {
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800/90">
           <SettingRow
             label="Business name"
-            description="Shown in the sidebar and header."
+            description="Shown in the sidebar and header when no logo is set."
             htmlFor="businessName"
           >
             <input
@@ -375,6 +517,41 @@ export default function SettingsPage() {
               autoComplete="organization"
             />
           </SettingRow>
+
+          <div className="grid grid-cols-1 divide-y divide-gray-200 border-b border-gray-200 dark:divide-gray-700 dark:border-gray-700 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+            <div className="px-4 py-4">
+              <BrandAssetField
+                id="businessLogo"
+                label="Logo"
+                description="Optional. When uploaded, replaces the business name in the header and sidebar."
+                value={logoUrl}
+                previewClassName="h-7 max-w-full object-contain"
+                disabled={saving || loading}
+                onUploaded={(url) => {
+                  setLogoUrl(url)
+                  setMessage(null)
+                }}
+                onClear={() => setLogoUrl(null)}
+                onError={(text) => setMessage({ type: 'error', text })}
+              />
+            </div>
+            <div className="px-4 py-4">
+              <BrandAssetField
+                id="businessFavicon"
+                label="Favicon"
+                description="Optional. Browser tab icon for this app. PNG, ICO, or SVG work best."
+                value={faviconUrl}
+                previewClassName="h-7 w-7 object-contain"
+                disabled={saving || loading}
+                onUploaded={(url) => {
+                  setFaviconUrl(url)
+                  setMessage(null)
+                }}
+                onClear={() => setFaviconUrl(null)}
+                onError={(text) => setMessage({ type: 'error', text })}
+              />
+            </div>
+          </div>
 
           <SettingRow
             label="Default currency"

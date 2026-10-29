@@ -21,6 +21,9 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   const [businessName, setBusinessName] = useState(
     () => getCachedAppSettings()?.businessName ?? DEFAULT_APP_SETTINGS.businessName
   )
+  const [logoUrl, setLogoUrl] = useState<string | null>(
+    () => getCachedAppSettings()?.logoUrl ?? null
+  )
   const mainScrollRef = useRef<HTMLElement | null>(null)
   const isDev = process.env.NODE_ENV === 'development'
 
@@ -30,7 +33,10 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   }, [pathname])
 
   useEffect(() => {
-    return watchAppSettings((s) => setBusinessName(s.businessName))
+    return watchAppSettings((s) => {
+      setBusinessName(s.businessName)
+      setLogoUrl(s.logoUrl)
+    })
   }, [])
 
   return (
@@ -50,12 +56,23 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
           className="flex min-w-0 flex-1 items-center gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
           title={businessName}
         >
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-600 text-white">
-            <BookOpen className="h-4 w-4" aria-hidden />
-          </span>
-          <span className="truncate text-base font-bold text-primary-600 dark:text-primary-400">
-            {businessName}
-          </span>
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- remote R2 branding URL
+            <img
+              src={logoUrl}
+              alt={businessName}
+              className="h-8 max-w-[10rem] object-contain object-left"
+            />
+          ) : (
+            <>
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-600 text-white">
+                <BookOpen className="h-4 w-4" aria-hidden />
+              </span>
+              <span className="truncate text-base font-bold text-primary-600 dark:text-primary-400">
+                {businessName}
+              </span>
+            </>
+          )}
         </Link>
         {isDev ? (
           <button
