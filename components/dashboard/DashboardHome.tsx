@@ -414,11 +414,10 @@ export default function DashboardHome() {
       <DashboardCharts
         currency={currency}
         ready={ready}
+        cashInPocket={pocketBalance}
         cashSavings={cashInHandBalance}
         payable={loanBalance}
         receivable={receivableBalance}
-        investment={investBalance}
-        expenses={expenseBalance}
         expenseAccountIds={expenseAccountIds}
         transactions={transactions}
         expenseAccounts={expenseAccounts}

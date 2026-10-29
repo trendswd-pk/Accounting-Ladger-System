@@ -39,11 +39,10 @@ const MONTH_SHORT = [
 ] as const
 
 const MIX_COLORS = [
+  '#38bdf8', // cash in pocket
   '#0ea5e9', // cash & savings
   '#22c55e', // receivable
-  '#ef4444', // payable (shown as abs)
-  '#a855f7', // investment
-  '#f59e0b', // expenses
+  '#ef4444', // payable
 ]
 
 type MixSlice = {
@@ -57,11 +56,10 @@ type MixSlice = {
 type DashboardChartsProps = {
   currency: string
   ready: boolean
+  cashInPocket: number
   cashSavings: number
   payable: number
   receivable: number
-  investment: number
-  expenses: number
   expenseAccountIds: Set<string>
   transactions: TransactionRecord[]
   expenseAccounts: AccountRecord[]
@@ -133,11 +131,10 @@ function ChartTooltip({
 export default function DashboardCharts({
   currency,
   ready,
+  cashInPocket,
   cashSavings,
   payable,
   receivable,
-  investment,
-  expenses,
   expenseAccountIds,
   transactions,
   expenseAccounts,
@@ -145,43 +142,36 @@ export default function DashboardCharts({
   const mixData = useMemo((): MixSlice[] => {
     const slices: MixSlice[] = [
       {
+        key: 'pocket',
+        name: 'Cash in Pocket',
+        value: Math.max(0, cashInPocket),
+        href: '/',
+        color: MIX_COLORS[0],
+      },
+      {
         key: 'cash',
         name: 'Cash & Savings',
         value: Math.max(0, cashSavings),
         href: '/cash-savings',
-        color: MIX_COLORS[0],
+        color: MIX_COLORS[1],
       },
       {
         key: 'recv',
         name: 'Receivable',
         value: Math.max(0, receivable),
         href: '/receivable',
-        color: MIX_COLORS[1],
+        color: MIX_COLORS[2],
       },
       {
         key: 'pay',
         name: 'Payable',
-        value: Math.abs(Math.min(0, payable)),
+        value: Math.abs(payable),
         href: '/payable',
-        color: MIX_COLORS[2],
-      },
-      {
-        key: 'inv',
-        name: 'Investment',
-        value: Math.max(0, investment),
-        href: '/investment',
         color: MIX_COLORS[3],
-      },
-      {
-        key: 'exp',
-        name: 'Expenses',
-        value: Math.max(0, expenses),
-        href: '/expenses',
-        color: MIX_COLORS[4],
       },
     ]
     return slices.filter((s) => s.value > 0)
-  }, [cashSavings, payable, receivable, investment, expenses])
+  }, [cashInPocket, cashSavings, payable, receivable])
 
   const mixTotal = useMemo(
     () => mixData.reduce((sum, s) => sum + s.value, 0),
@@ -275,7 +265,7 @@ export default function DashboardCharts({
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard
           title="Balance mix"
-          subtitle="Cash, receivables, payables, investment & expenses"
+          subtitle="Cash in Pocket, Cash & Savings, Receivable and Payable"
         >
           {mixData.length === 0 ? (
             <p className="flex h-full items-center justify-center text-sm text-gray-500 dark:text-gray-400">
@@ -283,39 +273,42 @@ export default function DashboardCharts({
             </p>
           ) : (
             <div className="flex h-full min-h-[14rem] flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="relative mx-auto h-44 w-44 shrink-0 sm:mx-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={mixData}
-                      dataKey="value"
-                      nameKey="name"
-                      innerRadius="58%"
-                      outerRadius="88%"
-                      paddingAngle={2}
-                      stroke="transparent"
-                    >
-                      {mixData.map((s) => (
-                        <Cell key={s.key} fill={s.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      content={<ChartTooltip currency={currency} />}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-[10px] uppercase tracking-wider text-gray-400">
+              <div className="mx-auto flex w-44 shrink-0 flex-col items-center sm:mx-0">
+                <div className="h-44 w-44">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={mixData}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius="58%"
+                        outerRadius="88%"
+                        paddingAngle={2}
+                        stroke="transparent"
+                      >
+                        {mixData.map((s) => (
+                          <Cell key={s.key} fill={s.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        content={<ChartTooltip currency={currency} />}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="mt-2 text-center">
+                  <p className="text-[10px] uppercase tracking-wider text-gray-400">
                     Total
-                  </span>
-                  <span className="max-w-[6.5rem] truncate text-center text-xs font-semibold tabular-nums text-gray-800 dark:text-gray-100">
+                  </p>
+                  <p className="max-w-[11rem] break-all text-sm font-semibold tabular-nums text-gray-800 dark:text-gray-100">
                     {formatMoney(mixTotal, currency)}
-                  </span>
+                  </p>
                 </div>
               </div>
               <ul className="min-w-0 flex-1 space-y-2">
                 {mixData.map((s) => {
-                  const pct = mixTotal > 0 ? Math.round((s.value / mixTotal) * 100) : 0
+                  const pct =
+                    mixTotal > 0 ? (s.value / mixTotal) * 100 : 0
                   return (
                     <li key={s.key}>
                       <Link
@@ -332,7 +325,7 @@ export default function DashboardCharts({
                           </span>
                         </span>
                         <span className="shrink-0 text-xs tabular-nums text-gray-800 dark:text-gray-100">
-                          {pct}%
+                          {pct.toFixed(2)}%
                         </span>
                       </Link>
                     </li>
