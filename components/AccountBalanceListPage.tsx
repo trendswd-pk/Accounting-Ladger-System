@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Info, Phone, Search } from 'lucide-react'
 import { TablePaginationNav } from '@/components/TablePaginationNav'
@@ -11,9 +11,8 @@ import {
 } from '@/lib/accounts'
 import {
   DEFAULT_APP_SETTINGS,
-  fetchAppSettings,
   getCachedAppSettings,
-  subscribeAppSettings,
+  watchAppSettings,
 } from '@/lib/appSettings'
 import { formatMoney } from '@/lib/money'
 import {
@@ -39,9 +38,7 @@ export default function AccountBalanceListPage({
   searchAriaLabel = 'Search accounts',
 }: AccountBalanceListPageProps) {
   const cached = getCachedAccounts()
-  const [rows, setRows] = useState<AccountRecord[]>(() =>
-    (cached ?? []).filter(filterAccounts)
-  )
+  const [allAccounts, setAllAccounts] = useState<AccountRecord[]>(() => cached ?? [])
   const [ready, setReady] = useState(() => cached != null)
   const [listError, setListError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
@@ -52,26 +49,33 @@ export default function AccountBalanceListPage({
     () => getCachedAppSettings()?.currency ?? DEFAULT_APP_SETTINGS.currency
   )
 
-  const loadRows = useCallback(async () => {
-    setListError(null)
-    try {
-      const items = await fetchAccounts({ force: true })
-      setRows(items.filter(filterAccounts))
-    } catch (err) {
-      setRows([])
-      setListError(err instanceof Error ? err.message : 'Failed to load accounts')
-    } finally {
-      setReady(true)
-    }
-  }, [filterAccounts])
-
   useEffect(() => {
-    void loadRows()
-    void fetchAppSettings()
-      .then((s) => setCurrency(s.currency))
-      .catch(() => {})
-    return subscribeAppSettings((s) => setCurrency(s.currency))
-  }, [loadRows])
+    let cancelled = false
+    void (async () => {
+      setListError(null)
+      try {
+        const items = await fetchAccounts()
+        if (!cancelled) setAllAccounts(items)
+      } catch (err) {
+        if (!cancelled) {
+          setAllAccounts([])
+          setListError(err instanceof Error ? err.message : 'Failed to load accounts')
+        }
+      } finally {
+        if (!cancelled) setReady(true)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => watchAppSettings((s) => setCurrency(s.currency)), [])
+
+  const rows = useMemo(
+    () => allAccounts.filter(filterAccounts),
+    [allAccounts, filterAccounts]
+  )
 
   const filteredRows = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
@@ -104,7 +108,7 @@ export default function AccountBalanceListPage({
 
   useEffect(() => {
     setPage(1)
-  }, [searchQuery])
+  }, [searchQuery, filterAccounts])
 
   const pageRows = useMemo(() => {
     const start = (page - 1) * listPageSize

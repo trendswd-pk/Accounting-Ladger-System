@@ -19,9 +19,8 @@ import {
 import { isExpenseAccount } from '@/lib/accountFilters'
 import {
   DEFAULT_APP_SETTINGS,
-  fetchAppSettings,
   getCachedAppSettings,
-  subscribeAppSettings,
+  watchAppSettings,
 } from '@/lib/appSettings'
 import { formatMoney } from '@/lib/money'
 import {
@@ -82,8 +81,8 @@ export default function MonthlyExpensePage() {
     setListError(null)
     try {
       const [accounts, txs] = await Promise.all([
-        fetchAccounts({ force: true }),
-        fetchTransactions({ force: true }),
+        fetchAccounts(),
+        fetchTransactions(),
       ])
       setExpenseAccounts(accounts.filter(isExpenseAccount))
       setTransactions(txs)
@@ -96,10 +95,7 @@ export default function MonthlyExpensePage() {
 
   useEffect(() => {
     void load()
-    void fetchAppSettings()
-      .then((s) => setCurrency(s.currency))
-      .catch(() => {})
-    return subscribeAppSettings((s) => setCurrency(s.currency))
+    return watchAppSettings((s) => setCurrency(s.currency))
   }, [load])
 
   const availableYears = useMemo(() => {

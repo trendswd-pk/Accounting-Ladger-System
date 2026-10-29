@@ -10,9 +10,8 @@ import RequestProfilerPanel from './RequestProfilerPanel'
 import ScrollToTopButton from './ScrollToTopButton'
 import {
   DEFAULT_APP_SETTINGS,
-  fetchAppSettings,
   getCachedAppSettings,
-  subscribeAppSettings,
+  watchAppSettings,
 } from '@/lib/appSettings'
 
 export default function LayoutContent({ children }: { children: React.ReactNode }) {
@@ -31,17 +30,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   }, [pathname])
 
   useEffect(() => {
-    let cancelled = false
-    void fetchAppSettings()
-      .then((s) => {
-        if (!cancelled) setBusinessName(s.businessName)
-      })
-      .catch(() => {})
-    const unsub = subscribeAppSettings((s) => setBusinessName(s.businessName))
-    return () => {
-      cancelled = true
-      unsub()
-    }
+    return watchAppSettings((s) => setBusinessName(s.businessName))
   }, [])
 
   return (

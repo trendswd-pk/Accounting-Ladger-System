@@ -4,9 +4,9 @@ import { useCallback, useEffect, useState } from 'react'
 import AccountBalanceListPage from '@/components/AccountBalanceListPage'
 import { isReceivableAccount } from '@/lib/accountFilters'
 import {
-  fetchAppSettings,
   getCachedAppSettings,
-  subscribeAppSettings,
+  sameIdList,
+  watchAppSettings,
 } from '@/lib/appSettings'
 import type { AccountRecord } from '@/lib/accounts'
 
@@ -19,15 +19,17 @@ export default function ReceivablePage() {
   )
 
   useEffect(() => {
-    void fetchAppSettings()
-      .then((s) => {
-        setCashTypeIds(s.payableReceivableCashTypeIds)
-        setAccountTypeIds(s.payableReceivableAccountTypeIds)
-      })
-      .catch(() => {})
-    return subscribeAppSettings((s) => {
-      setCashTypeIds(s.payableReceivableCashTypeIds)
-      setAccountTypeIds(s.payableReceivableAccountTypeIds)
+    return watchAppSettings((s) => {
+      setCashTypeIds((prev) =>
+        sameIdList(prev, s.payableReceivableCashTypeIds)
+          ? prev
+          : s.payableReceivableCashTypeIds
+      )
+      setAccountTypeIds((prev) =>
+        sameIdList(prev, s.payableReceivableAccountTypeIds)
+          ? prev
+          : s.payableReceivableAccountTypeIds
+      )
     })
   }, [])
 

@@ -20,9 +20,8 @@ import {
 } from '@/lib/accounts'
 import {
   DEFAULT_APP_SETTINGS,
-  fetchAppSettings,
   getCachedAppSettings,
-  subscribeAppSettings,
+  watchAppSettings,
 } from '@/lib/appSettings'
 import { formatMoney } from '@/lib/money'
 import {
@@ -105,10 +104,7 @@ export default function SetupTypeCrudPage({
   useEffect(() => {
     void loadRows()
     void loadAccounts()
-    void fetchAppSettings()
-      .then((s) => setCurrency(s.currency))
-      .catch(() => {})
-    return subscribeAppSettings((s) => setCurrency(s.currency))
+    return watchAppSettings((s) => setCurrency(s.currency))
   }, [loadRows, loadAccounts])
 
   const linkedAccounts = useMemo(() => {

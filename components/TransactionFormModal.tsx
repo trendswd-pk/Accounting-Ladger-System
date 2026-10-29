@@ -90,7 +90,8 @@ export default function TransactionFormModal({
     let cancelled = false
     void (async () => {
       try {
-        const s = await fetchAppSettings()
+        const cached = getCachedAppSettings()
+        const s = cached ?? (await fetchAppSettings())
         if (cancelled) return
         setDefaultEntryMode(s.defaultEntryMode)
         resetForm(s.defaultEntryMode)

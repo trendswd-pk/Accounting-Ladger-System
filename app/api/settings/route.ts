@@ -64,7 +64,7 @@ async function readSettingsRow() {
       .eq('id', 1)
       .maybeSingle()
     if (!selectError) {
-      if (row) return mapAppSettingsRow(row as RpcSettings)
+      if (row) return mapAppSettingsRow(row as unknown as RpcSettings)
       return { ...DEFAULT_APP_SETTINGS }
     }
     if (!/column .* does not exist|Could not find/i.test(selectError.message)) {

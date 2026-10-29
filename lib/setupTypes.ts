@@ -75,7 +75,6 @@ export async function fetchSetupTypes(
   if (!force) {
     const cached = listCache.get(kind)
     if (cached) {
-      recordRequestDeduped(endpointFor(kind))
       return cached.map((r) => ({ ...r }))
     }
   }

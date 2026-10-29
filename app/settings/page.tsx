@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Info } from 'lucide-react'
 import MultiSelectDropdown from '@/components/MultiSelectDropdown'
 import {
@@ -15,6 +15,13 @@ import {
   type DefaultEntryMode,
 } from '@/lib/appSettings'
 import {
+  downloadAccountImportTemplate,
+  downloadTransactionImportTemplate,
+  exportTransactionsCsv,
+  importAccountsFromCsvFile,
+  importTransactionsFromCsvFile,
+} from '@/lib/dataImportExport'
+import {
   fetchSetupTypes,
   getCachedSetupTypes,
   type SetupTypeRecord,
@@ -24,6 +31,12 @@ import {
   getDefaultTheme,
   type ThemePreference,
 } from '@/lib/theme'
+
+const actionBtnClass =
+  'inline-flex h-9 items-center rounded-md border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
+
+const primaryActionBtnClass =
+  'inline-flex h-9 items-center rounded-md bg-primary-600 px-3 text-sm font-medium text-white transition-colors hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50'
 
 const inputClass =
   'w-full sm:w-72 px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500'
@@ -124,8 +137,13 @@ export default function SettingsPage() {
   )
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [importingAccounts, setImportingAccounts] = useState(false)
+  const [importingTransactions, setImportingTransactions] = useState(false)
+  const [exportingTransactions, setExportingTransactions] = useState(false)
   const [infoOpen, setInfoOpen] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const accountFileRef = useRef<HTMLInputElement | null>(null)
+  const transactionFileRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -445,6 +463,141 @@ export default function SettingsPage() {
                 placeholder="Select…"
                 emptyMessage="No active Cash Types"
               />
+            </div>
+          </SettingRow>
+
+          <SettingRow
+            label="Account import"
+            description="CSV columns: name, phone, account_type, cash_type. Types match by name or code. Duplicate account names are skipped."
+          >
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <input
+                ref={accountFileRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  e.target.value = ''
+                  if (!file) return
+                  setMessage(null)
+                  setImportingAccounts(true)
+                  void importAccountsFromCsvFile(file)
+                    .then((result) => {
+                      const extra =
+                        result.errorCount > 0
+                          ? ` ${result.errorCount} row error(s).`
+                          : ''
+                      setMessage({
+                        type: result.imported > 0 || result.errorCount === 0 ? 'success' : 'error',
+                        text: `Accounts: imported ${result.imported}, skipped ${result.skipped}.${extra}`,
+                      })
+                    })
+                    .catch((err) => {
+                      setMessage({
+                        type: 'error',
+                        text: err instanceof Error ? err.message : 'Account import failed.',
+                      })
+                    })
+                    .finally(() => setImportingAccounts(false))
+                }}
+              />
+              <button
+                type="button"
+                className={actionBtnClass}
+                onClick={() => downloadAccountImportTemplate()}
+              >
+                Template
+              </button>
+              <button
+                type="button"
+                className={primaryActionBtnClass}
+                disabled={importingAccounts || loading}
+                onClick={() => accountFileRef.current?.click()}
+              >
+                {importingAccounts ? 'Importing…' : 'Import CSV'}
+              </button>
+            </div>
+          </SettingRow>
+
+          <SettingRow
+            label="Transaction import & export"
+            description="CSV columns: transaction_date (YYYY-MM-DD), account_name, narration, entry_type (credit/debit), amount. Import matches accounts by name."
+          >
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <input
+                ref={transactionFileRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  e.target.value = ''
+                  if (!file) return
+                  setMessage(null)
+                  setImportingTransactions(true)
+                  void importTransactionsFromCsvFile(file)
+                    .then((result) => {
+                      const extra =
+                        result.errorCount > 0
+                          ? ` ${result.errorCount} row error(s).`
+                          : ''
+                      setMessage({
+                        type: result.imported > 0 || result.errorCount === 0 ? 'success' : 'error',
+                        text: `Transactions: imported ${result.imported}, skipped ${result.skipped}.${extra}`,
+                      })
+                    })
+                    .catch((err) => {
+                      setMessage({
+                        type: 'error',
+                        text:
+                          err instanceof Error ? err.message : 'Transaction import failed.',
+                      })
+                    })
+                    .finally(() => setImportingTransactions(false))
+                }}
+              />
+              <button
+                type="button"
+                className={actionBtnClass}
+                onClick={() => downloadTransactionImportTemplate()}
+              >
+                Template
+              </button>
+              <button
+                type="button"
+                className={actionBtnClass}
+                disabled={exportingTransactions || loading}
+                onClick={() => {
+                  setMessage(null)
+                  setExportingTransactions(true)
+                  void exportTransactionsCsv()
+                    .then(() => {
+                      setMessage({
+                        type: 'success',
+                        text: 'Transactions exported to CSV.',
+                      })
+                    })
+                    .catch((err) => {
+                      setMessage({
+                        type: 'error',
+                        text:
+                          err instanceof Error ? err.message : 'Transaction export failed.',
+                      })
+                    })
+                    .finally(() => setExportingTransactions(false))
+                }}
+              >
+                {exportingTransactions ? 'Exporting…' : 'Export'}
+              </button>
+              <button
+                type="button"
+                className={primaryActionBtnClass}
+                disabled={importingTransactions || loading}
+                onClick={() => transactionFileRef.current?.click()}
+              >
+                {importingTransactions ? 'Importing…' : 'Import CSV'}
+              </button>
             </div>
           </SettingRow>
         </div>

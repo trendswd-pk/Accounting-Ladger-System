@@ -101,6 +101,11 @@ function isAbortLike(err: unknown): boolean {
   )
 }
 
+/** Track API + Supabase only — skip Next.js RSC / page navigations. */
+function shouldTrackEndpoint(endpoint: string): boolean {
+  return endpoint.startsWith('/api/') || endpoint.startsWith('supabase:')
+}
+
 /** Dev-only: patch window.fetch to count network calls (API + Supabase). */
 export function initRequestProfiler(): void {
   if (typeof window === 'undefined') return
@@ -111,6 +116,10 @@ export function initRequestProfiler(): void {
   const originalFetch = window.fetch.bind(window)
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const endpoint = endpointFromInput(input)
+    if (!shouldTrackEndpoint(endpoint)) {
+      return originalFetch(input, init)
+    }
+
     const row = getOrCreate(endpoint)
     row.calls += 1
     row.inflight += 1

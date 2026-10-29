@@ -4,9 +4,9 @@ import { useCallback, useEffect, useState } from 'react'
 import AccountBalanceListPage from '@/components/AccountBalanceListPage'
 import { isCashSavingsAccount } from '@/lib/accountFilters'
 import {
-  fetchAppSettings,
   getCachedAppSettings,
-  subscribeAppSettings,
+  sameIdList,
+  watchAppSettings,
 } from '@/lib/appSettings'
 import type { AccountRecord } from '@/lib/accounts'
 
@@ -19,15 +19,15 @@ export default function CashSavingsPage() {
   )
 
   useEffect(() => {
-    void fetchAppSettings()
-      .then((s) => {
-        setCashTypeIds(s.cashSavingsCashTypeIds)
-        setAccountTypeIds(s.cashSavingsAccountTypeIds)
-      })
-      .catch(() => {})
-    return subscribeAppSettings((s) => {
-      setCashTypeIds(s.cashSavingsCashTypeIds)
-      setAccountTypeIds(s.cashSavingsAccountTypeIds)
+    return watchAppSettings((s) => {
+      setCashTypeIds((prev) =>
+        sameIdList(prev, s.cashSavingsCashTypeIds) ? prev : s.cashSavingsCashTypeIds
+      )
+      setAccountTypeIds((prev) =>
+        sameIdList(prev, s.cashSavingsAccountTypeIds)
+          ? prev
+          : s.cashSavingsAccountTypeIds
+      )
     })
   }, [])
 

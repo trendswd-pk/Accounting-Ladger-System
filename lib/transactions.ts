@@ -77,7 +77,6 @@ export function invalidateTransactionsCache(): void {
 export async function fetchTransactions(options?: { force?: boolean }): Promise<TransactionRecord[]> {
   const force = options?.force === true
   if (!force && cache) {
-    recordRequestDeduped(ENDPOINT)
     return cache.map((r) => ({ ...r }))
   }
   if (inflight) {

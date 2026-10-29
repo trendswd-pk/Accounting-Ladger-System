@@ -144,9 +144,37 @@ export function subscribeAppSettings(listener: (settings: AppSettings) => void):
   return () => window.removeEventListener(SETTINGS_CHANGED_EVENT, handler)
 }
 
+/**
+ * Subscribe to settings updates. Uses cache immediately; does not start a network
+ * fetch (ThemeInit / ensureAppSettingsLoaded owns loading).
+ */
+export function watchAppSettings(listener: (settings: AppSettings) => void): () => void {
+  const cached = getCachedAppSettings()
+  if (cached) listener(cached)
+  return subscribeAppSettings(listener)
+}
+
+export function sameIdList(a: string[], b: string[]): boolean {
+  if (a === b) return true
+  if (a.length !== b.length) return false
+  const set = new Set(a)
+  return b.every((id) => set.has(id))
+}
+
+async function loadSettingsFromNetwork(): Promise<AppSettings> {
+  const res = await fetch(SETTINGS_ENDPOINT, { cache: 'no-store' })
+  const data = await res.json()
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to load settings')
+  }
+  settingsCache = withIdDefaults(data.settings as AppSettings)
+  notifySettingsChanged(settingsCache)
+  return cloneSettings(settingsCache)
+}
+
+/** Single-flight load. Cache hits are silent (no Deduped spam). */
 export async function fetchAppSettings(): Promise<AppSettings> {
   if (settingsCache) {
-    recordRequestDeduped(SETTINGS_ENDPOINT)
     return cloneSettings(settingsCache)
   }
   if (settingsInflight) {
@@ -154,23 +182,19 @@ export async function fetchAppSettings(): Promise<AppSettings> {
     return settingsInflight
   }
 
-  const req = (async () => {
-    const res = await fetch(SETTINGS_ENDPOINT, { cache: 'no-store' })
-    const data = await res.json()
-    if (!res.ok) {
-      throw new Error(data.error || 'Failed to load settings')
-    }
-    settingsCache = withIdDefaults(data.settings as AppSettings)
-    notifySettingsChanged(settingsCache)
-    return cloneSettings(settingsCache)
-  })()
-
+  const req = loadSettingsFromNetwork()
   settingsInflight = req
   try {
     return await req
   } finally {
     if (settingsInflight === req) settingsInflight = null
   }
+}
+
+/** Kick one settings load if cache is cold. Safe to call from multiple places. */
+export function ensureAppSettingsLoaded(): void {
+  if (settingsCache || settingsInflight) return
+  void fetchAppSettings().catch(() => {})
 }
 
 export type AppSettingsPatch = Partial<

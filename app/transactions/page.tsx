@@ -19,9 +19,8 @@ import { TablePaginationNav } from '@/components/TablePaginationNav'
 import { fetchAccounts, getCachedAccounts, type AccountRecord } from '@/lib/accounts'
 import {
   DEFAULT_APP_SETTINGS,
-  fetchAppSettings,
   getCachedAppSettings,
-  subscribeAppSettings,
+  watchAppSettings,
   type DefaultEntryMode,
 } from '@/lib/appSettings'
 import { formatMoney } from '@/lib/money'
@@ -171,17 +170,10 @@ function TransactionsPageInner() {
   useEffect(() => {
     void loadRows()
     void loadAccounts().catch(() => {})
-    void fetchAppSettings()
-      .then((s) => {
-        setDefaultEntryMode(s.defaultEntryMode)
-        setCurrency(s.currency)
-      })
-      .catch(() => {})
-    const unsub = subscribeAppSettings((s) => {
+    return watchAppSettings((s) => {
       setDefaultEntryMode(s.defaultEntryMode)
       setCurrency(s.currency)
     })
-    return unsub
   }, [loadRows, loadAccounts])
 
   const filteredAccountName = useMemo(() => {
@@ -350,9 +342,8 @@ function TransactionsPageInner() {
     setBalance('')
     setModalOpen(true)
     void loadAccounts().catch(() => {})
-    void fetchAppSettings()
-      .then((s) => setDefaultEntryMode(s.defaultEntryMode))
-      .catch(() => {})
+    const cachedSettings = getCachedAppSettings()
+    if (cachedSettings) setDefaultEntryMode(cachedSettings.defaultEntryMode)
   }
 
   const openEdit = (row: TransactionRecord) => {

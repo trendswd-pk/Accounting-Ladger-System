@@ -22,10 +22,9 @@ import {
 } from 'lucide-react'
 import {
   DEFAULT_APP_SETTINGS,
-  fetchAppSettings,
   getCachedAppSettings,
   saveAppSettings,
-  subscribeAppSettings,
+  watchAppSettings,
 } from '@/lib/appSettings'
 import {
   applyThemePreference,
@@ -97,17 +96,7 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
   )
 
   useEffect(() => {
-    let cancelled = false
-    void fetchAppSettings()
-      .then((s) => {
-        if (!cancelled) setBusinessName(s.businessName)
-      })
-      .catch(() => {})
-    const unsub = subscribeAppSettings((s) => setBusinessName(s.businessName))
-    return () => {
-      cancelled = true
-      unsub()
-    }
+    return watchAppSettings((s) => setBusinessName(s.businessName))
   }, [])
 
   useEffect(() => {

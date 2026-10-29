@@ -30,15 +30,16 @@ import {
 } from '@/lib/accountFilters'
 import {
   DEFAULT_APP_SETTINGS,
-  fetchAppSettings,
   getCachedAppSettings,
-  subscribeAppSettings,
+  sameIdList,
+  watchAppSettings,
 } from '@/lib/appSettings'
 import { formatMoney } from '@/lib/money'
 import {
   expenseSpendAmount,
   fetchTransactions,
   getCachedTransactions,
+  type TransactionRecord,
 } from '@/lib/transactions'
 
 function sumBalances(list: AccountRecord[]): number {
@@ -121,15 +122,15 @@ export default function DashboardHome() {
     void (async () => {
       try {
         const [items, txs] = await Promise.all([
-          fetchAccounts({ force: true }),
-          fetchTransactions({ force: true }),
+          fetchAccounts(),
+          fetchTransactions(),
         ])
         if (!cancelled) {
           setAccounts(items)
           setTransactions(txs)
         }
       } catch {
-        if (!cancelled && !cachedAccounts) setAccounts([])
+        if (!cancelled && getCachedAccounts() == null) setAccounts([])
       } finally {
         if (!cancelled) setReady(true)
       }
@@ -140,21 +141,26 @@ export default function DashboardHome() {
   }, [])
 
   useEffect(() => {
-    void fetchAppSettings()
-      .then((s) => {
-        setCurrency(s.currency)
-        setCashSavingsCashTypeIds(s.cashSavingsCashTypeIds)
-        setCashSavingsAccountTypeIds(s.cashSavingsAccountTypeIds)
-        setPayableReceivableCashTypeIds(s.payableReceivableCashTypeIds)
-        setPayableReceivableAccountTypeIds(s.payableReceivableAccountTypeIds)
-      })
-      .catch(() => {})
-    return subscribeAppSettings((s) => {
+    return watchAppSettings((s) => {
       setCurrency(s.currency)
-      setCashSavingsCashTypeIds(s.cashSavingsCashTypeIds)
-      setCashSavingsAccountTypeIds(s.cashSavingsAccountTypeIds)
-      setPayableReceivableCashTypeIds(s.payableReceivableCashTypeIds)
-      setPayableReceivableAccountTypeIds(s.payableReceivableAccountTypeIds)
+      setCashSavingsCashTypeIds((prev) =>
+        sameIdList(prev, s.cashSavingsCashTypeIds) ? prev : s.cashSavingsCashTypeIds
+      )
+      setCashSavingsAccountTypeIds((prev) =>
+        sameIdList(prev, s.cashSavingsAccountTypeIds)
+          ? prev
+          : s.cashSavingsAccountTypeIds
+      )
+      setPayableReceivableCashTypeIds((prev) =>
+        sameIdList(prev, s.payableReceivableCashTypeIds)
+          ? prev
+          : s.payableReceivableCashTypeIds
+      )
+      setPayableReceivableAccountTypeIds((prev) =>
+        sameIdList(prev, s.payableReceivableAccountTypeIds)
+          ? prev
+          : s.payableReceivableAccountTypeIds
+      )
     })
   }, [])
 

@@ -25,9 +25,8 @@ import {
 } from '@/lib/accounts'
 import {
   DEFAULT_APP_SETTINGS,
-  fetchAppSettings,
   getCachedAppSettings,
-  subscribeAppSettings,
+  watchAppSettings,
 } from '@/lib/appSettings'
 import { formatMoney } from '@/lib/money'
 import {
@@ -83,8 +82,7 @@ export default function AccountsPage() {
   const loadRows = useCallback(async () => {
     setListError(null)
     try {
-      // Always refresh so Balance stays in sync with transactions.
-      const items = await fetchAccounts({ force: true })
+      const items = await fetchAccounts()
       setRows(items)
     } catch (err) {
       setRows([])
@@ -97,10 +95,7 @@ export default function AccountsPage() {
   useEffect(() => {
     void loadRows()
     void loadLookups().catch(() => {})
-    void fetchAppSettings()
-      .then((s) => setCurrency(s.currency))
-      .catch(() => {})
-    return subscribeAppSettings((s) => setCurrency(s.currency))
+    return watchAppSettings((s) => setCurrency(s.currency))
   }, [loadRows, loadLookups])
 
   const filteredRows = useMemo(() => {

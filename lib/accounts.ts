@@ -66,7 +66,6 @@ export function invalidateAccountsCache(): void {
 export async function fetchAccounts(options?: { force?: boolean }): Promise<AccountRecord[]> {
   const force = options?.force === true
   if (!force && cache) {
-    recordRequestDeduped(ENDPOINT)
     return cache.map((r) => ({ ...r }))
   }
   if (inflight) {
