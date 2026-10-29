@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation'
 import { useMemo } from 'react'
 import {
   Area,
-  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
+  ComposedChart,
+  Legend,
+  Line,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -17,6 +19,19 @@ import {
 import BalanceMixRibbons from '@/components/dashboard/BalanceMixRibbons'
 import type { DashboardExpenseSummary } from '@/lib/dashboardExpenseSummary'
 import { formatMoney } from '@/lib/money'
+
+const ACCOUNT_SERIES_COLORS = [
+  '#0ea5e9',
+  '#8b5cf6',
+  '#10b981',
+  '#f59e0b',
+  '#ec4899',
+  '#14b8a6',
+  '#6366f1',
+  '#84cc16',
+  '#f97316',
+  '#06b6d4',
+] as const
 
 type MixSlice = {
   key: string
@@ -88,12 +103,14 @@ function ChartTooltip({
   currency: string
 }) {
   if (!active || !payload?.length) return null
+  const rows = payload.filter((p) => Number(p.value) > 0)
+  if (rows.length === 0) return null
   return (
-    <div className="rounded-md border border-gray-200 bg-white px-3 py-2 text-xs shadow-lg dark:border-gray-600 dark:bg-gray-800">
+    <div className="max-h-56 overflow-y-auto rounded-md border border-gray-200 bg-white px-3 py-2 text-xs shadow-lg dark:border-gray-600 dark:bg-gray-800">
       {label ? (
         <p className="mb-1 font-medium text-gray-700 dark:text-gray-200">{label}</p>
       ) : null}
-      {payload.map((p, i) => (
+      {rows.map((p, i) => (
         <p key={i} className="tabular-nums text-gray-600 dark:text-gray-300">
           <span style={{ color: p.color }}>{p.name ?? 'Value'}: </span>
           {formatMoney(Number(p.value) || 0, currency)}
@@ -179,7 +196,9 @@ export default function DashboardCharts({
   }, [cashInPocket, cashSavings, payable, receivable, mixTotal])
 
   const monthlyExpenseData = summary?.monthly ?? []
+  const monthlySeries = summary?.monthlySeries ?? []
   const dailyExpenseData = summary?.daily ?? []
+  const dailySeries = summary?.dailySeries ?? []
   const topExpenseAccounts = summary?.topAccounts ?? []
 
   if (!ready) {
@@ -207,15 +226,21 @@ export default function DashboardCharts({
 
         <ChartCard
           title="Monthly expenses"
-          subtitle="Last 6 months"
+          subtitle="Last 6 months · accounts + total"
           href="/expenses/monthly"
         >
           {!summaryReady ? (
             <div className="h-full min-h-[14rem] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-700/50" />
           ) : (
-            <ResponsiveContainer width="100%" height="100%" minHeight={220}>
-              <BarChart data={monthlyExpenseData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
+            <ResponsiveContainer width="100%" height="100%" minHeight={240}>
+              <ComposedChart
+                data={monthlyExpenseData}
+                margin={{ top: 8, right: 8, left: 0, bottom: 4 }}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  className="stroke-gray-200 dark:stroke-gray-700"
+                />
                 <XAxis
                   dataKey="label"
                   tick={{ fontSize: 11, fill: '#9ca3af' }}
@@ -234,15 +259,37 @@ export default function DashboardCharts({
                   }
                 />
                 <Tooltip content={<ChartTooltip currency={currency} />} />
-                <Bar
-                  dataKey="expense"
-                  name="Expense"
-                  fill="#f59e0b"
-                  radius={[6, 6, 0, 0]}
-                  maxBarSize={36}
-                  isAnimationActive={false}
+                <Legend
+                  verticalAlign="bottom"
+                  height={36}
+                  wrapperStyle={{ fontSize: 11, paddingTop: 4 }}
                 />
-              </BarChart>
+                {monthlySeries.length > 0 ? (
+                  monthlySeries.map((s, i) => (
+                    <Bar
+                      key={s.key}
+                      dataKey={s.key}
+                      name={s.name}
+                      stackId="accounts"
+                      fill={ACCOUNT_SERIES_COLORS[i % ACCOUNT_SERIES_COLORS.length]}
+                      radius={
+                        i === monthlySeries.length - 1 ? [6, 6, 0, 0] : [0, 0, 0, 0]
+                      }
+                      maxBarSize={36}
+                      isAnimationActive={false}
+                    />
+                  ))
+                ) : (
+                  <Bar
+                    dataKey="expense"
+                    name="Total"
+                    fill="#f59e0b"
+                    radius={[6, 6, 0, 0]}
+                    maxBarSize={36}
+                    isAnimationActive={false}
+                  />
+                )}
+              </ComposedChart>
             </ResponsiveContainer>
           )}
         </ChartCard>
@@ -251,21 +298,27 @@ export default function DashboardCharts({
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard
           title="Daily expenses"
-          subtitle={`${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][new Date().getMonth()]} · this month`}
+          subtitle={`${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][new Date().getMonth()]} · this month · accounts + total`}
           href="/expenses/daily"
         >
           {!summaryReady ? (
             <div className="h-full min-h-[14rem] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-700/50" />
           ) : (
-            <ResponsiveContainer width="100%" height="100%" minHeight={220}>
-              <AreaChart data={dailyExpenseData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+            <ResponsiveContainer width="100%" height="100%" minHeight={240}>
+              <ComposedChart
+                data={dailyExpenseData}
+                margin={{ top: 8, right: 8, left: 0, bottom: 4 }}
+              >
                 <defs>
                   <linearGradient id="expenseArea" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#ef4444" stopOpacity={0.35} />
+                    <stop offset="0%" stopColor="#ef4444" stopOpacity={0.28} />
                     <stop offset="100%" stopColor="#ef4444" stopOpacity={0.02} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  className="stroke-gray-200 dark:stroke-gray-700"
+                />
                 <XAxis
                   dataKey="day"
                   tick={{ fontSize: 10, fill: '#9ca3af' }}
@@ -285,16 +338,33 @@ export default function DashboardCharts({
                   }
                 />
                 <Tooltip content={<ChartTooltip currency={currency} />} />
+                <Legend
+                  verticalAlign="bottom"
+                  height={36}
+                  wrapperStyle={{ fontSize: 11, paddingTop: 4 }}
+                />
                 <Area
                   type="monotone"
                   dataKey="expense"
-                  name="Expense"
+                  name="Total"
                   stroke="#ef4444"
                   fill="url(#expenseArea)"
-                  strokeWidth={2}
+                  strokeWidth={2.5}
                   isAnimationActive={false}
                 />
-              </AreaChart>
+                {dailySeries.map((s, i) => (
+                  <Line
+                    key={s.key}
+                    type="monotone"
+                    dataKey={s.key}
+                    name={s.name}
+                    stroke={ACCOUNT_SERIES_COLORS[i % ACCOUNT_SERIES_COLORS.length]}
+                    strokeWidth={1.75}
+                    dot={false}
+                    isAnimationActive={false}
+                  />
+                ))}
+              </ComposedChart>
             </ResponsiveContainer>
           )}
         </ChartCard>
