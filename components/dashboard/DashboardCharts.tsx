@@ -56,6 +56,8 @@ type MixSlice = {
 type DashboardChartsProps = {
   currency: string
   ready: boolean
+  /** Accounts-only charts (balance mix) can render before this is true */
+  txReady: boolean
   cashInPocket: number
   cashSavings: number
   payable: number
@@ -90,6 +92,7 @@ function ChartCard({
         {href ? (
           <Link
             href={href}
+            prefetch={false}
             className="shrink-0 text-xs font-medium text-primary-600 hover:underline dark:text-primary-400"
           >
             View
@@ -131,6 +134,7 @@ function ChartTooltip({
 export default function DashboardCharts({
   currency,
   ready,
+  txReady,
   cashInPocket,
   cashSavings,
   payable,
@@ -274,7 +278,8 @@ export default function DashboardCharts({
           ) : (
             <div className="flex h-full min-h-[14rem] flex-col gap-3 sm:flex-row sm:items-center">
               <div className="mx-auto flex w-44 shrink-0 flex-col items-center sm:mx-0">
-                <div className="h-44 w-44">
+                {/* Decorative: legend below is the accessible summary */}
+                <div className="h-44 w-44" aria-hidden="true">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -285,9 +290,14 @@ export default function DashboardCharts({
                         outerRadius="88%"
                         paddingAngle={2}
                         stroke="transparent"
+                        isAnimationActive={false}
                       >
                         {mixData.map((s) => (
-                          <Cell key={s.key} fill={s.color} />
+                          <Cell
+                            key={s.key}
+                            fill={s.color}
+                            aria-label={`${s.name}: ${formatMoney(s.value, currency)}`}
+                          />
                         ))}
                       </Pie>
                       <Tooltip
@@ -313,12 +323,14 @@ export default function DashboardCharts({
                     <li key={s.key}>
                       <Link
                         href={s.href}
+                        prefetch={false}
                         className="flex items-center justify-between gap-2 rounded-md px-1 py-0.5 hover:bg-gray-50 dark:hover:bg-gray-700/40"
                       >
                         <span className="flex min-w-0 items-center gap-2">
                           <span
                             className="h-2.5 w-2.5 shrink-0 rounded-full"
                             style={{ backgroundColor: s.color }}
+                            aria-hidden
                           />
                           <span className="truncate text-xs text-gray-600 dark:text-gray-300">
                             {s.name}
@@ -341,36 +353,41 @@ export default function DashboardCharts({
           subtitle="Last 6 months"
           href="/expenses/monthly"
         >
-          <ResponsiveContainer width="100%" height="100%" minHeight={220}>
-            <BarChart data={monthlyExpenseData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
-              <XAxis
-                dataKey="label"
-                tick={{ fontSize: 11, fill: '#9ca3af' }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fontSize: 11, fill: '#9ca3af' }}
-                axisLine={false}
-                tickLine={false}
-                width={48}
-                tickFormatter={(v) =>
-                  Math.abs(Number(v)) >= 1000
-                    ? `${Math.round(Number(v) / 1000)}k`
-                    : String(v)
-                }
-              />
-              <Tooltip content={<ChartTooltip currency={currency} />} />
-              <Bar
-                dataKey="expense"
-                name="Expense"
-                fill="#f59e0b"
-                radius={[6, 6, 0, 0]}
-                maxBarSize={36}
-              />
-            </BarChart>
-          </ResponsiveContainer>
+          {!txReady ? (
+            <div className="h-full min-h-[14rem] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-700/50" />
+          ) : (
+            <ResponsiveContainer width="100%" height="100%" minHeight={220}>
+              <BarChart data={monthlyExpenseData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 11, fill: '#9ca3af' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: '#9ca3af' }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={48}
+                  tickFormatter={(v) =>
+                    Math.abs(Number(v)) >= 1000
+                      ? `${Math.round(Number(v) / 1000)}k`
+                      : String(v)
+                  }
+                />
+                <Tooltip content={<ChartTooltip currency={currency} />} />
+                <Bar
+                  dataKey="expense"
+                  name="Expense"
+                  fill="#f59e0b"
+                  radius={[6, 6, 0, 0]}
+                  maxBarSize={36}
+                  isAnimationActive={false}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </ChartCard>
       </div>
 
@@ -380,44 +397,49 @@ export default function DashboardCharts({
           subtitle={`${MONTH_SHORT[new Date().getMonth()]} · this month`}
           href="/expenses/daily"
         >
-          <ResponsiveContainer width="100%" height="100%" minHeight={220}>
-            <AreaChart data={dailyExpenseData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="expenseArea" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#ef4444" stopOpacity={0.35} />
-                  <stop offset="100%" stopColor="#ef4444" stopOpacity={0.02} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
-              <XAxis
-                dataKey="day"
-                tick={{ fontSize: 10, fill: '#9ca3af' }}
-                axisLine={false}
-                tickLine={false}
-                interval="preserveStartEnd"
-              />
-              <YAxis
-                tick={{ fontSize: 11, fill: '#9ca3af' }}
-                axisLine={false}
-                tickLine={false}
-                width={48}
-                tickFormatter={(v) =>
-                  Math.abs(Number(v)) >= 1000
-                    ? `${Math.round(Number(v) / 1000)}k`
-                    : String(v)
-                }
-              />
-              <Tooltip content={<ChartTooltip currency={currency} />} />
-              <Area
-                type="monotone"
-                dataKey="expense"
-                name="Expense"
-                stroke="#ef4444"
-                fill="url(#expenseArea)"
-                strokeWidth={2}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          {!txReady ? (
+            <div className="h-full min-h-[14rem] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-700/50" />
+          ) : (
+            <ResponsiveContainer width="100%" height="100%" minHeight={220}>
+              <AreaChart data={dailyExpenseData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="expenseArea" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#ef4444" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="#ef4444" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
+                <XAxis
+                  dataKey="day"
+                  tick={{ fontSize: 10, fill: '#9ca3af' }}
+                  axisLine={false}
+                  tickLine={false}
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: '#9ca3af' }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={48}
+                  tickFormatter={(v) =>
+                    Math.abs(Number(v)) >= 1000
+                      ? `${Math.round(Number(v) / 1000)}k`
+                      : String(v)
+                  }
+                />
+                <Tooltip content={<ChartTooltip currency={currency} />} />
+                <Area
+                  type="monotone"
+                  dataKey="expense"
+                  name="Expense"
+                  stroke="#ef4444"
+                  fill="url(#expenseArea)"
+                  strokeWidth={2}
+                  isAnimationActive={false}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </ChartCard>
 
         <ChartCard
@@ -425,7 +447,9 @@ export default function DashboardCharts({
           subtitle="This month"
           href="/expenses"
         >
-          {topExpenseAccounts.length === 0 ? (
+          {!txReady ? (
+            <div className="h-full min-h-[14rem] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-700/50" />
+          ) : topExpenseAccounts.length === 0 ? (
             <p className="flex h-full items-center justify-center text-sm text-gray-500 dark:text-gray-400">
               No expense activity this month.
             </p>
@@ -467,6 +491,7 @@ export default function DashboardCharts({
                   fill="#0ea5e9"
                   radius={[0, 6, 6, 0]}
                   maxBarSize={22}
+                  isAnimationActive={false}
                 />
               </BarChart>
             </ResponsiveContainer>

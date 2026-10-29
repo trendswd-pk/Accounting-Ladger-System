@@ -1,5 +1,6 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
@@ -14,8 +15,23 @@ import {
   TrendingUp,
   Wallet,
 } from 'lucide-react'
-import DashboardCharts from '@/components/dashboard/DashboardCharts'
 import TransactionFormModal from '@/components/TransactionFormModal'
+
+const DashboardCharts = dynamic(
+  () => import('@/components/dashboard/DashboardCharts'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="mt-6 space-y-4" aria-hidden>
+        <div className="h-72 animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800/80" />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="h-64 animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800/80" />
+          <div className="h-64 animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800/80" />
+        </div>
+      </div>
+    ),
+  }
+)
 import {
   fetchAccounts,
   getCachedAccounts,
@@ -83,6 +99,7 @@ export default function DashboardHome() {
   const [accounts, setAccounts] = useState<AccountRecord[]>(() => cachedAccounts ?? [])
   const [transactions, setTransactions] = useState<TransactionRecord[]>(() => cachedTx ?? [])
   const [ready, setReady] = useState(() => cachedAccounts != null)
+  const [txReady, setTxReady] = useState(() => cachedTx != null)
   const [currency, setCurrency] = useState(
     () => getCachedAppSettings()?.currency ?? DEFAULT_APP_SETTINGS.currency
   )
@@ -105,35 +122,43 @@ export default function DashboardHome() {
 
   const refreshDashboard = useCallback(async () => {
     try {
-      const [items, txs] = await Promise.all([
-        fetchAccounts({ force: true }),
-        fetchTransactions({ force: true }),
-      ])
+      const items = await fetchAccounts({ force: true })
       setAccounts(items)
+      setReady(true)
+    } catch {
+      /* keep current */
+    }
+    try {
+      const txs = await fetchTransactions({ force: true })
       setTransactions(txs)
     } catch {
       /* keep current */
     } finally {
-      setReady(true)
+      setTxReady(true)
     }
   }, [])
 
   useEffect(() => {
     let cancelled = false
+    // Accounts first — unlocks above-the-fold cards / LCP without waiting on heavy txs
     void (async () => {
       try {
-        const [items, txs] = await Promise.all([
-          fetchAccounts({ force: true }),
-          fetchTransactions({ force: true }),
-        ])
-        if (!cancelled) {
-          setAccounts(items)
-          setTransactions(txs)
-        }
+        const items = await fetchAccounts({ force: true })
+        if (!cancelled) setAccounts(items)
       } catch {
         if (!cancelled && getCachedAccounts() == null) setAccounts([])
       } finally {
         if (!cancelled) setReady(true)
+      }
+    })()
+    void (async () => {
+      try {
+        const txs = await fetchTransactions({ force: true })
+        if (!cancelled) setTransactions(txs)
+      } catch {
+        if (!cancelled && getCachedTransactions() == null) setTransactions([])
+      } finally {
+        if (!cancelled) setTxReady(true)
       }
     })()
     return () => {
@@ -288,16 +313,16 @@ export default function DashboardHome() {
     },
     {
       name: 'Today Expense',
-      value: ready ? formatMoney(todayExpense, currency) : '—',
+      value: txReady ? formatMoney(todayExpense, currency) : '—',
       icon: Calendar,
-      valueClassName: ready ? expenseColorClass(todayExpense) : undefined,
+      valueClassName: txReady ? expenseColorClass(todayExpense) : undefined,
       href: '/expenses/daily',
     },
     {
       name: 'Yesterday Expense',
-      value: ready ? formatMoney(yesterdayExpense, currency) : '—',
+      value: txReady ? formatMoney(yesterdayExpense, currency) : '—',
       icon: CalendarDays,
-      valueClassName: ready ? expenseColorClass(yesterdayExpense) : undefined,
+      valueClassName: txReady ? expenseColorClass(yesterdayExpense) : undefined,
       href: '/expenses/daily',
     },
   ]
@@ -400,7 +425,12 @@ export default function DashboardHome() {
             </div>
           )
           return card.href ? (
-            <Link key={card.name} href={card.href} className={className}>
+            <Link
+              key={card.name}
+              href={card.href}
+              prefetch={false}
+              className={className}
+            >
               {body}
             </Link>
           ) : (
@@ -414,6 +444,7 @@ export default function DashboardHome() {
       <DashboardCharts
         currency={currency}
         ready={ready}
+        txReady={txReady}
         cashInPocket={pocketBalance}
         cashSavings={cashInHandBalance}
         payable={loanBalance}
