@@ -34,20 +34,37 @@ export function isLegacyCashSavingsAccount(account: AccountRecord): boolean {
   )
 }
 
-export type CashSavingsFilter = {
+export type AccountTypeCashTypeFilter = {
   cashTypeIds?: string[]
   accountTypeIds?: string[]
 }
 
+/** @deprecated use AccountTypeCashTypeFilter */
+export type CashSavingsFilter = AccountTypeCashTypeFilter
+
+export function matchesAccountOrCashType(
+  account: AccountRecord,
+  filter: AccountTypeCashTypeFilter = {}
+): boolean {
+  const cashTypeIds = filter.cashTypeIds ?? []
+  const accountTypeIds = filter.accountTypeIds ?? []
+  if (cashTypeIds.length === 0 && accountTypeIds.length === 0) return false
+  const cashMatch =
+    cashTypeIds.length > 0 && cashTypeIds.includes(account.cashTypeId)
+  const accountMatch =
+    accountTypeIds.length > 0 && accountTypeIds.includes(account.accountTypeId)
+  return cashMatch || accountMatch
+}
+
 /**
- * Cash & Savings: Account Type + Cash Type from Settings (AND when both set).
+ * Cash & Savings: Account Type or Cash Type from Settings (OR — match either).
  * Falls back to Cash in Hand / Savings cash-type names when both lists are empty.
  */
 export function isCashSavingsAccount(
   account: AccountRecord,
-  filter: CashSavingsFilter | string[] = {}
+  filter: AccountTypeCashTypeFilter | string[] = {}
 ): boolean {
-  const opts: CashSavingsFilter = Array.isArray(filter)
+  const opts: AccountTypeCashTypeFilter = Array.isArray(filter)
     ? { cashTypeIds: filter }
     : filter
   const cashTypeIds = opts.cashTypeIds ?? []
@@ -57,11 +74,7 @@ export function isCashSavingsAccount(
     return isLegacyCashSavingsAccount(account)
   }
 
-  const cashOk =
-    cashTypeIds.length === 0 || cashTypeIds.includes(account.cashTypeId)
-  const accountOk =
-    accountTypeIds.length === 0 || accountTypeIds.includes(account.accountTypeId)
-  return cashOk && accountOk
+  return matchesAccountOrCashType(account, opts)
 }
 
 export function defaultCashSavingsCashTypeIds(
@@ -83,6 +96,12 @@ export function defaultCashSavingsAccountTypeIds(
     .map((t) => t.id)
 }
 
+export function defaultLoanAccountTypeIds(
+  accountTypes: Array<{ id: string; name: string; code: string }>
+): string[] {
+  return accountTypes.filter((t) => isLoanLabel(t.name, t.code)).map((t) => t.id)
+}
+
 export function isCashInPocketAccount(account: AccountRecord): boolean {
   return (
     isCashInHandLabel(account.accountTypeName, account.accountTypeCode) &&
@@ -94,14 +113,48 @@ export function isLoanAccount(account: AccountRecord): boolean {
   return isLoanLabel(account.accountTypeName, account.accountTypeCode)
 }
 
-/** Loan Acc Type with minus balance → Payable */
-export function isPayableAccount(account: AccountRecord): boolean {
+/** Loan Acc Type with minus balance → Payable (legacy when Settings empty). */
+export function isLegacyPayableAccount(account: AccountRecord): boolean {
   return isLoanAccount(account) && (Number(account.balance) || 0) < 0
 }
 
-/** Loan Acc Type with plus balance → Receivable */
-export function isReceivableAccount(account: AccountRecord): boolean {
+/** Loan Acc Type with plus balance → Receivable (legacy when Settings empty). */
+export function isLegacyReceivableAccount(account: AccountRecord): boolean {
   return isLoanAccount(account) && (Number(account.balance) || 0) > 0
+}
+
+/**
+ * Payable: Settings Account/Cash Type match (OR) + negative balance.
+ * Falls back to Loan + minus balance when both lists are empty.
+ */
+export function isPayableAccount(
+  account: AccountRecord,
+  filter: AccountTypeCashTypeFilter = {}
+): boolean {
+  const cashTypeIds = filter.cashTypeIds ?? []
+  const accountTypeIds = filter.accountTypeIds ?? []
+  const balance = Number(account.balance) || 0
+  if (cashTypeIds.length === 0 && accountTypeIds.length === 0) {
+    return isLegacyPayableAccount(account)
+  }
+  return matchesAccountOrCashType(account, filter) && balance < 0
+}
+
+/**
+ * Receivable: Settings Account/Cash Type match (OR) + positive balance.
+ * Falls back to Loan + plus balance when both lists are empty.
+ */
+export function isReceivableAccount(
+  account: AccountRecord,
+  filter: AccountTypeCashTypeFilter = {}
+): boolean {
+  const cashTypeIds = filter.cashTypeIds ?? []
+  const accountTypeIds = filter.accountTypeIds ?? []
+  const balance = Number(account.balance) || 0
+  if (cashTypeIds.length === 0 && accountTypeIds.length === 0) {
+    return isLegacyReceivableAccount(account)
+  }
+  return matchesAccountOrCashType(account, filter) && balance > 0
 }
 
 export function isExpenseLabel(name: string, code: string): boolean {

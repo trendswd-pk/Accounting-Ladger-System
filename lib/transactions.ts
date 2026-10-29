@@ -55,6 +55,16 @@ export function signedTransactionAmount(row: Pick<TransactionRecord, 'entryType'
   return row.entryType === 'debit' ? -amount : amount
 }
 
+/**
+ * Expense account spend (kharcha): amount added (credit) counts as expense (+),
+ * debit reverses it (−). Matches expense account balance direction.
+ */
+export function expenseSpendAmount(
+  row: Pick<TransactionRecord, 'entryType' | 'balance'>
+): number {
+  return signedTransactionAmount(row)
+}
+
 export function getCachedTransactions(): TransactionRecord[] | null {
   return cache ? cache.map((r) => ({ ...r })) : null
 }

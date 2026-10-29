@@ -36,9 +36,9 @@ import {
 } from '@/lib/appSettings'
 import { formatMoney } from '@/lib/money'
 import {
+  expenseSpendAmount,
   fetchTransactions,
   getCachedTransactions,
-  type TransactionRecord,
 } from '@/lib/transactions'
 
 function sumBalances(list: AccountRecord[]): number {
@@ -51,16 +51,11 @@ function balanceColorClass(amount: number): string {
   return 'text-gray-900 dark:text-gray-100'
 }
 
-/** Expense totals: spend shows red, credit/refund green */
+/** Expense totals: kharcha (credit) red, reverse (debit) green */
 function expenseColorClass(amount: number): string {
   if (amount > 0) return 'text-red-700 dark:text-red-400'
   if (amount < 0) return 'text-green-700 dark:text-green-400'
   return 'text-gray-900 dark:text-gray-100'
-}
-
-function expenseAmount(row: Pick<TransactionRecord, 'entryType' | 'balance'>): number {
-  const amount = Math.abs(Number(row.balance) || 0)
-  return row.entryType === 'debit' ? amount : -amount
 }
 
 function todayISO(): string {
@@ -95,6 +90,14 @@ export default function DashboardHome() {
   const [cashSavingsAccountTypeIds, setCashSavingsAccountTypeIds] = useState<
     string[]
   >(() => getCachedAppSettings()?.cashSavingsAccountTypeIds ?? [])
+  const [payableReceivableCashTypeIds, setPayableReceivableCashTypeIds] =
+    useState<string[]>(
+      () => getCachedAppSettings()?.payableReceivableCashTypeIds ?? []
+    )
+  const [payableReceivableAccountTypeIds, setPayableReceivableAccountTypeIds] =
+    useState<string[]>(
+      () => getCachedAppSettings()?.payableReceivableAccountTypeIds ?? []
+    )
   const [infoOpen, setInfoOpen] = useState(false)
   const [txnModalOpen, setTxnModalOpen] = useState(false)
 
@@ -142,12 +145,16 @@ export default function DashboardHome() {
         setCurrency(s.currency)
         setCashSavingsCashTypeIds(s.cashSavingsCashTypeIds)
         setCashSavingsAccountTypeIds(s.cashSavingsAccountTypeIds)
+        setPayableReceivableCashTypeIds(s.payableReceivableCashTypeIds)
+        setPayableReceivableAccountTypeIds(s.payableReceivableAccountTypeIds)
       })
       .catch(() => {})
     return subscribeAppSettings((s) => {
       setCurrency(s.currency)
       setCashSavingsCashTypeIds(s.cashSavingsCashTypeIds)
       setCashSavingsAccountTypeIds(s.cashSavingsAccountTypeIds)
+      setPayableReceivableCashTypeIds(s.payableReceivableCashTypeIds)
+      setPayableReceivableAccountTypeIds(s.payableReceivableAccountTypeIds)
     })
   }, [])
 
@@ -165,10 +172,20 @@ export default function DashboardHome() {
       ),
     [accounts, cashSavingsCashTypeIds, cashSavingsAccountTypeIds]
   )
-  const payableAccounts = useMemo(() => accounts.filter(isPayableAccount), [accounts])
+  const payableReceivableFilter = useMemo(
+    () => ({
+      cashTypeIds: payableReceivableCashTypeIds,
+      accountTypeIds: payableReceivableAccountTypeIds,
+    }),
+    [payableReceivableCashTypeIds, payableReceivableAccountTypeIds]
+  )
+  const payableAccounts = useMemo(
+    () => accounts.filter((a) => isPayableAccount(a, payableReceivableFilter)),
+    [accounts, payableReceivableFilter]
+  )
   const receivableAccounts = useMemo(
-    () => accounts.filter(isReceivableAccount),
-    [accounts]
+    () => accounts.filter((a) => isReceivableAccount(a, payableReceivableFilter)),
+    [accounts, payableReceivableFilter]
   )
   const expenseAccounts = useMemo(() => accounts.filter(isExpenseAccount), [accounts])
   const investAccounts = useMemo(() => accounts.filter(isInvestAccount), [accounts])
@@ -199,7 +216,7 @@ export default function DashboardHome() {
     for (const tx of transactions) {
       if (!expenseAccountIds.has(tx.accountId)) continue
       if (tx.transactionDate.slice(0, 10) !== todayDate) continue
-      total += expenseAmount(tx)
+      total += expenseSpendAmount(tx)
     }
     return total
   }, [transactions, expenseAccountIds, todayDate])
@@ -209,7 +226,7 @@ export default function DashboardHome() {
     for (const tx of transactions) {
       if (!expenseAccountIds.has(tx.accountId)) continue
       if (tx.transactionDate.slice(0, 10) !== yesterdayDate) continue
-      total += expenseAmount(tx)
+      total += expenseSpendAmount(tx)
     }
     return total
   }, [transactions, expenseAccountIds, yesterdayDate])
@@ -267,14 +284,14 @@ export default function DashboardHome() {
       value: ready ? formatMoney(todayExpense, currency) : '—',
       icon: Calendar,
       valueClassName: ready ? expenseColorClass(todayExpense) : undefined,
-      href: '/expenses/monthly',
+      href: '/expenses/daily',
     },
     {
       name: 'Yesterday Expense',
       value: ready ? formatMoney(yesterdayExpense, currency) : '—',
       icon: CalendarDays,
       valueClassName: ready ? expenseColorClass(yesterdayExpense) : undefined,
-      href: '/expenses/monthly',
+      href: '/expenses/daily',
     },
   ]
 

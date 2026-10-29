@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronDown } from 'lucide-react'
 
 export type MultiSelectOption = {
@@ -17,6 +18,14 @@ type MultiSelectDropdownProps = {
   placeholder?: string
   emptyMessage?: string
   disabled?: boolean
+  className?: string
+}
+
+type MenuPos = {
+  top: number
+  left: number
+  width: number
+  openUp: boolean
 }
 
 export default function MultiSelectDropdown({
@@ -28,9 +37,13 @@ export default function MultiSelectDropdown({
   placeholder = 'Select…',
   emptyMessage = 'No options',
   disabled = false,
+  className = '',
 }: MultiSelectDropdownProps) {
   const [open, setOpen] = useState(false)
+  const [menuPos, setMenuPos] = useState<MenuPos | null>(null)
   const rootRef = useRef<HTMLDivElement | null>(null)
+  const buttonRef = useRef<HTMLButtonElement | null>(null)
+  const menuRef = useRef<HTMLUListElement | null>(null)
   const listId = useId()
 
   const selectedLabels = useMemo(() => {
@@ -45,10 +58,43 @@ export default function MultiSelectDropdown({
         ? selectedLabels.join(', ')
         : `${selectedLabels.length} selected`
 
+  const updatePosition = () => {
+    const btn = buttonRef.current
+    if (!btn) return
+    const rect = btn.getBoundingClientRect()
+    const menuMaxH = 224
+    const spaceBelow = window.innerHeight - rect.bottom
+    const openUp = spaceBelow < menuMaxH && rect.top > spaceBelow
+    setMenuPos({
+      top: openUp ? rect.top : rect.bottom,
+      left: rect.left,
+      width: rect.width,
+      openUp,
+    })
+  }
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setMenuPos(null)
+      return
+    }
+    updatePosition()
+    const onScrollOrResize = () => updatePosition()
+    window.addEventListener('resize', onScrollOrResize)
+    window.addEventListener('scroll', onScrollOrResize, true)
+    return () => {
+      window.removeEventListener('resize', onScrollOrResize)
+      window.removeEventListener('scroll', onScrollOrResize, true)
+    }
+  }, [open])
+
   useEffect(() => {
     if (!open) return
     const onDoc = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false)
+      const target = e.target as Node
+      if (rootRef.current?.contains(target)) return
+      if (menuRef.current?.contains(target)) return
+      setOpen(false)
     }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false)
@@ -69,12 +115,60 @@ export default function MultiSelectDropdown({
     }
   }
 
+  const menu =
+    open && menuPos && typeof document !== 'undefined'
+      ? createPortal(
+          <ul
+            ref={menuRef}
+            id={listId}
+            role="listbox"
+            aria-multiselectable
+            style={{
+              position: 'fixed',
+              top: menuPos.openUp ? undefined : menuPos.top + 4,
+              bottom: menuPos.openUp
+                ? window.innerHeight - menuPos.top + 4
+                : undefined,
+              left: menuPos.left,
+              width: menuPos.width,
+              zIndex: 80,
+            }}
+            className="max-h-56 overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800"
+          >
+            {options.length === 0 ? (
+              <li className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                {emptyMessage}
+              </li>
+            ) : (
+              options.map((option) => {
+                const checked = values.includes(option.value)
+                return (
+                  <li key={option.value} role="option" aria-selected={checked}>
+                    <label className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-gray-800 hover:bg-primary-50 dark:text-gray-100 dark:hover:bg-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggle(option.value)}
+                        className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      />
+                      <span className="min-w-0 truncate">{option.label}</span>
+                    </label>
+                  </li>
+                )
+              })
+            )}
+          </ul>,
+          document.body
+        )
+      : null
+
   return (
-    <div ref={rootRef} className="relative w-full sm:w-72">
-      <span className="mb-1 block text-right text-[11px] font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+    <div ref={rootRef} className={`relative min-w-0 flex-1 ${className}`}>
+      <span className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
         {label}
       </span>
       <button
+        ref={buttonRef}
         id={id}
         type="button"
         disabled={disabled}
@@ -96,36 +190,7 @@ export default function MultiSelectDropdown({
           aria-hidden
         />
       </button>
-
-      {open ? (
-        <ul
-          id={listId}
-          role="listbox"
-          aria-multiselectable
-          className="absolute right-0 z-50 mt-1 max-h-56 w-full overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800"
-        >
-          {options.length === 0 ? (
-            <li className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">{emptyMessage}</li>
-          ) : (
-            options.map((option) => {
-              const checked = values.includes(option.value)
-              return (
-                <li key={option.value} role="option" aria-selected={checked}>
-                  <label className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-gray-800 hover:bg-primary-50 dark:text-gray-100 dark:hover:bg-gray-700">
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => toggle(option.value)}
-                      className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                    />
-                    <span className="min-w-0 truncate">{option.label}</span>
-                  </label>
-                </li>
-              )
-            })
-          )}
-        </ul>
-      ) : null}
+      {menu}
     </div>
   )
 }

@@ -6,6 +6,7 @@ import MultiSelectDropdown from '@/components/MultiSelectDropdown'
 import {
   defaultCashSavingsAccountTypeIds,
   defaultCashSavingsCashTypeIds,
+  defaultLoanAccountTypeIds,
 } from '@/lib/accountFilters'
 import {
   DEFAULT_APP_SETTINGS,
@@ -38,26 +39,59 @@ function SettingRow({
   htmlFor?: string
   children: React.ReactNode
 }) {
+  const [hintOpen, setHintOpen] = useState(false)
+
   return (
     <div className="flex flex-col gap-3 border-b border-gray-200 px-4 py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between sm:gap-6 dark:border-gray-700">
       <div className="min-w-0 flex-1 text-left sm:max-w-sm lg:max-w-md">
-        {htmlFor ? (
-          <label
-            htmlFor={htmlFor}
-            className="block text-sm font-medium text-gray-900 dark:text-gray-100"
-          >
-            {label}
-          </label>
-        ) : (
-          <span className="block text-sm font-medium text-gray-900 dark:text-gray-100">
-            {label}
-          </span>
-        )}
-        {description ? (
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{description}</p>
-        ) : null}
+        <div className="flex items-center gap-1.5">
+          {htmlFor ? (
+            <label
+              htmlFor={htmlFor}
+              className="text-sm font-medium text-gray-900 dark:text-gray-100"
+            >
+              {label}
+            </label>
+          ) : (
+            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+              {label}
+            </span>
+          )}
+          {description ? (
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setHintOpen((v) => !v)}
+                className={`rounded-full p-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                  hintOpen
+                    ? 'text-primary-600 dark:text-primary-400'
+                    : 'text-gray-400 hover:text-primary-600 dark:text-gray-500 dark:hover:text-primary-400'
+                }`}
+                aria-label={`About ${label}`}
+                aria-expanded={hintOpen}
+              >
+                <Info className="h-3.5 w-3.5" aria-hidden />
+              </button>
+              {hintOpen ? (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setHintOpen(false)}
+                    aria-hidden
+                  />
+                  <div
+                    role="dialog"
+                    className="absolute left-0 top-full z-50 mt-1.5 w-64 max-w-[min(16rem,calc(100vw-2rem))] rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs leading-relaxed text-gray-700 shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                  >
+                    {description}
+                  </div>
+                </>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       </div>
-      <div className="flex w-full shrink-0 justify-end sm:w-auto sm:min-w-[14rem] sm:max-w-md">
+      <div className="flex w-full shrink-0 justify-end sm:w-auto sm:min-w-[14rem] sm:max-w-xl">
         {children}
       </div>
     </div>
@@ -77,6 +111,11 @@ export default function SettingsPage() {
   const [cashSavingsAccountTypeIds, setCashSavingsAccountTypeIds] = useState<string[]>(
     () => DEFAULT_APP_SETTINGS.cashSavingsAccountTypeIds
   )
+  const [payableReceivableCashTypeIds, setPayableReceivableCashTypeIds] = useState<
+    string[]
+  >(() => DEFAULT_APP_SETTINGS.payableReceivableCashTypeIds)
+  const [payableReceivableAccountTypeIds, setPayableReceivableAccountTypeIds] =
+    useState<string[]>(() => DEFAULT_APP_SETTINGS.payableReceivableAccountTypeIds)
   const [cashTypes, setCashTypes] = useState<SetupTypeRecord[]>(
     () => (getCachedSetupTypes('cash-types') ?? []).filter((t) => t.active)
   )
@@ -108,23 +147,42 @@ export default function SettingsPage() {
         setDefaultEntryMode(settings.defaultEntryMode)
         applyThemePreference(settings.theme)
 
-        const savedCashIds = settings.cashSavingsCashTypeIds.filter((id) =>
-          activeCashTypes.some((t) => t.id === id)
+        const pickSavedOrDefault = (
+          savedCash: string[],
+          savedAccount: string[],
+          defaultCash: string[],
+          defaultAccount: string[]
+        ) => {
+          const cash = savedCash.filter((id) =>
+            activeCashTypes.some((t) => t.id === id)
+          )
+          const account = savedAccount.filter((id) =>
+            activeAccountTypes.some((t) => t.id === id)
+          )
+          const hasAny = cash.length > 0 || account.length > 0
+          return {
+            cash: hasAny ? cash : defaultCash,
+            account: hasAny ? account : defaultAccount,
+          }
+        }
+
+        const cashSavings = pickSavedOrDefault(
+          settings.cashSavingsCashTypeIds,
+          settings.cashSavingsAccountTypeIds,
+          defaultCashSavingsCashTypeIds(activeCashTypes),
+          defaultCashSavingsAccountTypeIds(activeAccountTypes)
         )
-        const savedAccountIds = settings.cashSavingsAccountTypeIds.filter((id) =>
-          activeAccountTypes.some((t) => t.id === id)
+        setCashSavingsCashTypeIds(cashSavings.cash)
+        setCashSavingsAccountTypeIds(cashSavings.account)
+
+        const payableReceivable = pickSavedOrDefault(
+          settings.payableReceivableCashTypeIds,
+          settings.payableReceivableAccountTypeIds,
+          [],
+          defaultLoanAccountTypeIds(activeAccountTypes)
         )
-        const hasAnySaved = savedCashIds.length > 0 || savedAccountIds.length > 0
-        setCashSavingsCashTypeIds(
-          hasAnySaved
-            ? savedCashIds
-            : defaultCashSavingsCashTypeIds(activeCashTypes)
-        )
-        setCashSavingsAccountTypeIds(
-          hasAnySaved
-            ? savedAccountIds
-            : defaultCashSavingsAccountTypeIds(activeAccountTypes)
-        )
+        setPayableReceivableCashTypeIds(payableReceivable.cash)
+        setPayableReceivableAccountTypeIds(payableReceivable.account)
       } catch (err) {
         if (cancelled) return
         setMessage({
@@ -158,6 +216,16 @@ export default function SettingsPage() {
       })
       return
     }
+    if (
+      payableReceivableCashTypeIds.length === 0 &&
+      payableReceivableAccountTypeIds.length === 0
+    ) {
+      setMessage({
+        type: 'error',
+        text: 'Select at least one Account Type or Cash Type for Payable & Receivable.',
+      })
+      return
+    }
     setSaving(true)
     try {
       const saved = await saveAppSettings({
@@ -167,6 +235,8 @@ export default function SettingsPage() {
         defaultEntryMode,
         cashSavingsCashTypeIds,
         cashSavingsAccountTypeIds,
+        payableReceivableCashTypeIds,
+        payableReceivableAccountTypeIds,
       })
       setBusinessName(saved.businessName)
       setCurrency(saved.currency)
@@ -174,6 +244,8 @@ export default function SettingsPage() {
       setDefaultEntryMode(saved.defaultEntryMode)
       setCashSavingsCashTypeIds(saved.cashSavingsCashTypeIds)
       setCashSavingsAccountTypeIds(saved.cashSavingsAccountTypeIds)
+      setPayableReceivableCashTypeIds(saved.payableReceivableCashTypeIds)
+      setPayableReceivableAccountTypeIds(saved.payableReceivableAccountTypeIds)
       applyThemePreference(saved.theme)
       setMessage({ type: 'success', text: 'Settings saved to Supabase.' })
     } catch (err) {
@@ -239,7 +311,7 @@ export default function SettingsPage() {
           </button>
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800/90">
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800/90">
           <SettingRow
             label="Business name"
             description="Shown in the sidebar and header."
@@ -326,16 +398,16 @@ export default function SettingsPage() {
 
           <SettingRow
             label="Cash & Savings"
-            description="Accounts matching the selected Account Type and Cash Type filters are totaled on the dashboard card and Cash & Savings page."
+            description="Accounts that match any selected Account Type or Cash Type are totaled on the dashboard card and Cash & Savings page."
           >
-            <div className="flex w-full max-w-md flex-col items-end gap-3">
+            <div className="flex w-full min-w-0 flex-row items-start gap-3 sm:w-[28rem]">
               <MultiSelectDropdown
                 id="cashSavingsAccountTypes"
                 label="Account Type"
                 values={cashSavingsAccountTypeIds}
                 onChange={setCashSavingsAccountTypeIds}
                 options={accountTypes.map((t) => ({ value: t.id, label: t.name }))}
-                placeholder="Select account types…"
+                placeholder="Select…"
                 emptyMessage="No active Account Types"
               />
               <MultiSelectDropdown
@@ -344,7 +416,33 @@ export default function SettingsPage() {
                 values={cashSavingsCashTypeIds}
                 onChange={setCashSavingsCashTypeIds}
                 options={cashTypes.map((t) => ({ value: t.id, label: t.name }))}
-                placeholder="Select cash types…"
+                placeholder="Select…"
+                emptyMessage="No active Cash Types"
+              />
+            </div>
+          </SettingRow>
+
+          <SettingRow
+            label="Payable & Receivable"
+            description="Matching accounts are split by balance: minus → Payable, plus → Receivable on the dashboard cards and pages."
+          >
+            <div className="flex w-full min-w-0 flex-row items-start gap-3 sm:w-[28rem]">
+              <MultiSelectDropdown
+                id="payableReceivableAccountTypes"
+                label="Account Type"
+                values={payableReceivableAccountTypeIds}
+                onChange={setPayableReceivableAccountTypeIds}
+                options={accountTypes.map((t) => ({ value: t.id, label: t.name }))}
+                placeholder="Select…"
+                emptyMessage="No active Account Types"
+              />
+              <MultiSelectDropdown
+                id="payableReceivableCashTypes"
+                label="Cash Type"
+                values={payableReceivableCashTypeIds}
+                onChange={setPayableReceivableCashTypeIds}
+                options={cashTypes.map((t) => ({ value: t.id, label: t.name }))}
+                placeholder="Select…"
                 emptyMessage="No active Cash Types"
               />
             </div>

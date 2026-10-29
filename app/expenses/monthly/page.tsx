@@ -25,6 +25,7 @@ import {
 } from '@/lib/appSettings'
 import { formatMoney } from '@/lib/money'
 import {
+  expenseSpendAmount,
   fetchTransactions,
   getCachedTransactions,
   type TransactionRecord,
@@ -44,11 +45,6 @@ const MONTH_NAMES = [
   'November',
   'December',
 ] as const
-
-function expenseAmount(row: Pick<TransactionRecord, 'entryType' | 'balance'>): number {
-  const amount = Math.abs(Number(row.balance) || 0)
-  return row.entryType === 'debit' ? amount : -amount
-}
 
 type MonthAccountRow = {
   id: string
@@ -133,7 +129,7 @@ export default function MonthlyExpensePage() {
       if (!date.startsWith(prefix)) continue
       const month = Number(date.slice(5, 7))
       if (month < 1 || month > 12) continue
-      totals[month - 1] += expenseAmount(tx)
+      totals[month - 1] += expenseSpendAmount(tx)
     }
     return totals
   }, [transactions, expenseAccountIds, year])
@@ -152,7 +148,7 @@ export default function MonthlyExpensePage() {
       if (!tx.transactionDate.slice(0, 10).startsWith(monthPrefix)) continue
       byAccount.set(
         tx.accountId,
-        (byAccount.get(tx.accountId) ?? 0) + expenseAmount(tx)
+        (byAccount.get(tx.accountId) ?? 0) + expenseSpendAmount(tx)
       )
     }
     return expenseAccounts
@@ -222,8 +218,8 @@ export default function MonthlyExpensePage() {
                     role="dialog"
                     className="absolute left-0 top-full z-50 mt-2 w-72 max-w-[min(18rem,calc(100vw-2rem))] rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
                   >
-                    Tap a month to see Expense accounts for that month. Debits add, credits
-                    subtract.
+                    Tap a month to see Expense accounts for that month. Amounts you add
+                    (credit) count as kharcha; debit reverses.
                   </div>
                 </>
               ) : null}

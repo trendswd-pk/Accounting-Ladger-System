@@ -43,7 +43,7 @@ export default function CashSavingsPage() {
   return (
     <AccountBalanceListPage
       title="Cash & Savings"
-      infoText="Accounts matching Account Type and Cash Type filters under Settings → Cash & Savings."
+      infoText="Accounts matching any selected Account Type or Cash Type under Settings → Cash & Savings."
       emptyHint="No matching Cash & Savings accounts yet."
       returnPath="/cash-savings"
       filterAccounts={filterAccounts}

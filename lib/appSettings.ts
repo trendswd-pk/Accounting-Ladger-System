@@ -8,10 +8,11 @@ export type AppSettings = {
   currency: string
   theme: ThemePreference
   defaultEntryMode: DefaultEntryMode
-  /** Cash Type IDs included in Cash & Savings totals / page. */
   cashSavingsCashTypeIds: string[]
-  /** Account Type IDs included in Cash & Savings totals / page. */
   cashSavingsAccountTypeIds: string[]
+  /** Shared filter for Payable (−) and Receivable (+) pages/cards. */
+  payableReceivableCashTypeIds: string[]
+  payableReceivableAccountTypeIds: string[]
   updatedAt?: string
 }
 
@@ -22,6 +23,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   defaultEntryMode: 'normal',
   cashSavingsCashTypeIds: [],
   cashSavingsAccountTypeIds: [],
+  payableReceivableCashTypeIds: [],
+  payableReceivableAccountTypeIds: [],
 }
 
 type DbRow = {
@@ -31,6 +34,13 @@ type DbRow = {
   default_entry_mode?: string | null
   cash_savings_cash_type_ids?: unknown
   cash_savings_account_type_ids?: unknown
+  payable_receivable_cash_type_ids?: unknown
+  payable_receivable_account_type_ids?: unknown
+  /** Legacy separate columns (fallback). */
+  payable_cash_type_ids?: unknown
+  payable_account_type_ids?: unknown
+  receivable_cash_type_ids?: unknown
+  receivable_account_type_ids?: unknown
   updated_at?: string
 }
 
@@ -38,15 +48,7 @@ export function normalizeDefaultEntryMode(value: unknown): DefaultEntryMode {
   return value === 'transfer' ? 'transfer' : 'normal'
 }
 
-export function normalizeCashSavingsCashTypeIds(value: unknown): string[] {
-  return normalizeUuidIdList(value)
-}
-
-export function normalizeCashSavingsAccountTypeIds(value: unknown): string[] {
-  return normalizeUuidIdList(value)
-}
-
-function normalizeUuidIdList(value: unknown): string[] {
+export function normalizeUuidIdList(value: unknown): string[] {
   if (!Array.isArray(value)) return []
   const ids: string[] = []
   const seen = new Set<string>()
@@ -59,11 +61,36 @@ function normalizeUuidIdList(value: unknown): string[] {
   return ids
 }
 
+/** @deprecated use normalizeUuidIdList */
+export const normalizeCashSavingsCashTypeIds = normalizeUuidIdList
+/** @deprecated use normalizeUuidIdList */
+export const normalizeCashSavingsAccountTypeIds = normalizeUuidIdList
+
+function firstNonEmptyIdList(...values: unknown[]): string[] {
+  for (const value of values) {
+    const ids = normalizeUuidIdList(value)
+    if (ids.length > 0) return ids
+  }
+  return []
+}
+
 function cloneSettings(settings: AppSettings): AppSettings {
   return {
     ...settings,
     cashSavingsCashTypeIds: [...settings.cashSavingsCashTypeIds],
     cashSavingsAccountTypeIds: [...settings.cashSavingsAccountTypeIds],
+    payableReceivableCashTypeIds: [...settings.payableReceivableCashTypeIds],
+    payableReceivableAccountTypeIds: [...settings.payableReceivableAccountTypeIds],
+  }
+}
+
+function withIdDefaults(settings: AppSettings): AppSettings {
+  return {
+    ...settings,
+    cashSavingsCashTypeIds: settings.cashSavingsCashTypeIds ?? [],
+    cashSavingsAccountTypeIds: settings.cashSavingsAccountTypeIds ?? [],
+    payableReceivableCashTypeIds: settings.payableReceivableCashTypeIds ?? [],
+    payableReceivableAccountTypeIds: settings.payableReceivableAccountTypeIds ?? [],
   }
 }
 
@@ -74,11 +101,17 @@ export function mapAppSettingsRow(row: DbRow): AppSettings {
     currency: row.currency || DEFAULT_APP_SETTINGS.currency,
     theme,
     defaultEntryMode: normalizeDefaultEntryMode(row.default_entry_mode),
-    cashSavingsCashTypeIds: normalizeCashSavingsCashTypeIds(
-      row.cash_savings_cash_type_ids
+    cashSavingsCashTypeIds: normalizeUuidIdList(row.cash_savings_cash_type_ids),
+    cashSavingsAccountTypeIds: normalizeUuidIdList(row.cash_savings_account_type_ids),
+    payableReceivableCashTypeIds: firstNonEmptyIdList(
+      row.payable_receivable_cash_type_ids,
+      row.payable_cash_type_ids,
+      row.receivable_cash_type_ids
     ),
-    cashSavingsAccountTypeIds: normalizeCashSavingsAccountTypeIds(
-      row.cash_savings_account_type_ids
+    payableReceivableAccountTypeIds: firstNonEmptyIdList(
+      row.payable_receivable_account_type_ids,
+      row.payable_account_type_ids,
+      row.receivable_account_type_ids
     ),
     updatedAt: row.updated_at,
   }
@@ -127,12 +160,7 @@ export async function fetchAppSettings(): Promise<AppSettings> {
     if (!res.ok) {
       throw new Error(data.error || 'Failed to load settings')
     }
-    const settings = data.settings as AppSettings
-    settingsCache = {
-      ...settings,
-      cashSavingsCashTypeIds: settings.cashSavingsCashTypeIds ?? [],
-      cashSavingsAccountTypeIds: settings.cashSavingsAccountTypeIds ?? [],
-    }
+    settingsCache = withIdDefaults(data.settings as AppSettings)
     notifySettingsChanged(settingsCache)
     return cloneSettings(settingsCache)
   })()
@@ -145,19 +173,21 @@ export async function fetchAppSettings(): Promise<AppSettings> {
   }
 }
 
-export async function saveAppSettings(
-  input: Partial<
-    Pick<
-      AppSettings,
-      | 'businessName'
-      | 'currency'
-      | 'theme'
-      | 'defaultEntryMode'
-      | 'cashSavingsCashTypeIds'
-      | 'cashSavingsAccountTypeIds'
-    >
+export type AppSettingsPatch = Partial<
+  Pick<
+    AppSettings,
+    | 'businessName'
+    | 'currency'
+    | 'theme'
+    | 'defaultEntryMode'
+    | 'cashSavingsCashTypeIds'
+    | 'cashSavingsAccountTypeIds'
+    | 'payableReceivableCashTypeIds'
+    | 'payableReceivableAccountTypeIds'
   >
-): Promise<AppSettings> {
+>
+
+export async function saveAppSettings(input: AppSettingsPatch): Promise<AppSettings> {
   const res = await fetch(SETTINGS_ENDPOINT, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -167,12 +197,7 @@ export async function saveAppSettings(
   if (!res.ok) {
     throw new Error(data.error || 'Failed to save settings')
   }
-  const settings = data.settings as AppSettings
-  settingsCache = {
-    ...settings,
-    cashSavingsCashTypeIds: settings.cashSavingsCashTypeIds ?? [],
-    cashSavingsAccountTypeIds: settings.cashSavingsAccountTypeIds ?? [],
-  }
+  settingsCache = withIdDefaults(data.settings as AppSettings)
   notifySettingsChanged(settingsCache)
   return cloneSettings(settingsCache)
 }

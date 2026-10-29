@@ -59,6 +59,7 @@ const menuItems: MenuItem[] = [
     icon: Receipt,
     subItems: [
       { name: 'Expenses', path: '/expenses' },
+      { name: 'Daily Expense', path: '/expenses/daily' },
       { name: 'Monthly Expense', path: '/expenses/monthly' },
     ],
   },
