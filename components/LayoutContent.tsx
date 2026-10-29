@@ -48,7 +48,6 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
         <Link
           href="/"
           className="flex min-w-0 flex-1 items-center gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
-          aria-label="Go to home"
           title={businessName}
         >
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-600 text-white">

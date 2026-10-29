@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Filter, Info, Plus, Search, X } from 'lucide-react'
 import ActionsDropdown from '@/components/ActionsDropdown'
@@ -103,6 +103,7 @@ function TransactionsPageInner() {
   const [listPageSize, setListPageSize] = useState(DEFAULT_TABLE_PAGE_SIZE)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
+  const filterAsideRef = useRef<HTMLElement>(null)
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [typeFilter, setTypeFilter] = useState<TransactionEntryType | ''>('')
@@ -249,6 +250,11 @@ function TransactionsPageInner() {
       document.removeEventListener('keydown', onKey)
       document.body.style.overflow = prevOverflow
     }
+  }, [filterOpen])
+
+  useLayoutEffect(() => {
+    const el = filterAsideRef.current
+    if (el) el.inert = !filterOpen
   }, [filterOpen])
 
   const clearAllFilters = () => {
@@ -658,6 +664,7 @@ function TransactionsPageInner() {
         aria-hidden={!filterOpen}
       />
       <aside
+        ref={filterAsideRef}
         className={`fixed inset-y-0 right-0 z-50 flex w-80 max-w-[85vw] transform flex-col bg-white shadow-xl transition-transform duration-200 ease-out dark:bg-gray-800 ${
           filterOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
@@ -953,7 +960,7 @@ function TransactionsPageInner() {
                           e.stopPropagation()
                           filterByAccount(row.accountId)
                         }}
-                        className="text-left text-primary-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:text-primary-300"
+                        className="inline-flex min-h-6 items-center text-left text-primary-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:text-primary-300"
                       >
                         {row.accountName}
                       </button>

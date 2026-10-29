@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -89,6 +89,7 @@ type SidebarProps = {
 /** Off-canvas navigation drawer — same interaction model as Courier-Dashboard. */
 export default function Sidebar({ open = false, onClose }: SidebarProps) {
   const pathname = usePathname()
+  const asideRef = useRef<HTMLElement>(null)
   const [theme, setTheme] = useState<ThemePreference>(getDefaultTheme())
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [businessName, setBusinessName] = useState(
@@ -119,6 +120,11 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
       document.body.style.overflow = prevOverflow
     }
   }, [open, onClose])
+
+  useLayoutEffect(() => {
+    const el = asideRef.current
+    if (el) el.inert = !open
+  }, [open])
 
   useLayoutEffect(() => {
     const match = menuItems.find(
@@ -152,6 +158,7 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
         aria-hidden
       />
       <aside
+        ref={asideRef}
         className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] transform flex-col bg-white shadow-xl transition-transform duration-200 ease-out dark:bg-gray-800 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
@@ -163,7 +170,6 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
             href="/"
             onClick={onClose}
             className="flex min-w-0 flex-1 items-center gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
-            aria-label="Go to home"
             title={businessName}
           >
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-600 text-white">
