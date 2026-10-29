@@ -39,7 +39,18 @@ function referenceReason(type, themeBlockTypes) {
 async function shoot(page, file, { title, meta, settings }) {
   ensureDir(path.dirname(file));
   await page.setContent(renderPanelHtml({ title, meta, settings }), { waitUntil: 'load' });
-  await page.locator('.panel').screenshot({ path: file, animations: 'disabled' });
+
+  const panel = page.locator('.panel').first();
+  const size = await panel.evaluate((el) => ({
+    width: Math.ceil(Math.max(el.scrollWidth, el.offsetWidth)),
+    height: Math.ceil(Math.max(el.scrollHeight, el.offsetHeight))
+  }));
+
+  // Grow viewport to the full panel so we never capture a half-height crop.
+  const width = Math.max(420, Math.min(size.width + 48, 1200));
+  const height = Math.max(900, Math.min(size.height + 64, 16000));
+  await page.setViewportSize({ width, height });
+  await panel.screenshot({ path: file, animations: 'disabled' });
   return file;
 }
 

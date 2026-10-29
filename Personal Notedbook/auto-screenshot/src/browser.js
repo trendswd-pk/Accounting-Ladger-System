@@ -266,27 +266,32 @@ export async function waitForIdle(page, config) {
 }
 
 /**
- * Captures an element in full, even when it lives inside a scroll container that
- * would normally clip everything below the fold.
+ * Expands scroll containers so tall panels are not clipped mid-page.
+ * Returns a restore() callback.
  */
-export async function screenshotElement(page, locator, file, config) {
-  ensureDir(path.dirname(file));
-
-  const unclip = async () =>
-    locator.evaluate((root) => {
-      const touched = [];
-      for (const node of [root, ...root.querySelectorAll('*')]) {
-        const style = getComputedStyle(node);
-        if (!/(auto|scroll)/.test(style.overflowY) && !/(auto|scroll)/.test(style.overflowX)) continue;
+async function unclipScrollAncestors(locator) {
+  await locator.evaluate((root) => {
+    const touched = [];
+    const visit = (node) => {
+      if (!node || node.nodeType !== 1) return;
+      const style = getComputedStyle(node);
+      if (/(auto|scroll|hidden)/.test(style.overflowY) || /(auto|scroll|hidden)/.test(style.overflowX)) {
         touched.push([node, node.getAttribute('style') ?? '']);
-        node.style.overflow = 'visible';
-        node.style.maxHeight = 'none';
-        node.style.height = 'auto';
+        node.style.setProperty('overflow', 'visible', 'important');
+        node.style.setProperty('max-height', 'none', 'important');
+        node.style.setProperty('height', 'auto', 'important');
       }
-      root.__shotRestore = touched;
-    });
+    };
+    let cur = root;
+    while (cur) {
+      visit(cur);
+      cur = cur.parentElement;
+    }
+    for (const node of root.querySelectorAll('*')) visit(node);
+    root.__shotRestore = touched;
+  });
 
-  const restore = async () =>
+  return async () =>
     locator
       .evaluate((root) => {
         for (const [node, style] of root.__shotRestore ?? []) {
@@ -296,29 +301,202 @@ export async function screenshotElement(page, locator, file, config) {
         delete root.__shotRestore;
       })
       .catch(() => {});
+}
 
-  await unclip();
+async function elementFullSize(locator) {
+  return locator.evaluate((root) => {
+    const rect = root.getBoundingClientRect();
+    const height = Math.ceil(
+      Math.max(root.scrollHeight, root.offsetHeight, root.clientHeight, rect.height)
+    );
+    const width = Math.ceil(
+      Math.max(root.scrollWidth, root.offsetWidth, root.clientWidth, rect.width)
+    );
+    return { width, height };
+  });
+}
 
-  const box = await locator.boundingBox();
-  const needed = Math.ceil((box?.height ?? 0) + 60);
-  const resized = needed > config.viewport.height && needed <= config.maxPanelHeight;
+/**
+ * Scroll the document over a fully-expanded element and stitch viewport clips
+ * into one PNG. Used only when height exceeds maxPanelHeight (Playwright would
+ * otherwise clip to the viewport = half-page shots).
+ */
+async function screenshotElementStitched(page, locator, file, config, size) {
+  const sharp = (await import('sharp')).default;
+  const vpH = Math.min(Math.max(config.viewport.height, 800), 1400);
+  const vpW = Math.max(config.viewport.width, Math.min(size.width + 40, 2400));
+  await page.setViewportSize({ width: vpW, height: vpH });
+  await sleep(150);
 
-  if (resized) {
-    await page.setViewportSize({ width: config.viewport.width, height: needed });
-    await sleep(250);
+  const origin = await locator.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    return {
+      absTop: r.top + window.scrollY,
+      absLeft: r.left + window.scrollX,
+      width: Math.ceil(Math.max(el.scrollWidth, r.width)),
+      height: Math.ceil(Math.max(el.scrollHeight, r.height))
+    };
+  });
+
+  const strips = [];
+  let captured = 0;
+
+  while (captured < origin.height) {
+    const scrollY = Math.floor(origin.absTop + captured);
+    await page.evaluate((y) => window.scrollTo(0, y), scrollY);
+    await sleep(100);
+
+    const clip = await page.evaluate(
+      ({ absLeft, absTop, width, height, captured: already }) => {
+        const topInVp = absTop + already - window.scrollY;
+        const leftInVp = absLeft - window.scrollX;
+        const y = Math.max(0, Math.floor(topInVp));
+        const x = Math.max(0, Math.floor(leftInVp));
+        const take = Math.min(
+          Math.floor(window.innerHeight - y),
+          Math.ceil(height - already)
+        );
+        return {
+          x,
+          y,
+          width: Math.min(Math.ceil(width), Math.floor(window.innerWidth - x)),
+          height: Math.max(1, take)
+        };
+      },
+      { ...origin, captured }
+    );
+
+    if (clip.width < 1 || clip.height < 1) break;
+
+    const buf = await page.screenshot({
+      clip,
+      animations: 'disabled',
+      type: 'png'
+    });
+    strips.push(Buffer.from(buf));
+    captured += clip.height;
+    if (strips.length > 60) break;
   }
 
-  await locator.screenshot({ path: file, animations: 'disabled' });
+  if (strips.length === 0) {
+    await locator.screenshot({ path: file, animations: 'disabled' });
+    return file;
+  }
+  if (strips.length === 1) {
+    fs.writeFileSync(file, strips[0]);
+    return file;
+  }
 
-  if (resized) await page.setViewportSize(config.viewport);
-  await restore();
+  const metas = await Promise.all(strips.map((b) => sharp(b).metadata()));
+  const width = Math.max(...metas.map((m) => m.width || 0));
+  let offset = 0;
+  const composites = [];
+
+  for (let i = 0; i < strips.length; i++) {
+    const h = metas[i].height || 0;
+    composites.push({ input: strips[i], top: offset, left: 0 });
+    offset += h;
+  }
+
+  await sharp({
+    create: {
+      width,
+      height: Math.max(offset, 1),
+      channels: 4,
+      background: { r: 255, g: 255, b: 255, alpha: 1 }
+    }
+  })
+    .composite(composites)
+    .png()
+    .toFile(file);
 
   return file;
 }
 
+/**
+ * Captures an element in full (never a half-viewport crop).
+ * Grows the viewport to the content height, or scroll-stitches when too tall.
+ */
+export async function screenshotElement(page, locator, file, config) {
+  ensureDir(path.dirname(file));
+
+  const restore = await unclipScrollAncestors(locator);
+  await locator.evaluate((el) => el.scrollIntoView({ block: 'start', inline: 'nearest' }));
+  await sleep(150);
+
+  const size = await elementFullSize(locator);
+  const pad = 80;
+  const neededH = Math.ceil(size.height + pad);
+  const neededW = Math.max(config.viewport.width, Math.min(size.width + 40, 2400));
+  const maxH = config.maxPanelHeight ?? 16000;
+  const prev = (await page.viewportSize()) ?? { ...config.viewport };
+
+  try {
+    if (neededH <= maxH) {
+      // Single shot: viewport tall enough that Playwright will not clip the panel.
+      await page.setViewportSize({
+        width: neededW,
+        height: Math.max(neededH, config.viewport.height)
+      });
+      await sleep(280);
+      await locator.evaluate((el) => el.scrollIntoView({ block: 'start', inline: 'nearest' }));
+      await sleep(80);
+      await locator.screenshot({ path: file, animations: 'disabled' });
+    } else {
+      await screenshotElementStitched(page, locator, file, config, size);
+    }
+  } finally {
+    if (prev) await page.setViewportSize(prev).catch(() => {});
+    await restore();
+  }
+
+  return file;
+}
+
+/**
+ * Full document screenshot — expands nested scroll areas first so Playwright’s
+ * fullPage stitch covers the whole content (not just the first overflow pane).
+ */
 export async function screenshotPage(page, file, config) {
   ensureDir(path.dirname(file));
-  await page.screenshot({ path: file, fullPage: true, animations: 'disabled' });
+
+  const prev = await page.viewportSize();
+
+  await page.evaluate(() => {
+    const touched = [];
+    for (const node of document.querySelectorAll('html, body, body *')) {
+      const style = getComputedStyle(node);
+      if (!/(auto|scroll|hidden)/.test(style.overflowY) && !/(auto|scroll|hidden)/.test(style.overflowX)) {
+        continue;
+      }
+      // Keep html/body scrollable for Playwright fullPage stitching; unclip nested panes.
+      if (node === document.documentElement || node === document.body) continue;
+      touched.push([node, node.getAttribute('style') ?? '']);
+      node.style.setProperty('overflow', 'visible', 'important');
+      node.style.setProperty('max-height', 'none', 'important');
+      node.style.setProperty('height', 'auto', 'important');
+    }
+    document.documentElement.__shotPageRestore = touched;
+    window.scrollTo(0, 0);
+  });
+
+  try {
+    await sleep(250);
+    // Playwright scrolls + stitches the document — never a half-viewport crop.
+    await page.screenshot({ path: file, fullPage: true, animations: 'disabled' });
+  } finally {
+    await page
+      .evaluate(() => {
+        for (const [node, style] of document.documentElement.__shotPageRestore ?? []) {
+          if (style) node.setAttribute('style', style);
+          else node.removeAttribute('style');
+        }
+        delete document.documentElement.__shotPageRestore;
+      })
+      .catch(() => {});
+    if (prev) await page.setViewportSize(prev).catch(() => {});
+  }
+
   return file;
 }
 

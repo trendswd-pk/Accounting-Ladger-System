@@ -59,8 +59,11 @@ export const DEFAULT_CONFIG = {
   settleMs: 1200,
   navigationTimeoutMs: 90000,
   actionTimeoutMs: 25000,
-  /** Panels taller than the viewport are captured up to this height. */
-  maxPanelHeight: 9000,
+  /**
+   * Panels taller than the viewport grow up to this height for a single shot.
+   * Beyond this, capture scroll-stitches strips into one full image (no half-page crops).
+   */
+  maxPanelHeight: 16000,
 
   capture: {
     globalSettings: true,
