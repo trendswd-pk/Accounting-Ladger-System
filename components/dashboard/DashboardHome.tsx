@@ -89,6 +89,12 @@ export default function DashboardHome() {
   const [currency, setCurrency] = useState(
     () => getCachedAppSettings()?.currency ?? DEFAULT_APP_SETTINGS.currency
   )
+  const [cashSavingsCashTypeIds, setCashSavingsCashTypeIds] = useState<string[]>(
+    () => getCachedAppSettings()?.cashSavingsCashTypeIds ?? []
+  )
+  const [cashSavingsAccountTypeIds, setCashSavingsAccountTypeIds] = useState<
+    string[]
+  >(() => getCachedAppSettings()?.cashSavingsAccountTypeIds ?? [])
   const [infoOpen, setInfoOpen] = useState(false)
   const [txnModalOpen, setTxnModalOpen] = useState(false)
 
@@ -132,9 +138,17 @@ export default function DashboardHome() {
 
   useEffect(() => {
     void fetchAppSettings()
-      .then((s) => setCurrency(s.currency))
+      .then((s) => {
+        setCurrency(s.currency)
+        setCashSavingsCashTypeIds(s.cashSavingsCashTypeIds)
+        setCashSavingsAccountTypeIds(s.cashSavingsAccountTypeIds)
+      })
       .catch(() => {})
-    return subscribeAppSettings((s) => setCurrency(s.currency))
+    return subscribeAppSettings((s) => {
+      setCurrency(s.currency)
+      setCashSavingsCashTypeIds(s.cashSavingsCashTypeIds)
+      setCashSavingsAccountTypeIds(s.cashSavingsAccountTypeIds)
+    })
   }, [])
 
   const pocketAccounts = useMemo(
@@ -142,8 +156,14 @@ export default function DashboardHome() {
     [accounts]
   )
   const cashSavingsAccounts = useMemo(
-    () => accounts.filter(isCashSavingsAccount),
-    [accounts]
+    () =>
+      accounts.filter((a) =>
+        isCashSavingsAccount(a, {
+          cashTypeIds: cashSavingsCashTypeIds,
+          accountTypeIds: cashSavingsAccountTypeIds,
+        })
+      ),
+    [accounts, cashSavingsCashTypeIds, cashSavingsAccountTypeIds]
   )
   const payableAccounts = useMemo(() => accounts.filter(isPayableAccount), [accounts])
   const receivableAccounts = useMemo(
@@ -208,7 +228,7 @@ export default function DashboardHome() {
       valueClassName: ready ? balanceColorClass(pocketBalance) : undefined,
     },
     {
-      name: 'Cash in Hand',
+      name: 'Cash & Savings',
       value: ready ? formatMoney(cashInHandBalance, currency) : '—',
       icon: Banknote,
       valueClassName: ready ? balanceColorClass(cashInHandBalance) : undefined,

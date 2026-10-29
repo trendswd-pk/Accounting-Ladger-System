@@ -26,11 +26,61 @@ export function isLoanLabel(name: string, code: string): boolean {
   return n === 'loan' || c === 'LOAN'
 }
 
-export function isCashSavingsAccount(account: AccountRecord): boolean {
+/** Legacy name/code match when no Cash Types are configured in Settings. */
+export function isLegacyCashSavingsAccount(account: AccountRecord): boolean {
   return (
     isCashInHandLabel(account.cashTypeName, account.cashTypeCode) ||
     isSavingsLabel(account.cashTypeName, account.cashTypeCode)
   )
+}
+
+export type CashSavingsFilter = {
+  cashTypeIds?: string[]
+  accountTypeIds?: string[]
+}
+
+/**
+ * Cash & Savings: Account Type + Cash Type from Settings (AND when both set).
+ * Falls back to Cash in Hand / Savings cash-type names when both lists are empty.
+ */
+export function isCashSavingsAccount(
+  account: AccountRecord,
+  filter: CashSavingsFilter | string[] = {}
+): boolean {
+  const opts: CashSavingsFilter = Array.isArray(filter)
+    ? { cashTypeIds: filter }
+    : filter
+  const cashTypeIds = opts.cashTypeIds ?? []
+  const accountTypeIds = opts.accountTypeIds ?? []
+
+  if (cashTypeIds.length === 0 && accountTypeIds.length === 0) {
+    return isLegacyCashSavingsAccount(account)
+  }
+
+  const cashOk =
+    cashTypeIds.length === 0 || cashTypeIds.includes(account.cashTypeId)
+  const accountOk =
+    accountTypeIds.length === 0 || accountTypeIds.includes(account.accountTypeId)
+  return cashOk && accountOk
+}
+
+export function defaultCashSavingsCashTypeIds(
+  cashTypes: Array<{ id: string; name: string; code: string }>
+): string[] {
+  return cashTypes
+    .filter(
+      (t) =>
+        isCashInHandLabel(t.name, t.code) || isSavingsLabel(t.name, t.code)
+    )
+    .map((t) => t.id)
+}
+
+export function defaultCashSavingsAccountTypeIds(
+  accountTypes: Array<{ id: string; name: string; code: string }>
+): string[] {
+  return accountTypes
+    .filter((t) => isCashInHandLabel(t.name, t.code))
+    .map((t) => t.id)
 }
 
 export function isCashInPocketAccount(account: AccountRecord): boolean {
