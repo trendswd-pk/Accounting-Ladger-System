@@ -17,6 +17,7 @@ import {
 import {
   downloadAccountImportTemplate,
   downloadTransactionImportTemplate,
+  exportAccountsCsv,
   exportTransactionsCsv,
   importAccountsFromCsvFile,
   importTransactionsFromCsvFile,
@@ -139,6 +140,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [importingAccounts, setImportingAccounts] = useState(false)
+  const [exportingAccounts, setExportingAccounts] = useState(false)
   const [importingTransactions, setImportingTransactions] = useState(false)
   const [exportingTransactions, setExportingTransactions] = useState(false)
   const [accountImportProgress, setAccountImportProgress] = useState<ImportProgress | null>(
@@ -495,8 +497,8 @@ export default function SettingsPage() {
           </SettingRow>
 
           <SettingRow
-            label="Account import"
-            description="CSV columns: name, phone, account_type, cash_type. Types match by name or code. Duplicate account names are skipped."
+            label="Account import & export"
+            description="Import CSV: name, phone, account_type, cash_type. Export includes current balance. Types match by name or code; duplicate names are skipped on import."
           >
             <div className="flex w-full flex-col items-end gap-1">
               <div className="flex flex-wrap items-center justify-end gap-2">
@@ -551,6 +553,32 @@ export default function SettingsPage() {
                   onClick={() => downloadAccountImportTemplate()}
                 >
                   Template
+                </button>
+                <button
+                  type="button"
+                  className={actionBtnClass}
+                  disabled={exportingAccounts || loading || importingAccounts}
+                  onClick={() => {
+                    setMessage(null)
+                    setExportingAccounts(true)
+                    void exportAccountsCsv()
+                      .then(() => {
+                        setMessage({
+                          type: 'success',
+                          text: 'Accounts exported to CSV (with current balance).',
+                        })
+                      })
+                      .catch((err) => {
+                        setMessage({
+                          type: 'error',
+                          text:
+                            err instanceof Error ? err.message : 'Account export failed.',
+                        })
+                      })
+                      .finally(() => setExportingAccounts(false))
+                  }}
+                >
+                  {exportingAccounts ? 'Exporting…' : 'Export'}
                 </button>
                 <button
                   type="button"

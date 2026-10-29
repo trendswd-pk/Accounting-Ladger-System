@@ -1,4 +1,4 @@
-import { invalidateAccountsCache } from '@/lib/accounts'
+import { fetchAccounts, invalidateAccountsCache } from '@/lib/accounts'
 import {
   cellAt,
   downloadTextFile,
@@ -13,6 +13,14 @@ export const ACCOUNT_IMPORT_HEADERS = [
   'phone',
   'account_type',
   'cash_type',
+] as const
+
+export const ACCOUNT_EXPORT_HEADERS = [
+  'name',
+  'phone',
+  'account_type',
+  'cash_type',
+  'balance',
 ] as const
 
 export const TRANSACTION_IO_HEADERS = [
@@ -163,6 +171,22 @@ export async function importTransactionsFromCsvFile(
   invalidateTransactionsCache()
   invalidateAccountsCache()
   return result
+}
+
+export async function exportAccountsCsv(): Promise<void> {
+  const items = await fetchAccounts({ force: true })
+  const csv = toCsv(
+    [...ACCOUNT_EXPORT_HEADERS],
+    items.map((a) => [
+      a.name,
+      a.phone,
+      a.accountTypeName,
+      a.cashTypeName,
+      Number(a.balance) || 0,
+    ])
+  )
+  const stamp = new Date().toISOString().slice(0, 10)
+  downloadTextFile(`accounts-export-${stamp}.csv`, csv)
 }
 
 export async function exportTransactionsCsv(): Promise<void> {
