@@ -113,6 +113,8 @@ npm run lint                 # ESLint
 
 Optional: `JWT_SECRET`, `CRON_SECRET` — see `.env.example`.
 
+**Vercel Cron:** `vercel.json` schedules `GET /api/cron` daily at `10:00` UTC. Set `CRON_SECRET` in the Vercel project; Vercel sends `Authorization: Bearer <CRON_SECRET>`. Hobby plans allow one cron.
+
 Uploads use **same-origin** `POST /api/uploads` (server writes to R2), so browser CORS to R2 is not required for that path.
 
 ---
