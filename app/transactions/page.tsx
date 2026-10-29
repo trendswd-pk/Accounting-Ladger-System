@@ -16,6 +16,7 @@ import {
 } from '@/components/FormModal'
 import SearchableSelect from '@/components/SearchableSelect'
 import { TablePaginationNav } from '@/components/TablePaginationNav'
+import TransactionDocumentsPanel from '@/components/TransactionDocumentsPanel'
 import { fetchAccounts, getCachedAccounts, type AccountRecord } from '@/lib/accounts'
 import {
   DEFAULT_APP_SETTINGS,
@@ -29,6 +30,7 @@ import {
   transactionMessageVars,
 } from '@/lib/messageTemplates'
 import { formatMoney } from '@/lib/money'
+import { exportTransactionPdf } from '@/lib/transactionExport'
 import {
   createTransaction,
   deleteTransaction,
@@ -121,17 +123,27 @@ function TransactionsPageInner() {
   const [detailRow, setDetailRow] = useState<
     (TransactionRecord & { runningBalance: number }) | null
   >(null)
+  const [detailTab, setDetailTab] = useState<'details' | 'documents'>('details')
+
+  const openDetail = (row: TransactionRecord & { runningBalance: number }) => {
+    setDetailTab('details')
+    setDetailRow(row)
+  }
   const [currency, setCurrency] = useState(
     () => getCachedAppSettings()?.currency ?? DEFAULT_APP_SETTINGS.currency
   )
   const [businessName, setBusinessName] = useState(
     () => getCachedAppSettings()?.businessName ?? DEFAULT_APP_SETTINGS.businessName
   )
+  const [logoUrl, setLogoUrl] = useState<string | null>(
+    () => getCachedAppSettings()?.logoUrl ?? DEFAULT_APP_SETTINGS.logoUrl
+  )
   const [transactionMessageTemplate, setTransactionMessageTemplate] = useState(
     () =>
       getCachedAppSettings()?.transactionMessageTemplate ??
       DEFAULT_APP_SETTINGS.transactionMessageTemplate
   )
+  const [exportingPdfId, setExportingPdfId] = useState<string | null>(null)
   const [messageNotePlus, setMessageNotePlus] = useState(
     () => getCachedAppSettings()?.messageNotePlus ?? DEFAULT_APP_SETTINGS.messageNotePlus
   )
@@ -197,6 +209,7 @@ function TransactionsPageInner() {
       setDefaultEntryMode(s.defaultEntryMode)
       setCurrency(s.currency)
       setBusinessName(s.businessName)
+      setLogoUrl(s.logoUrl)
       setTransactionMessageTemplate(s.transactionMessageTemplate)
       setMessageNotePlus(s.messageNotePlus)
       setMessageNoteMinus(s.messageNoteMinus)
@@ -544,11 +557,36 @@ function TransactionsPageInner() {
     openWhatsAppMessage(account?.phone, text)
   }
 
+  const exportTransactionAsPdf = async (row: TransactionRecord) => {
+    setExportingPdfId(row.id)
+    setListError(null)
+    try {
+      const account = accounts.find((a) => a.id === row.accountId) ?? null
+      await exportTransactionPdf(row, {
+        currency,
+        businessName,
+        logoUrl,
+        account,
+        runningBalance: runningBalanceById.get(row.id),
+      })
+    } catch (err) {
+      setListError(err instanceof Error ? err.message : 'Transaction PDF export failed.')
+    } finally {
+      setExportingPdfId(null)
+    }
+  }
+
   const actionsFor = (row: TransactionRecord) => (
     <ActionsDropdown
       ariaLabel={`Actions for entry ${row.entryNumber}`}
       items={[
         { key: 'edit', label: 'Edit', onClick: () => openEdit(row) },
+        {
+          key: 'pdf',
+          label: exportingPdfId === row.id ? 'Exporting PDF…' : 'Export PDF',
+          disabled: exportingPdfId === row.id,
+          onClick: () => void exportTransactionAsPdf(row),
+        },
         {
           key: 'send',
           label: 'Send message',
@@ -870,11 +908,11 @@ function TransactionsPageInner() {
               key={row.id}
               role="button"
               tabIndex={0}
-              onClick={() => setDetailRow(row)}
+              onClick={() => openDetail(row)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault()
-                  setDetailRow(row)
+                  openDetail(row)
                 }
               }}
               className="cursor-pointer rounded-xl border border-gray-100 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
@@ -997,11 +1035,11 @@ function TransactionsPageInner() {
                     key={row.id}
                     role="button"
                     tabIndex={0}
-                    onClick={() => setDetailRow(row)}
+                    onClick={() => openDetail(row)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault()
-                        setDetailRow(row)
+                        openDetail(row)
                       }
                     }}
                     className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40"
@@ -1320,7 +1358,7 @@ function TransactionsPageInner() {
           aria-modal="true"
           aria-labelledby="transaction-detail-title"
         >
-          <div className={`${formModalPanelClass} max-w-md`} onClick={(e) => e.stopPropagation()}>
+          <div className={`${formModalPanelClass} max-w-lg`} onClick={(e) => e.stopPropagation()}>
             <FormModalHeader
               titleId="transaction-detail-title"
               title={
@@ -1336,70 +1374,104 @@ function TransactionsPageInner() {
               onClose={() => setDetailRow(null)}
             />
             <FormModalBody>
-              <dl className="space-y-3 text-sm">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                      Transaction Date
-                    </dt>
-                    <dd className="mt-0.5 text-gray-900 dark:text-gray-100">
-                      {formatDisplayDate(detailRow.transactionDate)}
-                    </dd>
+              <div
+                className="mb-4 flex gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-900/60"
+                role="tablist"
+                aria-label="Transaction sections"
+              >
+                {(
+                  [
+                    { id: 'details' as const, label: 'Details' },
+                    { id: 'documents' as const, label: 'Documents' },
+                  ] as const
+                ).map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={detailTab === tab.id}
+                    className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                      detailTab === tab.id
+                        ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100'
+                        : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
+                    }`}
+                    onClick={() => setDetailTab(tab.id)}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {detailTab === 'details' ? (
+                <dl className="space-y-3 text-sm">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        Transaction Date
+                      </dt>
+                      <dd className="mt-0.5 text-gray-900 dark:text-gray-100">
+                        {formatDisplayDate(detailRow.transactionDate)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        SR.
+                      </dt>
+                      <dd className="mt-0.5 tabular-nums text-gray-900 dark:text-gray-100">
+                        {detailRow.entryNumber}
+                      </dd>
+                    </div>
                   </div>
                   <div>
                     <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                      SR.
+                      Narration
                     </dt>
-                    <dd className="mt-0.5 tabular-nums text-gray-900 dark:text-gray-100">
-                      {detailRow.entryNumber}
+                    <dd className="mt-0.5 whitespace-pre-wrap break-words text-gray-800 dark:text-gray-200">
+                      {detailRow.narration.trim() ? detailRow.narration : '—'}
                     </dd>
                   </div>
-                </div>
-                <div>
-                  <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    Narration
-                  </dt>
-                  <dd className="mt-0.5 whitespace-pre-wrap break-words text-gray-800 dark:text-gray-200">
-                    {detailRow.narration.trim() ? detailRow.narration : '—'}
-                  </dd>
-                </div>
-                <div className="grid grid-cols-2 items-start gap-3">
-                  <div>
-                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                      Balance
-                    </dt>
-                    <dd
-                      className={`mt-0.5 tabular-nums font-medium ${amountColorClass(detailRow.entryType)}`}
-                    >
-                      {detailRow.entryType === 'debit' ? '− ' : '+ '}
-                      {formatBalance(Math.abs(detailRow.balance))}
-                    </dd>
+                  <div className="grid grid-cols-2 items-start gap-3">
+                    <div>
+                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        Balance
+                      </dt>
+                      <dd
+                        className={`mt-0.5 tabular-nums font-medium ${amountColorClass(detailRow.entryType)}`}
+                      >
+                        {detailRow.entryType === 'debit' ? '− ' : '+ '}
+                        {formatBalance(Math.abs(detailRow.balance))}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        Running Balance
+                      </dt>
+                      <dd
+                        className={`mt-0.5 tabular-nums font-medium ${runningBalanceColorClass(detailRow.runningBalance)}`}
+                      >
+                        {formatBalance(detailRow.runningBalance)}
+                      </dd>
+                    </div>
                   </div>
-                  <div>
-                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                      Running Balance
-                    </dt>
-                    <dd
-                      className={`mt-0.5 tabular-nums font-medium ${runningBalanceColorClass(detailRow.runningBalance)}`}
-                    >
-                      {formatBalance(detailRow.runningBalance)}
-                    </dd>
-                  </div>
-                </div>
-              </dl>
+                </dl>
+              ) : (
+                <TransactionDocumentsPanel transactionId={detailRow.id} />
+              )}
             </FormModalBody>
             <FormModalFooter className="justify-center sm:justify-end">
-              <button
-                type="button"
-                onClick={() => {
-                  const row = detailRow
-                  setDetailRow(null)
-                  openEdit(row)
-                }}
-                className={`${formModalPrimaryButtonClass} flex-none`}
-              >
-                Edit
-              </button>
+              {detailTab === 'details' ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const row = detailRow
+                    setDetailRow(null)
+                    openEdit(row)
+                  }}
+                  className={`${formModalPrimaryButtonClass} flex-none`}
+                >
+                  Edit
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => setDetailRow(null)}

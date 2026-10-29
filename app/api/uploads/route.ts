@@ -41,6 +41,29 @@ function mapRow(row: AttachmentRow) {
   }
 }
 
+/** GET ?folder=transactions/<id> — list attachment metadata for a folder. */
+export async function GET(request: Request) {
+  const folder = new URL(request.url).searchParams.get('folder')?.trim() ?? ''
+  if (!folder) {
+    return NextResponse.json({ error: 'folder is required.' }, { status: 400 })
+  }
+  if (folder.length > 80 || folder.includes('..')) {
+    return NextResponse.json({ error: 'Invalid folder.' }, { status: 400 })
+  }
+
+  const admin = getSupabaseAdmin()
+  const { data, error } = await admin
+    .from('file_attachments')
+    .select('id, storage_key, public_url, file_name, mime_type, size_bytes, folder, created_at')
+    .eq('folder', folder)
+    .order('created_at', { ascending: false })
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({
+    attachments: (data ?? []).map((row) => mapRow(row as AttachmentRow)),
+  })
+}
+
 /**
  * POST multipart: browser → this API → Cloudflare R2 (same account/bucket).
  * Avoids cross-origin PUT / bucket CORS failures.

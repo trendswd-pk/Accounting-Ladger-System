@@ -29,6 +29,10 @@ import {
   watchAppSettings,
 } from '@/lib/appSettings'
 import {
+  exportAccountLedger,
+  type LedgerExportFormat,
+} from '@/lib/ledgerExport'
+import {
   accountMessageVars,
   fillMessageTemplate,
   openWhatsAppMessage,
@@ -91,6 +95,12 @@ export default function AccountsPage() {
   const [messageNoteZero, setMessageNoteZero] = useState(
     () => getCachedAppSettings()?.messageNoteZero ?? DEFAULT_APP_SETTINGS.messageNoteZero
   )
+  const [logoUrl, setLogoUrl] = useState<string | null>(
+    () => getCachedAppSettings()?.logoUrl ?? DEFAULT_APP_SETTINGS.logoUrl
+  )
+  const [exportAccount, setExportAccount] = useState<AccountRecord | null>(null)
+  const [exportFormat, setExportFormat] = useState<LedgerExportFormat>('pdf')
+  const [exporting, setExporting] = useState(false)
 
   const loadLookups = useCallback(async () => {
     const [ats, cts] = await Promise.all([
@@ -120,6 +130,7 @@ export default function AccountsPage() {
     return watchAppSettings((s) => {
       setCurrency(s.currency)
       setBusinessName(s.businessName)
+      setLogoUrl(s.logoUrl)
       setAccountMessageTemplate(s.accountMessageTemplate)
       setMessageNotePlus(s.messageNotePlus)
       setMessageNoteMinus(s.messageNoteMinus)
@@ -305,6 +316,30 @@ export default function AccountsPage() {
     openWhatsAppMessage(row.phone, text)
   }
 
+  const openExportModal = (row: AccountRecord) => {
+    setExportFormat('pdf')
+    setExportAccount(row)
+    setListError(null)
+  }
+
+  const handleExportLedger = async () => {
+    if (!exportAccount) return
+    setExporting(true)
+    setListError(null)
+    try {
+      await exportAccountLedger(exportAccount, exportFormat, {
+        currency,
+        businessName,
+        logoUrl,
+      })
+      setExportAccount(null)
+    } catch (err) {
+      setListError(err instanceof Error ? err.message : 'Ledger export failed.')
+    } finally {
+      setExporting(false)
+    }
+  }
+
   const actionsFor = (row: AccountRecord) => (
     <ActionsDropdown
       ariaLabel={`Actions for ${row.name}`}
@@ -313,6 +348,11 @@ export default function AccountsPage() {
           key: 'edit',
           label: 'Edit',
           onClick: () => openEdit(row),
+        },
+        {
+          key: 'export',
+          label: 'Export ledger',
+          onClick: () => openExportModal(row),
         },
         {
           key: 'send',
@@ -719,6 +759,105 @@ export default function AccountsPage() {
           </div>
         </div>
       )}
+
+      {exportAccount ? (
+        <div
+          className={formModalOverlayClass}
+          onClick={() => {
+            if (!exporting) setExportAccount(null)
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="export-ledger-title"
+        >
+          <div
+            className={`${formModalPanelClass} max-w-sm`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <FormModalHeader
+              titleId="export-ledger-title"
+              title="Export ledger"
+              onClose={() => {
+                if (!exporting) setExportAccount(null)
+              }}
+            />
+            <FormModalBody>
+              <p className="mb-4 text-sm text-gray-600 dark:text-gray-300">
+                Download the full ledger for{' '}
+                <span className="font-medium text-gray-900 dark:text-gray-100">
+                  {exportAccount.name}
+                </span>
+                . Choose a format:
+              </p>
+              <div className="space-y-2">
+                {(
+                  [
+                    {
+                      id: 'pdf' as const,
+                      label: 'PDF',
+                      hint: 'Printable ledger document',
+                    },
+                    {
+                      id: 'excel' as const,
+                      label: 'Excel (CSV)',
+                      hint: 'Opens in Excel / Sheets',
+                    },
+                    {
+                      id: 'csv' as const,
+                      label: 'CSV',
+                      hint: 'Plain spreadsheet file',
+                    },
+                  ] as const
+                ).map((opt) => (
+                  <label
+                    key={opt.id}
+                    className={`flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5 transition-colors ${
+                      exportFormat === opt.id
+                        ? 'border-primary-500 bg-primary-50 dark:border-primary-400 dark:bg-primary-900/20'
+                        : 'border-gray-200 hover:border-gray-300 dark:border-gray-600 dark:hover:border-gray-500'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="ledger-export-format"
+                      className="mt-1"
+                      checked={exportFormat === opt.id}
+                      onChange={() => setExportFormat(opt.id)}
+                      disabled={exporting}
+                    />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {opt.label}
+                      </span>
+                      <span className="block text-xs text-gray-500 dark:text-gray-400">
+                        {opt.hint}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </FormModalBody>
+            <FormModalFooter>
+              <button
+                type="button"
+                onClick={() => void handleExportLedger()}
+                disabled={exporting}
+                className={formModalPrimaryButtonClass}
+              >
+                {exporting ? 'Exporting…' : 'Download'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setExportAccount(null)}
+                disabled={exporting}
+                className={formModalSecondaryButtonClass}
+              >
+                Cancel
+              </button>
+            </FormModalFooter>
+          </div>
+        </div>
+      ) : null}
 
       {deleteConfirmId && (
         <div

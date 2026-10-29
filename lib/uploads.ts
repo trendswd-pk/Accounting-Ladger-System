@@ -160,3 +160,23 @@ export async function deleteUploadedFile(id: string): Promise<void> {
   const res = await fetch(`/api/uploads/${id}`, { method: 'DELETE' })
   if (!res.ok) throw new Error(await readError(res, 'Could not delete file.'))
 }
+
+/** Folder key used to group files under one transaction. */
+export function transactionAttachmentFolder(transactionId: string): string {
+  return `transactions/${String(transactionId).trim()}`
+}
+
+export async function listUploadedFiles(folder: string): Promise<FileAttachment[]> {
+  const q = new URLSearchParams({ folder })
+  const res = await fetch(`/api/uploads?${q.toString()}`, { cache: 'no-store' })
+  if (!res.ok) throw new Error(await readError(res, 'Could not load files.'))
+  const body = (await res.json()) as { attachments?: FileAttachment[] }
+  return body.attachments ?? []
+}
+
+export function formatUploadSize(bytes: number): string {
+  const n = Number(bytes) || 0
+  if (n < 1024) return `${n} B`
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`
+}
