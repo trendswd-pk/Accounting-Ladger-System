@@ -14,6 +14,7 @@ import {
   TrendingUp,
   Wallet,
 } from 'lucide-react'
+import DashboardCharts from '@/components/dashboard/DashboardCharts'
 import TransactionFormModal from '@/components/TransactionFormModal'
 import {
   fetchAccounts,
@@ -409,6 +410,19 @@ export default function DashboardHome() {
           )
         })}
       </div>
+
+      <DashboardCharts
+        currency={currency}
+        ready={ready}
+        cashSavings={cashInHandBalance}
+        payable={loanBalance}
+        receivable={receivableBalance}
+        investment={investBalance}
+        expenses={expenseBalance}
+        expenseAccountIds={expenseAccountIds}
+        transactions={transactions}
+        expenseAccounts={expenseAccounts}
+      />
     </div>
   )
 }
