@@ -91,6 +91,8 @@ CREATE TABLE IF NOT EXISTS public.app_settings (
     CHECK (default_entry_mode IN ('normal', 'transfer')),
   logo_url TEXT,
   favicon_url TEXT,
+  account_message_template TEXT NOT NULL DEFAULT '',
+  transaction_message_template TEXT NOT NULL DEFAULT '',
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -102,6 +104,24 @@ ALTER TABLE public.app_settings
 
 ALTER TABLE public.app_settings
   ADD COLUMN IF NOT EXISTS favicon_url TEXT;
+
+ALTER TABLE public.app_settings
+  ADD COLUMN IF NOT EXISTS account_message_template TEXT NOT NULL DEFAULT '';
+
+ALTER TABLE public.app_settings
+  ADD COLUMN IF NOT EXISTS transaction_message_template TEXT NOT NULL DEFAULT '';
+
+ALTER TABLE public.app_settings
+  ADD COLUMN IF NOT EXISTS message_note_plus TEXT NOT NULL DEFAULT
+    'Plus (+) balance: payment receivable — they will pay you.';
+
+ALTER TABLE public.app_settings
+  ADD COLUMN IF NOT EXISTS message_note_minus TEXT NOT NULL DEFAULT
+    'Minus (−) balance: payment payable — you will pay them.';
+
+ALTER TABLE public.app_settings
+  ADD COLUMN IF NOT EXISTS message_note_zero TEXT NOT NULL DEFAULT
+    'Zero balance: everything is settled / all clear.';
 
 ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
 
@@ -167,6 +187,10 @@ AS $$
         'currency', s.currency,
         'theme', s.theme,
         'default_entry_mode', COALESCE(s.default_entry_mode, 'normal'),
+        'logo_url', s.logo_url,
+        'favicon_url', s.favicon_url,
+        'account_message_template', COALESCE(s.account_message_template, ''),
+        'transaction_message_template', COALESCE(s.transaction_message_template, ''),
         'updated_at', s.updated_at
       )
       FROM public.app_settings s
@@ -178,6 +202,10 @@ AS $$
       'currency', 'PKR',
       'theme', 'dark',
       'default_entry_mode', 'normal',
+      'logo_url', null,
+      'favicon_url', null,
+      'account_message_template', '',
+      'transaction_message_template', '',
       'updated_at', now()
     )
   );

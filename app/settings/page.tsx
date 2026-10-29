@@ -2,6 +2,15 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Info } from 'lucide-react'
+import {
+  FormModalBody,
+  FormModalFooter,
+  FormModalHeader,
+  formModalOverlayClass,
+  formModalPanelClass,
+  formModalPrimaryButtonClass,
+  formModalSecondaryButtonClass,
+} from '@/components/FormModal'
 import MultiSelectDropdown from '@/components/MultiSelectDropdown'
 import {
   defaultCashSavingsAccountTypeIds,
@@ -23,6 +32,10 @@ import {
   importTransactionsFromCsvFile,
   type ImportProgress,
 } from '@/lib/dataImportExport'
+import {
+  ACCOUNT_MESSAGE_VARS,
+  TRANSACTION_MESSAGE_VARS,
+} from '@/lib/messageTemplates'
 import {
   fetchSetupTypes,
   getCachedSetupTypes,
@@ -119,6 +132,211 @@ function SettingRow({
 }
 
 const brandAccept = BRAND_IMAGE_EXTENSIONS.map((ext) => `.${ext}`).join(',')
+
+const messageTextareaClass =
+  'w-full min-h-[10rem] resize-y rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100'
+
+const messageNoteInputClass =
+  'w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100'
+
+type MessageNoteDrafts = {
+  plus: string
+  minus: string
+  zero: string
+}
+
+function MessageTemplateModal({
+  open,
+  title,
+  description,
+  value,
+  notes,
+  variables,
+  onClose,
+  onSave,
+}: {
+  open: boolean
+  title: string
+  description: string
+  value: string
+  notes: MessageNoteDrafts
+  variables: readonly { key: string; label: string }[]
+  onClose: () => void
+  onSave: (next: string, notes: MessageNoteDrafts) => void
+}) {
+  const [draft, setDraft] = useState(value)
+  const [notePlus, setNotePlus] = useState(notes.plus)
+  const [noteMinus, setNoteMinus] = useState(notes.minus)
+  const [noteZero, setNoteZero] = useState(notes.zero)
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    setDraft(value)
+    setNotePlus(notes.plus)
+    setNoteMinus(notes.minus)
+    setNoteZero(notes.zero)
+  }, [open, value, notes.plus, notes.minus, notes.zero])
+
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open, onClose])
+
+  if (!open) return null
+
+  const insertVariable = (key: string) => {
+    const token = `{{${key}}}`
+    const el = textareaRef.current
+    if (!el) {
+      setDraft((prev) => `${prev}${token}`)
+      return
+    }
+    const start = el.selectionStart ?? draft.length
+    const end = el.selectionEnd ?? draft.length
+    const next = draft.slice(0, start) + token + draft.slice(end)
+    setDraft(next)
+    requestAnimationFrame(() => {
+      el.focus()
+      const pos = start + token.length
+      el.setSelectionRange(pos, pos)
+    })
+  }
+
+  return (
+    <div
+      className={formModalOverlayClass}
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        className={`${formModalPanelClass} sm:max-w-lg`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="message-template-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <FormModalHeader
+          title={title}
+          titleId="message-template-title"
+          onClose={onClose}
+        />
+        <FormModalBody>
+          <p className="mb-3 text-sm text-gray-600 dark:text-gray-300">{description}</p>
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            Insert variable
+          </p>
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            {variables.map((v) => (
+              <button
+                key={v.key}
+                type="button"
+                onClick={() => insertVariable(v.key)}
+                className="rounded-md border border-gray-300 bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+              >
+                {`{{${v.key}}}`}
+              </button>
+            ))}
+          </div>
+          <label htmlFor="messageTemplateDraft" className="sr-only">
+            Message template
+          </label>
+          <textarea
+            ref={textareaRef}
+            id="messageTemplateDraft"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            className={messageTextareaClass}
+            placeholder="Write your message… click variables above to insert."
+            maxLength={4000}
+          />
+          <p className="mt-1.5 text-right text-[11px] text-gray-400">
+            {draft.length}/4000
+          </p>
+
+          <div className="mt-5 space-y-3 border-t border-gray-200 pt-4 dark:border-gray-700">
+            <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              Balance notes for {'{{note}}'}
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Only the matching line is inserted: plus, minus, or zero balance.
+            </p>
+            <div>
+              <label
+                htmlFor="messageNotePlus"
+                className="mb-1 block text-sm font-medium text-gray-800 dark:text-gray-200"
+              >
+                Plus (+) note
+              </label>
+              <input
+                id="messageNotePlus"
+                type="text"
+                value={notePlus}
+                onChange={(e) => setNotePlus(e.target.value)}
+                className={messageNoteInputClass}
+                maxLength={500}
+                placeholder="Shown when balance is positive"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="messageNoteMinus"
+                className="mb-1 block text-sm font-medium text-gray-800 dark:text-gray-200"
+              >
+                Minus (−) note
+              </label>
+              <input
+                id="messageNoteMinus"
+                type="text"
+                value={noteMinus}
+                onChange={(e) => setNoteMinus(e.target.value)}
+                className={messageNoteInputClass}
+                maxLength={500}
+                placeholder="Shown when balance is negative"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="messageNoteZero"
+                className="mb-1 block text-sm font-medium text-gray-800 dark:text-gray-200"
+              >
+                Zero / clear note
+              </label>
+              <input
+                id="messageNoteZero"
+                type="text"
+                value={noteZero}
+                onChange={(e) => setNoteZero(e.target.value)}
+                className={messageNoteInputClass}
+                maxLength={500}
+                placeholder="Shown when balance is zero"
+              />
+            </div>
+          </div>
+        </FormModalBody>
+        <FormModalFooter>
+          <button type="button" className={formModalSecondaryButtonClass} onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className={formModalPrimaryButtonClass}
+            onClick={() => {
+              onSave(draft, { plus: notePlus, minus: noteMinus, zero: noteZero })
+              onClose()
+            }}
+          >
+            Apply
+          </button>
+        </FormModalFooter>
+      </div>
+    </div>
+  )
+}
 
 function BrandAssetField({
   id,
@@ -256,6 +474,18 @@ export default function SettingsPage() {
   )
   const [logoUrl, setLogoUrl] = useState<string | null>(DEFAULT_APP_SETTINGS.logoUrl)
   const [faviconUrl, setFaviconUrl] = useState<string | null>(DEFAULT_APP_SETTINGS.faviconUrl)
+  const [accountMessageTemplate, setAccountMessageTemplate] = useState(
+    DEFAULT_APP_SETTINGS.accountMessageTemplate
+  )
+  const [transactionMessageTemplate, setTransactionMessageTemplate] = useState(
+    DEFAULT_APP_SETTINGS.transactionMessageTemplate
+  )
+  const [messageNotePlus, setMessageNotePlus] = useState(DEFAULT_APP_SETTINGS.messageNotePlus)
+  const [messageNoteMinus, setMessageNoteMinus] = useState(
+    DEFAULT_APP_SETTINGS.messageNoteMinus
+  )
+  const [messageNoteZero, setMessageNoteZero] = useState(DEFAULT_APP_SETTINGS.messageNoteZero)
+  const [messageEditor, setMessageEditor] = useState<'account' | 'transaction' | null>(null)
   const [cashSavingsCashTypeIds, setCashSavingsCashTypeIds] = useState<string[]>(
     () => DEFAULT_APP_SETTINGS.cashSavingsCashTypeIds
   )
@@ -331,6 +561,11 @@ export default function SettingsPage() {
         setDefaultEntryMode(settings.defaultEntryMode)
         setLogoUrl(settings.logoUrl)
         setFaviconUrl(settings.faviconUrl)
+        setAccountMessageTemplate(settings.accountMessageTemplate)
+        setTransactionMessageTemplate(settings.transactionMessageTemplate)
+        setMessageNotePlus(settings.messageNotePlus)
+        setMessageNoteMinus(settings.messageNoteMinus)
+        setMessageNoteZero(settings.messageNoteZero)
         applyThemePreference(settings.theme)
 
         const pickSavedOrDefault = (
@@ -421,6 +656,11 @@ export default function SettingsPage() {
         defaultEntryMode,
         logoUrl,
         faviconUrl,
+        accountMessageTemplate,
+        transactionMessageTemplate,
+        messageNotePlus,
+        messageNoteMinus,
+        messageNoteZero,
         cashSavingsCashTypeIds,
         cashSavingsAccountTypeIds,
         payableReceivableCashTypeIds,
@@ -432,6 +672,11 @@ export default function SettingsPage() {
       setDefaultEntryMode(saved.defaultEntryMode)
       setLogoUrl(saved.logoUrl)
       setFaviconUrl(saved.faviconUrl)
+      setAccountMessageTemplate(saved.accountMessageTemplate)
+      setTransactionMessageTemplate(saved.transactionMessageTemplate)
+      setMessageNotePlus(saved.messageNotePlus)
+      setMessageNoteMinus(saved.messageNoteMinus)
+      setMessageNoteZero(saved.messageNoteZero)
       setCashSavingsCashTypeIds(saved.cashSavingsCashTypeIds)
       setCashSavingsAccountTypeIds(saved.cashSavingsAccountTypeIds)
       setPayableReceivableCashTypeIds(saved.payableReceivableCashTypeIds)
@@ -875,7 +1120,72 @@ export default function SettingsPage() {
               {renderImportProgress(transactionImportProgress)}
             </div>
           </SettingRow>
+
+          <SettingRow
+            label="Send messages"
+            description="Templates for WhatsApp send on Accounts and Transactions. Use {{variables}} for name, balance, amount, and more."
+          >
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                className={actionBtnClass}
+                disabled={saving || loading}
+                onClick={() => setMessageEditor('account')}
+              >
+                {accountMessageTemplate.trim() ? 'Edit account' : 'Account message'}
+              </button>
+              <button
+                type="button"
+                className={actionBtnClass}
+                disabled={saving || loading}
+                onClick={() => setMessageEditor('transaction')}
+              >
+                {transactionMessageTemplate.trim()
+                  ? 'Edit transaction'
+                  : 'Transaction message'}
+              </button>
+            </div>
+          </SettingRow>
         </div>
+
+        <MessageTemplateModal
+          open={messageEditor === 'account'}
+          title="Account message"
+          description="Used when sending from the Accounts page. Click a variable to insert it at the cursor."
+          value={accountMessageTemplate}
+          notes={{
+            plus: messageNotePlus,
+            minus: messageNoteMinus,
+            zero: messageNoteZero,
+          }}
+          variables={ACCOUNT_MESSAGE_VARS}
+          onClose={() => setMessageEditor(null)}
+          onSave={(next, notes) => {
+            setAccountMessageTemplate(next)
+            setMessageNotePlus(notes.plus)
+            setMessageNoteMinus(notes.minus)
+            setMessageNoteZero(notes.zero)
+          }}
+        />
+        <MessageTemplateModal
+          open={messageEditor === 'transaction'}
+          title="Transaction message"
+          description="Used when sending from the Transactions page. Click a variable to insert it at the cursor."
+          value={transactionMessageTemplate}
+          notes={{
+            plus: messageNotePlus,
+            minus: messageNoteMinus,
+            zero: messageNoteZero,
+          }}
+          variables={TRANSACTION_MESSAGE_VARS}
+          onClose={() => setMessageEditor(null)}
+          onSave={(next, notes) => {
+            setTransactionMessageTemplate(next)
+            setMessageNotePlus(notes.plus)
+            setMessageNoteMinus(notes.minus)
+            setMessageNoteZero(notes.zero)
+          }}
+        />
 
         {message ? (
           <p

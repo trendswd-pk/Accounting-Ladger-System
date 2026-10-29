@@ -6,6 +6,13 @@ import {
   normalizeOptionalUrl,
   normalizeUuidIdList,
 } from '@/lib/appSettings'
+import {
+  DEFAULT_MESSAGE_NOTE_MINUS,
+  DEFAULT_MESSAGE_NOTE_PLUS,
+  DEFAULT_MESSAGE_NOTE_ZERO,
+  normalizeMessageNote,
+  normalizeMessageTemplate,
+} from '@/lib/messageTemplates'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
 
 export const dynamic = 'force-dynamic'
@@ -24,6 +31,11 @@ type RpcSettings = {
   default_entry_mode?: string | null
   logo_url?: string | null
   favicon_url?: string | null
+  account_message_template?: string | null
+  transaction_message_template?: string | null
+  message_note_plus?: string | null
+  message_note_minus?: string | null
+  message_note_zero?: string | null
   cash_savings_cash_type_ids?: unknown
   cash_savings_account_type_ids?: unknown
   payable_receivable_cash_type_ids?: unknown
@@ -45,6 +57,8 @@ function isMissingRpc(error: { message?: string; code?: string } | null): boolea
 }
 
 const COLUMN_SETS = [
+  'business_name, currency, theme, default_entry_mode, logo_url, favicon_url, account_message_template, transaction_message_template, message_note_plus, message_note_minus, message_note_zero, cash_savings_cash_type_ids, cash_savings_account_type_ids, payable_receivable_cash_type_ids, payable_receivable_account_type_ids, updated_at',
+  'business_name, currency, theme, default_entry_mode, logo_url, favicon_url, account_message_template, transaction_message_template, cash_savings_cash_type_ids, cash_savings_account_type_ids, payable_receivable_cash_type_ids, payable_receivable_account_type_ids, updated_at',
   'business_name, currency, theme, default_entry_mode, logo_url, favicon_url, cash_savings_cash_type_ids, cash_savings_account_type_ids, payable_receivable_cash_type_ids, payable_receivable_account_type_ids, updated_at',
   'business_name, currency, theme, default_entry_mode, cash_savings_cash_type_ids, cash_savings_account_type_ids, payable_receivable_cash_type_ids, payable_receivable_account_type_ids, updated_at',
   'business_name, currency, theme, default_entry_mode, cash_savings_cash_type_ids, cash_savings_account_type_ids, payable_cash_type_ids, payable_account_type_ids, receivable_cash_type_ids, receivable_account_type_ids, updated_at',
@@ -148,6 +162,32 @@ export async function PATCH(request: Request) {
     if (body.faviconUrl !== undefined) {
       patch.favicon_url = normalizeOptionalUrl(body.faviconUrl)
     }
+    if (body.accountMessageTemplate !== undefined) {
+      patch.account_message_template = normalizeMessageTemplate(body.accountMessageTemplate)
+    }
+    if (body.transactionMessageTemplate !== undefined) {
+      patch.transaction_message_template = normalizeMessageTemplate(
+        body.transactionMessageTemplate
+      )
+    }
+    if (body.messageNotePlus !== undefined) {
+      patch.message_note_plus = normalizeMessageNote(
+        body.messageNotePlus,
+        DEFAULT_MESSAGE_NOTE_PLUS
+      )
+    }
+    if (body.messageNoteMinus !== undefined) {
+      patch.message_note_minus = normalizeMessageNote(
+        body.messageNoteMinus,
+        DEFAULT_MESSAGE_NOTE_MINUS
+      )
+    }
+    if (body.messageNoteZero !== undefined) {
+      patch.message_note_zero = normalizeMessageNote(
+        body.messageNoteZero,
+        DEFAULT_MESSAGE_NOTE_ZERO
+      )
+    }
     for (const key of ID_LIST_PATCH_KEYS) {
       if (body[key.body] !== undefined) {
         patch[key.column] = normalizeUuidIdList(body[key.body])
@@ -166,6 +206,20 @@ export async function PATCH(request: Request) {
           {
             error:
               'Branding columns missing. Run database/settings-branding.sql in Supabase.',
+          },
+          500
+        )
+      }
+      if (
+        /account_message_template|transaction_message_template|message_note_/i.test(
+          error.message
+        ) &&
+        /does not exist|Could not find/i.test(error.message)
+      ) {
+        return json(
+          {
+            error:
+              'Message template columns missing. Run database/settings-message-templates.sql in Supabase.',
           },
           500
         )

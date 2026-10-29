@@ -1,5 +1,23 @@
+import {
+  DEFAULT_ACCOUNT_MESSAGE_TEMPLATE,
+  DEFAULT_MESSAGE_NOTE_MINUS,
+  DEFAULT_MESSAGE_NOTE_PLUS,
+  DEFAULT_MESSAGE_NOTE_ZERO,
+  DEFAULT_TRANSACTION_MESSAGE_TEMPLATE,
+  normalizeMessageNote,
+  normalizeMessageTemplate,
+} from '@/lib/messageTemplates'
 import { recordRequestDeduped } from '@/lib/requestProfiler'
 import type { ThemePreference } from '@/lib/theme'
+
+/** Prefer dynamic {{note}} over older long static Note text. */
+function coerceMessageTemplate(stored: unknown, fallback: string): string {
+  const text = normalizeMessageTemplate(stored)
+  if (!text) return fallback
+  if (text.includes('A plus (+) balance means this account owes you')) return fallback
+  if (text.includes('Note:') && !text.includes('{{note}}')) return fallback
+  return text
+}
 
 export type DefaultEntryMode = 'normal' | 'transfer'
 
@@ -12,6 +30,16 @@ export type AppSettings = {
   logoUrl: string | null
   /** Optional browser tab favicon (R2 public URL). */
   faviconUrl: string | null
+  /** WhatsApp/share template for account pages. Use {{name}}, {{balance}}, … */
+  accountMessageTemplate: string
+  /** WhatsApp/share template for transaction pages. Use {{account_name}}, {{amount}}, … */
+  transactionMessageTemplate: string
+  /** Custom {{note}} when balance is plus (receivable). */
+  messageNotePlus: string
+  /** Custom {{note}} when balance is minus (payable). */
+  messageNoteMinus: string
+  /** Custom {{note}} when balance is zero (settled). */
+  messageNoteZero: string
   cashSavingsCashTypeIds: string[]
   cashSavingsAccountTypeIds: string[]
   /** Shared filter for Payable (−) and Receivable (+) pages/cards. */
@@ -27,6 +55,11 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   defaultEntryMode: 'normal',
   logoUrl: null,
   faviconUrl: null,
+  accountMessageTemplate: DEFAULT_ACCOUNT_MESSAGE_TEMPLATE,
+  transactionMessageTemplate: DEFAULT_TRANSACTION_MESSAGE_TEMPLATE,
+  messageNotePlus: DEFAULT_MESSAGE_NOTE_PLUS,
+  messageNoteMinus: DEFAULT_MESSAGE_NOTE_MINUS,
+  messageNoteZero: DEFAULT_MESSAGE_NOTE_ZERO,
   cashSavingsCashTypeIds: [],
   cashSavingsAccountTypeIds: [],
   payableReceivableCashTypeIds: [],
@@ -40,6 +73,11 @@ type DbRow = {
   default_entry_mode?: string | null
   logo_url?: string | null
   favicon_url?: string | null
+  account_message_template?: string | null
+  transaction_message_template?: string | null
+  message_note_plus?: string | null
+  message_note_minus?: string | null
+  message_note_zero?: string | null
   cash_savings_cash_type_ids?: unknown
   cash_savings_account_type_ids?: unknown
   payable_receivable_cash_type_ids?: unknown
@@ -102,6 +140,9 @@ function cloneSettings(settings: AppSettings): AppSettings {
 function withIdDefaults(settings: AppSettings): AppSettings {
   return {
     ...settings,
+    messageNotePlus: settings.messageNotePlus || DEFAULT_MESSAGE_NOTE_PLUS,
+    messageNoteMinus: settings.messageNoteMinus || DEFAULT_MESSAGE_NOTE_MINUS,
+    messageNoteZero: settings.messageNoteZero || DEFAULT_MESSAGE_NOTE_ZERO,
     cashSavingsCashTypeIds: settings.cashSavingsCashTypeIds ?? [],
     cashSavingsAccountTypeIds: settings.cashSavingsAccountTypeIds ?? [],
     payableReceivableCashTypeIds: settings.payableReceivableCashTypeIds ?? [],
@@ -118,6 +159,17 @@ export function mapAppSettingsRow(row: DbRow): AppSettings {
     defaultEntryMode: normalizeDefaultEntryMode(row.default_entry_mode),
     logoUrl: normalizeOptionalUrl(row.logo_url),
     faviconUrl: normalizeOptionalUrl(row.favicon_url),
+    accountMessageTemplate: coerceMessageTemplate(
+      row.account_message_template,
+      DEFAULT_ACCOUNT_MESSAGE_TEMPLATE
+    ),
+    transactionMessageTemplate: coerceMessageTemplate(
+      row.transaction_message_template,
+      DEFAULT_TRANSACTION_MESSAGE_TEMPLATE
+    ),
+    messageNotePlus: normalizeMessageNote(row.message_note_plus, DEFAULT_MESSAGE_NOTE_PLUS),
+    messageNoteMinus: normalizeMessageNote(row.message_note_minus, DEFAULT_MESSAGE_NOTE_MINUS),
+    messageNoteZero: normalizeMessageNote(row.message_note_zero, DEFAULT_MESSAGE_NOTE_ZERO),
     cashSavingsCashTypeIds: normalizeUuidIdList(row.cash_savings_cash_type_ids),
     cashSavingsAccountTypeIds: normalizeUuidIdList(row.cash_savings_account_type_ids),
     payableReceivableCashTypeIds: firstNonEmptyIdList(
@@ -223,6 +275,11 @@ export type AppSettingsPatch = Partial<
     | 'defaultEntryMode'
     | 'logoUrl'
     | 'faviconUrl'
+    | 'accountMessageTemplate'
+    | 'transactionMessageTemplate'
+    | 'messageNotePlus'
+    | 'messageNoteMinus'
+    | 'messageNoteZero'
     | 'cashSavingsCashTypeIds'
     | 'cashSavingsAccountTypeIds'
     | 'payableReceivableCashTypeIds'

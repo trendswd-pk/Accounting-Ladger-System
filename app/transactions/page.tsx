@@ -23,6 +23,11 @@ import {
   watchAppSettings,
   type DefaultEntryMode,
 } from '@/lib/appSettings'
+import {
+  fillMessageTemplate,
+  openWhatsAppMessage,
+  transactionMessageVars,
+} from '@/lib/messageTemplates'
 import { formatMoney } from '@/lib/money'
 import {
   createTransaction,
@@ -119,6 +124,23 @@ function TransactionsPageInner() {
   const [currency, setCurrency] = useState(
     () => getCachedAppSettings()?.currency ?? DEFAULT_APP_SETTINGS.currency
   )
+  const [businessName, setBusinessName] = useState(
+    () => getCachedAppSettings()?.businessName ?? DEFAULT_APP_SETTINGS.businessName
+  )
+  const [transactionMessageTemplate, setTransactionMessageTemplate] = useState(
+    () =>
+      getCachedAppSettings()?.transactionMessageTemplate ??
+      DEFAULT_APP_SETTINGS.transactionMessageTemplate
+  )
+  const [messageNotePlus, setMessageNotePlus] = useState(
+    () => getCachedAppSettings()?.messageNotePlus ?? DEFAULT_APP_SETTINGS.messageNotePlus
+  )
+  const [messageNoteMinus, setMessageNoteMinus] = useState(
+    () => getCachedAppSettings()?.messageNoteMinus ?? DEFAULT_APP_SETTINGS.messageNoteMinus
+  )
+  const [messageNoteZero, setMessageNoteZero] = useState(
+    () => getCachedAppSettings()?.messageNoteZero ?? DEFAULT_APP_SETTINGS.messageNoteZero
+  )
   const [defaultEntryMode, setDefaultEntryMode] = useState<FormMode>(
     () => getCachedAppSettings()?.defaultEntryMode ?? DEFAULT_APP_SETTINGS.defaultEntryMode
   )
@@ -174,6 +196,11 @@ function TransactionsPageInner() {
     return watchAppSettings((s) => {
       setDefaultEntryMode(s.defaultEntryMode)
       setCurrency(s.currency)
+      setBusinessName(s.businessName)
+      setTransactionMessageTemplate(s.transactionMessageTemplate)
+      setMessageNotePlus(s.messageNotePlus)
+      setMessageNoteMinus(s.messageNoteMinus)
+      setMessageNoteZero(s.messageNoteZero)
     })
   }, [loadRows, loadAccounts])
 
@@ -490,11 +517,43 @@ function TransactionsPageInner() {
     }
   }
 
+  const sendTransactionMessage = (row: TransactionRecord) => {
+    const template = transactionMessageTemplate.trim()
+    if (!template) {
+      setListError('Set a Transaction message template in Settings first.')
+      return
+    }
+    const account = accounts.find((a) => a.id === row.accountId)
+    const currentBalance = runningBalanceById.get(row.id) ?? signedTransactionAmount(row)
+    const previousBalance = currentBalance - signedTransactionAmount(row)
+    const text = fillMessageTemplate(
+      template,
+      transactionMessageVars(row, {
+        businessName,
+        currency,
+        phone: account?.phone,
+        previousBalance,
+        currentBalance,
+        notes: {
+          plus: messageNotePlus,
+          minus: messageNoteMinus,
+          zero: messageNoteZero,
+        },
+      })
+    )
+    openWhatsAppMessage(account?.phone, text)
+  }
+
   const actionsFor = (row: TransactionRecord) => (
     <ActionsDropdown
       ariaLabel={`Actions for entry ${row.entryNumber}`}
       items={[
         { key: 'edit', label: 'Edit', onClick: () => openEdit(row) },
+        {
+          key: 'send',
+          label: 'Send message',
+          onClick: () => sendTransactionMessage(row),
+        },
         {
           key: 'delete',
           label: 'Delete',

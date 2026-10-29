@@ -28,6 +28,11 @@ import {
   getCachedAppSettings,
   watchAppSettings,
 } from '@/lib/appSettings'
+import {
+  accountMessageVars,
+  fillMessageTemplate,
+  openWhatsAppMessage,
+} from '@/lib/messageTemplates'
 import { formatMoney } from '@/lib/money'
 import {
   fetchSetupTypes,
@@ -69,6 +74,23 @@ export default function AccountsPage() {
   const [currency, setCurrency] = useState(
     () => getCachedAppSettings()?.currency ?? DEFAULT_APP_SETTINGS.currency
   )
+  const [businessName, setBusinessName] = useState(
+    () => getCachedAppSettings()?.businessName ?? DEFAULT_APP_SETTINGS.businessName
+  )
+  const [accountMessageTemplate, setAccountMessageTemplate] = useState(
+    () =>
+      getCachedAppSettings()?.accountMessageTemplate ??
+      DEFAULT_APP_SETTINGS.accountMessageTemplate
+  )
+  const [messageNotePlus, setMessageNotePlus] = useState(
+    () => getCachedAppSettings()?.messageNotePlus ?? DEFAULT_APP_SETTINGS.messageNotePlus
+  )
+  const [messageNoteMinus, setMessageNoteMinus] = useState(
+    () => getCachedAppSettings()?.messageNoteMinus ?? DEFAULT_APP_SETTINGS.messageNoteMinus
+  )
+  const [messageNoteZero, setMessageNoteZero] = useState(
+    () => getCachedAppSettings()?.messageNoteZero ?? DEFAULT_APP_SETTINGS.messageNoteZero
+  )
 
   const loadLookups = useCallback(async () => {
     const [ats, cts] = await Promise.all([
@@ -95,7 +117,14 @@ export default function AccountsPage() {
   useEffect(() => {
     void loadRows()
     void loadLookups().catch(() => {})
-    return watchAppSettings((s) => setCurrency(s.currency))
+    return watchAppSettings((s) => {
+      setCurrency(s.currency)
+      setBusinessName(s.businessName)
+      setAccountMessageTemplate(s.accountMessageTemplate)
+      setMessageNotePlus(s.messageNotePlus)
+      setMessageNoteMinus(s.messageNoteMinus)
+      setMessageNoteZero(s.messageNoteZero)
+    })
   }, [loadRows, loadLookups])
 
   const filteredRows = useMemo(() => {
@@ -255,6 +284,27 @@ export default function AccountsPage() {
     return 'text-gray-800 dark:text-gray-200'
   }
 
+  const sendAccountMessage = (row: AccountRecord) => {
+    const template = accountMessageTemplate.trim()
+    if (!template) {
+      setListError('Set an Account message template in Settings first.')
+      return
+    }
+    const text = fillMessageTemplate(
+      template,
+      accountMessageVars(row, {
+        businessName,
+        currency,
+        notes: {
+          plus: messageNotePlus,
+          minus: messageNoteMinus,
+          zero: messageNoteZero,
+        },
+      })
+    )
+    openWhatsAppMessage(row.phone, text)
+  }
+
   const actionsFor = (row: AccountRecord) => (
     <ActionsDropdown
       ariaLabel={`Actions for ${row.name}`}
@@ -263,6 +313,11 @@ export default function AccountsPage() {
           key: 'edit',
           label: 'Edit',
           onClick: () => openEdit(row),
+        },
+        {
+          key: 'send',
+          label: 'Send message',
+          onClick: () => sendAccountMessage(row),
         },
         {
           key: 'delete',
