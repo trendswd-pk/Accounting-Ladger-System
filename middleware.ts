@@ -36,7 +36,11 @@ export async function middleware(request: NextRequest) {
   const isPublicAsset =
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
-    /\.(?:ico|png|jpg|jpeg|gif|webp|svg)$/i.test(pathname)
+    pathname.startsWith('/icons/') ||
+    pathname === '/sw.js' ||
+    pathname === '/manifest.webmanifest' ||
+    pathname === '/manifest.json' ||
+    /\.(?:ico|png|jpg|jpeg|gif|webp|svg|webmanifest)$/i.test(pathname)
 
   if (isPublicAsset) return supabaseResponse
 
@@ -63,8 +67,8 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all paths except static Next internals.
+     * Match all paths except static Next internals, PWA assets, and image files.
      */
-    '/((?!_next/static|_next/image|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+    '/((?!_next/static|_next/image|sw\\.js|manifest\\.webmanifest|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|webmanifest)$).*)',
   ],
 }
