@@ -2,32 +2,28 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useLayoutEffect, useMemo, useRef } from 'react'
+import { useMemo } from 'react'
 import {
   Area,
   AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
+import BalanceMixRibbons from '@/components/dashboard/BalanceMixRibbons'
 import type { DashboardExpenseSummary } from '@/lib/dashboardExpenseSummary'
 import { formatMoney } from '@/lib/money'
-
-const MIX_COLORS = ['#0d9488', '#2563eb', '#8b5cf6', '#f43f5e'] as const
 
 type MixSlice = {
   key: string
   name: string
   value: number
   href: string
-  color: string
+  pct: number
 }
 
 type DashboardChartsProps = {
@@ -107,37 +103,6 @@ function ChartTooltip({
   )
 }
 
-/** Recharts Pie sets tabindex=0 on sectors; neutralize under aria-hidden for a11y. */
-function useStripFocusUnderAriaHidden(ref: React.RefObject<HTMLElement | null>) {
-  useLayoutEffect(() => {
-    const root = ref.current
-    if (!root) return
-
-    const strip = () => {
-      root.querySelectorAll<HTMLElement>('[tabindex]').forEach((el) => {
-        if (el.getAttribute('tabindex') !== '-1') {
-          el.setAttribute('tabindex', '-1')
-        }
-      })
-      root.querySelectorAll<SVGElement>('g, path, text').forEach((el) => {
-        if (el.hasAttribute('tabindex') && el.getAttribute('tabindex') !== '-1') {
-          el.setAttribute('tabindex', '-1')
-        }
-      })
-    }
-
-    strip()
-    const mo = new MutationObserver(strip)
-    mo.observe(root, {
-      attributes: true,
-      attributeFilter: ['tabindex'],
-      childList: true,
-      subtree: true,
-    })
-    return () => mo.disconnect()
-  }, [ref])
-}
-
 export default function DashboardCharts({
   currency,
   ready,
@@ -149,8 +114,6 @@ export default function DashboardCharts({
   summary,
 }: DashboardChartsProps) {
   const router = useRouter()
-  const pieDecorRef = useRef<HTMLDivElement>(null)
-  useStripFocusUnderAriaHidden(pieDecorRef)
 
   const thisMonthRange = useMemo(() => {
     const now = new Date()
@@ -173,44 +136,47 @@ export default function DashboardCharts({
     router.push(`/transactions?${qs.toString()}`)
   }
 
+  const mixTotal = useMemo(
+    () =>
+      Math.max(0, cashInPocket) +
+      Math.max(0, cashSavings) +
+      Math.max(0, receivable) +
+      Math.abs(payable),
+    [cashInPocket, cashSavings, payable, receivable]
+  )
+
   const mixData = useMemo((): MixSlice[] => {
-    const slices: MixSlice[] = [
+    // Fixed order: Pocket → Savings → Receivable → Payable
+    return [
       {
         key: 'pocket',
         name: 'Cash in Pocket',
         value: Math.max(0, cashInPocket),
         href: '/',
-        color: MIX_COLORS[0],
       },
       {
         key: 'cash',
         name: 'Cash & Savings',
         value: Math.max(0, cashSavings),
         href: '/cash-savings',
-        color: MIX_COLORS[1],
       },
       {
         key: 'recv',
         name: 'Receivable',
         value: Math.max(0, receivable),
         href: '/receivable',
-        color: MIX_COLORS[2],
       },
       {
         key: 'pay',
         name: 'Payable',
         value: Math.abs(payable),
         href: '/payable',
-        color: MIX_COLORS[3],
       },
-    ]
-    return slices.filter((s) => s.value > 0)
-  }, [cashInPocket, cashSavings, payable, receivable])
-
-  const mixTotal = useMemo(
-    () => mixData.reduce((sum, s) => sum + s.value, 0),
-    [mixData]
-  )
+    ].map((s) => ({
+      ...s,
+      pct: mixTotal > 0 ? Math.round((s.value / mixTotal) * 1000) / 10 : 0,
+    }))
+  }, [cashInPocket, cashSavings, payable, receivable, mixTotal])
 
   const monthlyExpenseData = summary?.monthly ?? []
   const dailyExpenseData = summary?.daily ?? []
@@ -236,75 +202,7 @@ export default function DashboardCharts({
           title="Balance mix"
           subtitle="Cash in Pocket, Cash & Savings, Receivable and Payable"
         >
-          {mixData.length === 0 ? (
-            <p className="flex h-full items-center justify-center text-sm text-gray-500 dark:text-gray-400">
-              No balances to chart yet.
-            </p>
-          ) : (
-            <div className="flex h-full min-h-[14rem] flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="mx-auto flex w-44 shrink-0 flex-col items-center sm:mx-0">
-                {/* Decorative: legend below is the accessible summary */}
-                <div ref={pieDecorRef} className="h-44 w-44" aria-hidden="true">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={mixData}
-                        dataKey="value"
-                        nameKey="name"
-                        innerRadius="58%"
-                        outerRadius="88%"
-                        paddingAngle={2}
-                        stroke="transparent"
-                        isAnimationActive={false}
-                        rootTabIndex={-1}
-                      >
-                        {mixData.map((s) => (
-                          <Cell key={s.key} fill={s.color} />
-                        ))}
-                      </Pie>
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="mt-2 text-center">
-                  <p className="text-[10px] uppercase tracking-wider text-gray-400">
-                    Total
-                  </p>
-                  <p className="max-w-[11rem] break-all text-sm font-semibold tabular-nums text-gray-800 dark:text-gray-100">
-                    {formatMoney(mixTotal, currency)}
-                  </p>
-                </div>
-              </div>
-              <ul className="min-w-0 flex-1 space-y-2">
-                {mixData.map((s) => {
-                  const pct =
-                    mixTotal > 0 ? (s.value / mixTotal) * 100 : 0
-                  return (
-                    <li key={s.key}>
-                      <Link
-                        href={s.href}
-                        prefetch={false}
-                        className="flex items-center justify-between gap-2 rounded-md px-1 py-0.5 hover:bg-gray-50 dark:hover:bg-gray-700/40"
-                      >
-                        <span className="flex min-w-0 items-center gap-2">
-                          <span
-                            className="h-2.5 w-2.5 shrink-0 rounded-full"
-                            style={{ backgroundColor: s.color }}
-                            aria-hidden
-                          />
-                          <span className="truncate text-xs text-gray-600 dark:text-gray-300">
-                            {s.name}
-                          </span>
-                        </span>
-                        <span className="shrink-0 text-xs tabular-nums text-gray-800 dark:text-gray-100">
-                          {pct.toFixed(2)}% · {formatMoney(s.value, currency)}
-                        </span>
-                      </Link>
-                    </li>
-                  )
-                })}
-              </ul>
-            </div>
-          )}
+          <BalanceMixRibbons items={mixData} currency={currency} total={mixTotal} />
         </ChartCard>
 
         <ChartCard
