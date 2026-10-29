@@ -20,6 +20,7 @@ import {
   exportTransactionsCsv,
   importAccountsFromCsvFile,
   importTransactionsFromCsvFile,
+  type ImportProgress,
 } from '@/lib/dataImportExport'
 import {
   fetchSetupTypes,
@@ -140,10 +141,37 @@ export default function SettingsPage() {
   const [importingAccounts, setImportingAccounts] = useState(false)
   const [importingTransactions, setImportingTransactions] = useState(false)
   const [exportingTransactions, setExportingTransactions] = useState(false)
+  const [accountImportProgress, setAccountImportProgress] = useState<ImportProgress | null>(
+    null
+  )
+  const [transactionImportProgress, setTransactionImportProgress] =
+    useState<ImportProgress | null>(null)
   const [infoOpen, setInfoOpen] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const accountFileRef = useRef<HTMLInputElement | null>(null)
   const transactionFileRef = useRef<HTMLInputElement | null>(null)
+
+  const renderImportProgress = (progress: ImportProgress | null) => {
+    if (!progress) return null
+    return (
+      <div className="mt-2 w-full min-w-[12rem] sm:w-72">
+        <div className="mb-1 flex items-center justify-between gap-2 text-[11px] text-gray-500 dark:text-gray-400">
+          <span>
+            {progress.processed}/{progress.total} rows · imported {progress.imported}
+          </span>
+          <span className="font-semibold tabular-nums text-primary-600 dark:text-primary-400">
+            {progress.percent}%
+          </span>
+        </div>
+        <div className="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+          <div
+            className="h-full rounded-full bg-primary-600 transition-[width] duration-200 ease-out"
+            style={{ width: `${Math.min(100, Math.max(0, progress.percent))}%` }}
+          />
+        </div>
+      </div>
+    )
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -470,53 +498,72 @@ export default function SettingsPage() {
             label="Account import"
             description="CSV columns: name, phone, account_type, cash_type. Types match by name or code. Duplicate account names are skipped."
           >
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <input
-                ref={accountFileRef}
-                type="file"
-                accept=".csv,text/csv"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  e.target.value = ''
-                  if (!file) return
-                  setMessage(null)
-                  setImportingAccounts(true)
-                  void importAccountsFromCsvFile(file)
-                    .then((result) => {
-                      const extra =
-                        result.errorCount > 0
-                          ? ` ${result.errorCount} row error(s).`
-                          : ''
-                      setMessage({
-                        type: result.imported > 0 || result.errorCount === 0 ? 'success' : 'error',
-                        text: `Accounts: imported ${result.imported}, skipped ${result.skipped}.${extra}`,
-                      })
+            <div className="flex w-full flex-col items-end gap-1">
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <input
+                  ref={accountFileRef}
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    e.target.value = ''
+                    if (!file) return
+                    setMessage(null)
+                    setImportingAccounts(true)
+                    setAccountImportProgress({
+                      percent: 0,
+                      processed: 0,
+                      total: 0,
+                      imported: 0,
+                      skipped: 0,
+                      errorCount: 0,
                     })
-                    .catch((err) => {
-                      setMessage({
-                        type: 'error',
-                        text: err instanceof Error ? err.message : 'Account import failed.',
+                    void importAccountsFromCsvFile(file, setAccountImportProgress)
+                      .then((result) => {
+                        const extra =
+                          result.errorCount > 0
+                            ? ` ${result.errorCount} row error(s).`
+                            : ''
+                        setMessage({
+                          type:
+                            result.imported > 0 || result.errorCount === 0
+                              ? 'success'
+                              : 'error',
+                          text: `Accounts: imported ${result.imported}, skipped ${result.skipped}.${extra}`,
+                        })
                       })
-                    })
-                    .finally(() => setImportingAccounts(false))
-                }}
-              />
-              <button
-                type="button"
-                className={actionBtnClass}
-                onClick={() => downloadAccountImportTemplate()}
-              >
-                Template
-              </button>
-              <button
-                type="button"
-                className={primaryActionBtnClass}
-                disabled={importingAccounts || loading}
-                onClick={() => accountFileRef.current?.click()}
-              >
-                {importingAccounts ? 'Importing…' : 'Import CSV'}
-              </button>
+                      .catch((err) => {
+                        setMessage({
+                          type: 'error',
+                          text: err instanceof Error ? err.message : 'Account import failed.',
+                        })
+                      })
+                      .finally(() => {
+                        setImportingAccounts(false)
+                        setAccountImportProgress(null)
+                      })
+                  }}
+                />
+                <button
+                  type="button"
+                  className={actionBtnClass}
+                  onClick={() => downloadAccountImportTemplate()}
+                >
+                  Template
+                </button>
+                <button
+                  type="button"
+                  className={primaryActionBtnClass}
+                  disabled={importingAccounts || loading}
+                  onClick={() => accountFileRef.current?.click()}
+                >
+                  {importingAccounts
+                    ? `Importing ${accountImportProgress?.percent ?? 0}%`
+                    : 'Import CSV'}
+                </button>
+              </div>
+              {renderImportProgress(accountImportProgress)}
             </div>
           </SettingRow>
 
@@ -524,80 +571,103 @@ export default function SettingsPage() {
             label="Transaction import & export"
             description="CSV columns: transaction_date (YYYY-MM-DD), account_name, narration, entry_type (credit/debit), amount. Import matches accounts by name."
           >
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <input
-                ref={transactionFileRef}
-                type="file"
-                accept=".csv,text/csv"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  e.target.value = ''
-                  if (!file) return
-                  setMessage(null)
-                  setImportingTransactions(true)
-                  void importTransactionsFromCsvFile(file)
-                    .then((result) => {
-                      const extra =
-                        result.errorCount > 0
-                          ? ` ${result.errorCount} row error(s).`
-                          : ''
-                      setMessage({
-                        type: result.imported > 0 || result.errorCount === 0 ? 'success' : 'error',
-                        text: `Transactions: imported ${result.imported}, skipped ${result.skipped}.${extra}`,
-                      })
+            <div className="flex w-full flex-col items-end gap-1">
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <input
+                  ref={transactionFileRef}
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    e.target.value = ''
+                    if (!file) return
+                    setMessage(null)
+                    setImportingTransactions(true)
+                    setTransactionImportProgress({
+                      percent: 0,
+                      processed: 0,
+                      total: 0,
+                      imported: 0,
+                      skipped: 0,
+                      errorCount: 0,
                     })
-                    .catch((err) => {
-                      setMessage({
-                        type: 'error',
-                        text:
-                          err instanceof Error ? err.message : 'Transaction import failed.',
+                    void importTransactionsFromCsvFile(file, setTransactionImportProgress)
+                      .then((result) => {
+                        const extra =
+                          result.errorCount > 0
+                            ? ` ${result.errorCount} row error(s).`
+                            : ''
+                        setMessage({
+                          type:
+                            result.imported > 0 || result.errorCount === 0
+                              ? 'success'
+                              : 'error',
+                          text: `Transactions: imported ${result.imported}, skipped ${result.skipped}.${extra}`,
+                        })
                       })
-                    })
-                    .finally(() => setImportingTransactions(false))
-                }}
-              />
-              <button
-                type="button"
-                className={actionBtnClass}
-                onClick={() => downloadTransactionImportTemplate()}
-              >
-                Template
-              </button>
-              <button
-                type="button"
-                className={actionBtnClass}
-                disabled={exportingTransactions || loading}
-                onClick={() => {
-                  setMessage(null)
-                  setExportingTransactions(true)
-                  void exportTransactionsCsv()
-                    .then(() => {
-                      setMessage({
-                        type: 'success',
-                        text: 'Transactions exported to CSV.',
+                      .catch((err) => {
+                        setMessage({
+                          type: 'error',
+                          text:
+                            err instanceof Error
+                              ? err.message
+                              : 'Transaction import failed.',
+                        })
                       })
-                    })
-                    .catch((err) => {
-                      setMessage({
-                        type: 'error',
-                        text:
-                          err instanceof Error ? err.message : 'Transaction export failed.',
+                      .finally(() => {
+                        setImportingTransactions(false)
+                        setTransactionImportProgress(null)
                       })
-                    })
-                    .finally(() => setExportingTransactions(false))
-                }}
-              >
-                {exportingTransactions ? 'Exporting…' : 'Export'}
-              </button>
-              <button
-                type="button"
-                className={primaryActionBtnClass}
-                disabled={importingTransactions || loading}
-                onClick={() => transactionFileRef.current?.click()}
-              >
-                {importingTransactions ? 'Importing…' : 'Import CSV'}
-              </button>
+                  }}
+                />
+                <button
+                  type="button"
+                  className={actionBtnClass}
+                  onClick={() => downloadTransactionImportTemplate()}
+                >
+                  Template
+                </button>
+                <button
+                  type="button"
+                  className={actionBtnClass}
+                  disabled={exportingTransactions || loading || importingTransactions}
+                  onClick={() => {
+                    setMessage(null)
+                    setExportingTransactions(true)
+                    void exportTransactionsCsv()
+                      .then(() => {
+                        setMessage({
+                          type: 'success',
+                          text: 'Transactions exported to CSV.',
+                        })
+                      })
+                      .catch((err) => {
+                        setMessage({
+                          type: 'error',
+                          text:
+                            err instanceof Error
+                              ? err.message
+                              : 'Transaction export failed.',
+                        })
+                      })
+                      .finally(() => setExportingTransactions(false))
+                  }}
+                >
+                  {exportingTransactions ? 'Exporting…' : 'Export'}
+                </button>
+                <button
+                  type="button"
+                  className={primaryActionBtnClass}
+                  disabled={importingTransactions || loading}
+                  onClick={() => transactionFileRef.current?.click()}
+                >
+                  {importingTransactions
+                    ? `Importing ${transactionImportProgress?.percent ?? 0}%`
+                    : 'Import CSV'}
+                </button>
+              </div>
+              {renderImportProgress(transactionImportProgress)}
             </div>
           </SettingRow>
         </div>

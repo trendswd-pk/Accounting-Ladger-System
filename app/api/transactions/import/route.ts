@@ -5,6 +5,7 @@ import { getSupabaseAdmin } from '@/lib/supabase-server'
 export const dynamic = 'force-dynamic'
 
 const NO_STORE = { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
+const BATCH_SIZE = 400
 
 function json(data: unknown, status = 200) {
   return NextResponse.json(data, { status, headers: NO_STORE })
@@ -23,12 +24,22 @@ type ImportRow = {
   balance?: number | string
 }
 
+type DbInsert = {
+  transaction_date: string
+  account_id: string
+  narration: string
+  entry_type: 'credit' | 'debit'
+  balance: number
+  _line: number
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}))
     const rows = Array.isArray(body.rows) ? (body.rows as ImportRow[]) : []
+    const lineOffset = Math.max(0, Number(body.lineOffset) || 0)
     if (rows.length === 0) return json({ error: 'No transaction rows to import.' }, 400)
-    if (rows.length > 5000) return json({ error: 'Max 5000 transactions per import.' }, 400)
+    if (rows.length > 2000) return json({ error: 'Max 2000 rows per request chunk.' }, 400)
 
     const admin = getSupabaseAdmin()
     const { data: accounts, error: accErr } = await admin
@@ -42,13 +53,13 @@ export async function POST(request: Request) {
       byName.set(norm(String(a.name)), a)
     }
 
-    let imported = 0
+    const ready: DbInsert[] = []
     let skipped = 0
     const errors: string[] = []
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]
-      const line = i + 2
+      const line = lineOffset + i + 2
       const transactionDate = String(row.transactionDate ?? '').trim().slice(0, 10)
       const accountIdRaw = String(row.accountId ?? '').trim()
       const accountName = String(row.accountName ?? '').trim()
@@ -75,18 +86,37 @@ export async function POST(request: Request) {
         continue
       }
 
-      const { error } = await admin.from('transactions').insert({
+      ready.push({
         transaction_date: transactionDate,
         account_id: account.id,
         narration,
         entry_type: entryType,
         balance,
+        _line: line,
       })
-      if (error) {
-        errors.push(`Row ${line}: ${error.message}`)
+    }
+
+    let imported = 0
+
+    for (let i = 0; i < ready.length; i += BATCH_SIZE) {
+      const slice = ready.slice(i, i + BATCH_SIZE)
+      const payload = slice.map(({ _line: _ignored, ...rest }) => rest)
+      const { error } = await admin.from('transactions').insert(payload)
+      if (!error) {
+        imported += payload.length
         continue
       }
-      imported++
+
+      // Fallback: isolate bad rows in this batch only
+      for (const item of slice) {
+        const { _line, ...rest } = item
+        const { error: rowErr } = await admin.from('transactions').insert(rest)
+        if (rowErr) {
+          errors.push(`Row ${_line}: ${rowErr.message}`)
+        } else {
+          imported++
+        }
+      }
     }
 
     if (imported === 0 && errors.length === 0) skipped = rows.length
@@ -94,8 +124,9 @@ export async function POST(request: Request) {
     return json({
       imported,
       skipped,
-      errors: errors.slice(0, 25),
+      errors: errors.slice(0, 40),
       errorCount: errors.length,
+      processed: rows.length,
     })
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : 'Server error' }, 500)

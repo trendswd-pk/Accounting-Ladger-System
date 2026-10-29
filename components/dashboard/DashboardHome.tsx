@@ -374,21 +374,22 @@ export default function DashboardHome() {
         {statCards.map((card) => {
           const Icon = card.icon
           const className =
-            'flex min-h-[4.25rem] items-center rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800/90 sm:min-h-[5rem] sm:p-5' +
+            'flex min-h-[4.25rem] min-w-0 items-center overflow-hidden rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800/90 sm:min-h-[5rem] sm:p-4 lg:p-5' +
             (card.href
               ? ' transition-colors hover:border-primary-300 hover:bg-primary-50/40 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:hover:border-primary-700 dark:hover:bg-primary-900/20'
               : '')
           const body = (
-            <div className="flex w-full items-center gap-2 sm:gap-3">
+            <div className="flex w-full min-w-0 items-center gap-2 sm:gap-3">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400 sm:h-9 sm:w-9">
                 <Icon className="h-4 w-4" aria-hidden />
               </span>
-              <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
+              <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5 overflow-hidden">
                 <p className="truncate text-xs font-medium leading-snug text-gray-500 dark:text-gray-400 sm:text-sm">
                   {card.name}
                 </p>
                 <p
-                  className={`text-base font-semibold leading-snug tabular-nums sm:text-xl lg:text-2xl ${
+                  title={card.value}
+                  className={`max-w-full break-all text-xs font-semibold leading-tight tabular-nums sm:text-sm md:break-words md:text-base lg:text-lg xl:text-xl 2xl:text-2xl ${
                     card.valueClassName ?? 'text-gray-900 dark:text-gray-100'
                   }`}
                 >
