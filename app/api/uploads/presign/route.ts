@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { requireUser } from '@/lib/auth'
 import {
   buildR2Key,
   buildR2PublicUrl,
@@ -17,6 +18,8 @@ export const dynamic = 'force-dynamic'
 
 /** POST: presigned PUT URL — browser uploads file bytes straight to R2. */
 export async function POST(request: Request) {
+  const auth = await requireUser()
+  if (auth.error) return auth.error
   let r2
   try {
     r2 = getR2Config()

@@ -608,7 +608,7 @@ export default function SettingsPage() {
         if (cancelled) return
         setMessage({
           type: 'error',
-          text: err instanceof Error ? err.message : 'Failed to load settings from Supabase.',
+          text: err instanceof Error ? err.message : 'Failed to load settings.',
         })
       } finally {
         if (!cancelled) setLoading(false)
@@ -682,7 +682,7 @@ export default function SettingsPage() {
       setPayableReceivableCashTypeIds(saved.payableReceivableCashTypeIds)
       setPayableReceivableAccountTypeIds(saved.payableReceivableAccountTypeIds)
       applyThemePreference(saved.theme)
-      setMessage({ type: 'success', text: 'Settings saved to Supabase.' })
+      setMessage({ type: 'success', text: 'Settings saved.' })
     } catch (err) {
       setMessage({
         type: 'error',
@@ -731,7 +731,7 @@ export default function SettingsPage() {
                     role="dialog"
                     className="absolute left-0 top-full z-50 mt-2 w-72 max-w-[min(18rem,calc(100vw-2rem))] rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
                   >
-                    Business profile and display preferences — stored in Supabase.
+                    Business profile and display preferences for this app.
                   </div>
                 </>
               ) : null}

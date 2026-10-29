@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { requireUser } from '@/lib/auth'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -8,6 +9,8 @@ export const dynamic = 'force-dynamic'
  * can load them without depending on R2 bucket CORS.
  */
 export async function GET(request: Request) {
+  const auth = await requireUser()
+  if (auth.error) return auth.error
   const url = new URL(request.url).searchParams.get('url')?.trim() ?? ''
   if (!url || !/^https?:\/\//i.test(url)) {
     return NextResponse.json({ error: 'url is required.' }, { status: 400 })

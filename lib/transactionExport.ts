@@ -184,75 +184,136 @@ async function buildDetailsPdfBytes(
   doc.setFontSize(9)
   doc.text(`Exported ${exported}`, pageW - marginX, 40, { align: 'right' })
 
-  const panelTop = barH + 14
-  const panelH = 118
+  const amount = Math.abs(Number(txn.balance) || 0)
+  const signed = txn.entryType === 'debit' ? -amount : amount
+  const isDebit = txn.entryType === 'debit'
+  const typeLabel = isDebit ? 'Debit (balance removed)' : 'Credit (balance added)'
+  const amountLabel = formatMoney(signed, opts.currency)
+  const runningLabel =
+    opts.runningBalance != null
+      ? formatMoney(opts.runningBalance, opts.currency)
+      : '—'
+  const creditGreen: [number, number, number] = [22, 163, 74]
+  const debitRed: [number, number, number] = [220, 38, 38]
+  const typeColor = isDebit ? debitRed : creditGreen
+
+  // Summary strip: Amount + Running balance
+  const stripTop = barH + 16
+  const stripH = 56
+  const halfGap = 10
+  const halfW = (contentW - halfGap) / 2
+
+  doc.setFillColor(239, 246, 255)
+  doc.setDrawColor(...line)
+  doc.setLineWidth(0.6)
+  doc.roundedRect(marginX, stripTop, halfW, stripH, 5, 5, 'FD')
+  doc.setFillColor(...panel)
+  doc.roundedRect(marginX + halfW + halfGap, stripTop, halfW, stripH, 5, 5, 'FD')
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8)
+  doc.setTextColor(...muted)
+  doc.text('AMOUNT', marginX + 14, stripTop + 18)
+  doc.text('RUNNING BALANCE', marginX + halfW + halfGap + 14, stripTop + 18)
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(14)
+  doc.setTextColor(...typeColor)
+  doc.text(amountLabel, marginX + 14, stripTop + 40)
+  doc.setTextColor(...ink)
+  doc.text(runningLabel, marginX + halfW + halfGap + 14, stripTop + 40)
+
+  // Details grid (2 columns)
+  const gridTop = stripTop + stripH + 14
+  const rowH = 36
+  const gridRows: Array<[[string, string], [string, string]]> = [
+    [
+      ['Date', formatDisplayDate(txn.transactionDate)],
+      ['SR. No.', String(txn.entryNumber)],
+    ],
+    [
+      ['Account', txn.accountName || '—'],
+      ['Phone', opts.account?.phone || '—'],
+    ],
+    [
+      ['Type', typeLabel],
+      ['Documents', String(opts.documentCount)],
+    ],
+  ]
+  const gridH = gridRows.length * rowH + 8
+
+  doc.setFillColor(255, 255, 255)
+  doc.setDrawColor(...line)
+  doc.roundedRect(marginX, gridTop, contentW, gridH, 5, 5, 'FD')
+
+  const col1X = marginX + 14
+  const col2X = marginX + contentW / 2 + 10
+  const valueMaxW = contentW / 2 - 28
+
+  gridRows.forEach((pair, i) => {
+    const rowY = gridTop + 12 + i * rowH
+    if (i > 0) {
+      doc.setDrawColor(...line)
+      doc.setLineWidth(0.5)
+      doc.line(marginX + 10, rowY - 8, marginX + contentW - 10, rowY - 8)
+    }
+
+    const [[lLabel, lValue], [rLabel, rValue]] = pair
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7.5)
+    doc.setTextColor(...muted)
+    doc.text(lLabel.toUpperCase(), col1X, rowY)
+    doc.text(rLabel.toUpperCase(), col2X, rowY)
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(10)
+    if (lLabel === 'Type') doc.setTextColor(...typeColor)
+    else doc.setTextColor(...ink)
+    const lLines = doc.splitTextToSize(lValue, valueMaxW)
+    doc.text(lLines, col1X, rowY + 14)
+
+    doc.setTextColor(...ink)
+    const rLines = doc.splitTextToSize(rValue, valueMaxW)
+    doc.text(rLines, col2X, rowY + 14)
+  })
+
+  // Narration card
+  let ny = gridTop + gridH + 14
+  const narration = txn.narration.trim() || '—'
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(10)
+  const narrLines = doc.splitTextToSize(narration, contentW - 28)
+  const narrH = Math.max(56, 28 + narrLines.length * 13)
+
   doc.setFillColor(...panel)
   doc.setDrawColor(...line)
   doc.setLineWidth(0.6)
-  doc.roundedRect(marginX, panelTop, contentW, panelH, 4, 4, 'FD')
+  doc.roundedRect(marginX, ny, contentW, narrH, 5, 5, 'FD')
 
-  const amount = Math.abs(Number(txn.balance) || 0)
-  const signed = txn.entryType === 'debit' ? -amount : amount
-  const typeLabel =
-    txn.entryType === 'debit' ? 'Debit (balance removed)' : 'Credit (balance added)'
-
-  const rows: Array<[string, string]> = [
-    ['Date', formatDisplayDate(txn.transactionDate)],
-    ['SR. No.', String(txn.entryNumber)],
-    ['Account', txn.accountName || '—'],
-    ['Phone', opts.account?.phone || '—'],
-    ['Type', typeLabel],
-    ['Amount', formatMoney(signed, opts.currency)],
-    [
-      'Running balance',
-      opts.runningBalance != null
-        ? formatMoney(opts.runningBalance, opts.currency)
-        : '—',
-    ],
-    ['Documents', String(opts.documentCount)],
-  ]
-
-  let y = panelTop + 16
-  doc.setFontSize(9)
-  for (const [label, value] of rows) {
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(...muted)
-    doc.text(label, marginX + 12, y)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(...ink)
-    const valueLines = doc.splitTextToSize(value, contentW - 130)
-    doc.text(valueLines, marginX + 110, y)
-    y += Math.max(14, valueLines.length * 11)
-  }
-
-  // Narration block
-  let ny = panelTop + panelH + 18
-  doc.setDrawColor(...brand)
-  doc.setLineWidth(1.5)
-  doc.line(marginX, ny, marginX + contentW, ny)
-  ny += 18
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(7.5)
+  doc.setTextColor(...muted)
+  doc.text('NARRATION', marginX + 14, ny + 16)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(10)
   doc.setTextColor(...ink)
-  doc.text('Narration', marginX, ny)
-  ny += 14
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(10)
-  doc.setTextColor(...ink)
-  const narration = txn.narration.trim() || '—'
-  const narrLines = doc.splitTextToSize(narration, contentW)
-  doc.text(narrLines, marginX, ny)
-  ny += narrLines.length * 13 + 20
+  doc.text(narrLines, marginX + 14, ny + 34)
+
+  ny += narrH + 16
+  doc.setDrawColor(...brand)
+  doc.setLineWidth(1.5)
+  doc.line(marginX, ny, marginX + contentW, ny)
+  doc.setDrawColor(...line)
+  doc.setLineWidth(0.5)
+  doc.line(marginX, ny + 3, marginX + contentW, ny + 3)
 
   if (opts.documentCount > 0) {
+    ny += 18
     doc.setFont('helvetica', 'italic')
     doc.setFontSize(9)
     doc.setTextColor(...muted)
-    doc.text(
-      'Attached documents follow on the next page(s).',
-      marginX,
-      ny
-    )
+    doc.text('Attached documents follow on the next page(s).', marginX, ny)
   }
 
   return doc.output('arraybuffer')

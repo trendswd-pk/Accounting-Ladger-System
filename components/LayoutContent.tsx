@@ -26,6 +26,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   )
   const mainScrollRef = useRef<HTMLElement | null>(null)
   const isDev = process.env.NODE_ENV === 'development'
+  const isLogin = pathname === '/login'
 
   useEffect(() => {
     setNavOpen(false)
@@ -38,6 +39,10 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
       setLogoUrl(s.logoUrl)
     })
   }, [])
+
+  if (isLogin) {
+    return <>{children}</>
+  }
 
   return (
     <div className="flex h-screen flex-col bg-gray-50 dark:bg-gray-900">

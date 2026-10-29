@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { requireUser } from '@/lib/auth'
 import {
   buildR2PublicUrl,
   getR2Config,
@@ -40,6 +41,8 @@ function mapRow(row: AttachmentRow) {
  * File bytes stay on R2 — only storage_key / public_url / size land in the DB.
  */
 export async function POST(request: Request) {
+  const auth = await requireUser()
+  if (auth.error) return auth.error
   let r2
   try {
     r2 = getR2Config()

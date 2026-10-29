@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { deleteR2Object, getR2Config, isKeyUnderPrefix } from '@/lib/r2'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
+import { requireUser } from '@/lib/auth'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -9,6 +10,8 @@ type Ctx = { params: { id: string } }
 
 /** DELETE: remove R2 object + Supabase metadata row. */
 export async function DELETE(_request: Request, { params }: Ctx) {
+  const auth = await requireUser()
+  if (auth.error) return auth.error
   const id = params.id?.trim()
   if (!id) return NextResponse.json({ error: 'Missing id.' }, { status: 400 })
 

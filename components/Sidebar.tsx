@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard,
   Settings,
@@ -18,8 +18,10 @@ import {
   Moon,
   X,
   ChevronDown,
+  LogOut,
   type LucideIcon,
 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 import {
   DEFAULT_APP_SETTINGS,
   getCachedAppSettings,
@@ -68,9 +70,10 @@ const menuItems: MenuItem[] = [
     path: '/settings',
     icon: Settings,
     subItems: [
+      { name: 'General', path: '/settings' },
+      { name: 'Profile', path: '/settings/profile' },
       { name: 'Account Type', path: '/settings/account-type' },
       { name: 'Cash Type', path: '/settings/cash-type' },
-      { name: 'General', path: '/settings' },
     ],
   },
 ]
@@ -89,9 +92,11 @@ type SidebarProps = {
 /** Off-canvas navigation drawer — same interaction model as Courier-Dashboard. */
 export default function Sidebar({ open = false, onClose }: SidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const asideRef = useRef<HTMLElement>(null)
   const [theme, setTheme] = useState<ThemePreference>(getDefaultTheme())
   const [openMenu, setOpenMenu] = useState<string | null>(null)
+  const [signingOut, setSigningOut] = useState(false)
   const [businessName, setBusinessName] = useState(
     () => getCachedAppSettings()?.businessName ?? DEFAULT_APP_SETTINGS.businessName
   )
@@ -141,6 +146,20 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
     )
     setOpenMenu(match?.path ?? null)
   }, [pathname])
+
+  const handleSignOut = async () => {
+    if (signingOut) return
+    setSigningOut(true)
+    try {
+      const supabase = createClient()
+      await supabase.auth.signOut()
+      onClose?.()
+      router.replace('/login')
+      router.refresh()
+    } catch {
+      setSigningOut(false)
+    }
+  }
 
   const toggleTheme = () => {
     const next: ThemePreference = theme === 'light' ? 'dark' : 'light'
@@ -304,7 +323,7 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
           </ul>
         </nav>
 
-        <div className="shrink-0 border-t border-gray-100 p-3 dark:border-gray-700">
+        <div className="shrink-0 space-y-1 border-t border-gray-100 p-3 dark:border-gray-700">
           <button
             type="button"
             onClick={toggleTheme}
@@ -317,6 +336,15 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
               <Sun className="h-4 w-4 shrink-0" aria-hidden />
             )}
             {theme === 'light' ? 'Dark mode' : 'Light mode'}
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleSignOut()}
+            disabled={signingOut}
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-60 dark:text-gray-300 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+          >
+            <LogOut className="h-4 w-4 shrink-0" aria-hidden />
+            {signingOut ? 'Signing out…' : 'Log out'}
           </button>
         </div>
       </aside>

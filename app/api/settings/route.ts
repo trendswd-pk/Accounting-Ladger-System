@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { requireUser } from '@/lib/auth'
 import {
   DEFAULT_APP_SETTINGS,
   mapAppSettingsRow,
@@ -123,6 +124,8 @@ const ID_LIST_PATCH_KEYS: Array<{ body: string; column: string }> = [
 ]
 
 export async function GET() {
+  const auth = await requireUser()
+  if (auth.error) return auth.error
   try {
     const settings = await readSettingsRow()
     return json({ settings })
@@ -132,6 +135,8 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
+  const auth = await requireUser()
+  if (auth.error) return auth.error
   try {
     const body = await request.json().catch(() => ({}))
     const patch: Record<string, unknown> = {
@@ -205,7 +210,7 @@ export async function PATCH(request: Request) {
         return json(
           {
             error:
-              'Branding columns missing. Run database/settings-branding.sql in Supabase.',
+              'Branding columns missing. Run database/settings-branding.sql in your database.',
           },
           500
         )
@@ -219,7 +224,7 @@ export async function PATCH(request: Request) {
         return json(
           {
             error:
-              'Message template columns missing. Run database/settings-message-templates.sql in Supabase.',
+              'Message template columns missing. Run database/settings-message-templates.sql in your database.',
           },
           500
         )
@@ -231,7 +236,7 @@ export async function PATCH(request: Request) {
         return json(
           {
             error:
-              'Dashboard filter columns missing. Run database/settings-cash-savings-types.sql in Supabase.',
+              'Dashboard filter columns missing. Run database/settings-cash-savings-types.sql in your database.',
           },
           500
         )

@@ -1500,7 +1500,7 @@ function TransactionsPageInner() {
             />
             <FormModalBody>
               <p className="text-sm text-gray-600 dark:text-gray-300">
-                This removes the transaction from Supabase. You can add it again later if needed.
+                This permanently removes the transaction. You can add it again later if needed.
               </p>
             </FormModalBody>
             <FormModalFooter>

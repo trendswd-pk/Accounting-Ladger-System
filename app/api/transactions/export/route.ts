@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { toCsv } from '@/lib/csv'
 import { mapTransactionRow } from '@/lib/transactions'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
+import { requireUser } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,6 +28,8 @@ type RpcRow = {
 }
 
 export async function GET() {
+  const auth = await requireUser()
+  if (auth.error) return auth.error
   try {
     const admin = getSupabaseAdmin()
     let items: ReturnType<typeof mapTransactionRow>[] = []

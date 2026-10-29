@@ -254,7 +254,7 @@ export default function SetupTypeCrudPage({
             {title}
           </h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Stored in Supabase — manage {title.toLowerCase()} used across the ledger.
+            Manage {title.toLowerCase()} used across the ledger.
           </p>
         </div>
         <button
@@ -722,7 +722,7 @@ export default function SetupTypeCrudPage({
             />
             <FormModalBody>
               <p className="text-sm text-gray-600 dark:text-gray-300">
-                This removes the type from Supabase. You can add it again later if needed.
+                This permanently removes the type. You can add it again later if needed.
               </p>
             </FormModalBody>
             <FormModalFooter>

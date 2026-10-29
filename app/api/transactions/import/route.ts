@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { normalizeEntryType } from '@/lib/transactions'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
+import { requireUser } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,6 +35,8 @@ type DbInsert = {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireUser()
+  if (auth.error) return auth.error
   try {
     const body = await request.json().catch(() => ({}))
     const rows = Array.isArray(body.rows) ? (body.rows as ImportRow[]) : []

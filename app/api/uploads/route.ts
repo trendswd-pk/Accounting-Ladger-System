@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { requireUser } from '@/lib/auth'
 import {
   buildR2Key,
   buildR2PublicUrl,
@@ -43,6 +44,8 @@ function mapRow(row: AttachmentRow) {
 
 /** GET ?folder=transactions/<id> — list attachment metadata for a folder. */
 export async function GET(request: Request) {
+  const auth = await requireUser()
+  if (auth.error) return auth.error
   const folder = new URL(request.url).searchParams.get('folder')?.trim() ?? ''
   if (!folder) {
     return NextResponse.json({ error: 'folder is required.' }, { status: 400 })
@@ -69,6 +72,8 @@ export async function GET(request: Request) {
  * Avoids cross-origin PUT / bucket CORS failures.
  */
 export async function POST(request: Request) {
+  const auth = await requireUser()
+  if (auth.error) return auth.error
   let r2
   try {
     r2 = getR2Config()
