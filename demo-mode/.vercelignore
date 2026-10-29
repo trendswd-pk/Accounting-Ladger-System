@@ -1,0 +1,14 @@
+# Keep demo Vercel upload small (Root Directory = demo-mode).
+node_modules
+.next
+out
+coverage
+test-results
+playwright-report
+playwright/.cache
+blob-report
+screenshots
+*.md
+!README.md
+capture-docs.js
+.git

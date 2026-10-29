@@ -1,0 +1,17 @@
+# Main product deploy — keep upload lean.
+# Do NOT list `demo-mode` here: a separate Vercel project with
+# Root Directory = demo-mode needs those sources uploaded.
+# Root build already excludes demo-mode via tsconfig / eslint.
+
+Documentation
+Personal Notedbook
+Courier-Dashboard
+
+# Demo Mode build junk (if present in repo)
+demo-mode/node_modules
+demo-mode/.next
+demo-mode/out
+demo-mode/coverage
+demo-mode/test-results
+demo-mode/playwright-report
+demo-mode/playwright/.cache

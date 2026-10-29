@@ -19,5 +19,11 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "Courier-Dashboard"]
+  "exclude": [
+    "node_modules",
+    "Courier-Dashboard",
+    "demo-mode",
+    "Documentation",
+    "Personal Notedbook"
+  ]
 }

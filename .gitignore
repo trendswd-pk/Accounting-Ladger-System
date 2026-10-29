@@ -36,3 +36,8 @@ next-env.d.ts
 
 # Reference only — do not track; used as UI/UX inspiration for this app
 Courier-Dashboard/
+
+# Demo Mode standalone app (safety net; also has demo-mode/.gitignore)
+demo-mode/node_modules/
+demo-mode/.next/
+demo-mode/.env*

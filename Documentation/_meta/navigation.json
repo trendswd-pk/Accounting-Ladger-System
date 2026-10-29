@@ -1,0 +1,38 @@
+{
+  "site": "Accounting Ledger Documentation",
+  "base_url": "https://trendswd.com/projects/Accounting-Ladger-System/doc",
+  "version": "1.0.0",
+  "version_date": "2026-10-29",
+  "navigation": [
+    { "title": "Home", "path": "/docs", "file": "index.md" },
+    {
+      "title": "Getting started",
+      "children": [
+        { "title": "Version", "path": "/docs/APP-VERSION", "file": "APP-VERSION.md" },
+        { "title": "Changelog", "path": "/docs/CHANGELOG", "file": "CHANGELOG.md" },
+        { "title": "Getting started", "path": "/docs/00-getting-started", "file": "00-getting-started.md" }
+      ]
+    },
+    {
+      "title": "Pages",
+      "children": [
+        { "title": "Login", "path": "/docs/01-login", "file": "01-login.md" },
+        { "title": "Dashboard", "path": "/docs/02-dashboard", "file": "02-dashboard.md" },
+        { "title": "Transactions", "path": "/docs/03-transactions", "file": "03-transactions.md" },
+        { "title": "Accounts", "path": "/docs/04-accounts", "file": "04-accounts.md" },
+        { "title": "Cash & Savings", "path": "/docs/05-cash-savings", "file": "05-cash-savings.md" },
+        { "title": "Payable", "path": "/docs/06-payable", "file": "06-payable.md" },
+        { "title": "Receivable", "path": "/docs/07-receivable", "file": "07-receivable.md" },
+        { "title": "Expenses", "path": "/docs/08-expenses", "file": "08-expenses.md" },
+        { "title": "Daily Expense", "path": "/docs/09-expenses-daily", "file": "09-expenses-daily.md" },
+        { "title": "Monthly Expense", "path": "/docs/10-expenses-monthly", "file": "10-expenses-monthly.md" },
+        { "title": "Investment", "path": "/docs/11-investment", "file": "11-investment.md" },
+        { "title": "Settings", "path": "/docs/12-settings", "file": "12-settings.md" },
+        { "title": "Profile", "path": "/docs/13-settings-profile", "file": "13-settings-profile.md" },
+        { "title": "Account Type", "path": "/docs/14-settings-account-type", "file": "14-settings-account-type.md" },
+        { "title": "Cash Type", "path": "/docs/15-settings-cash-type", "file": "15-settings-cash-type.md" },
+        { "title": "Mobile", "path": "/docs/16-mobile", "file": "16-mobile.md" }
+      ]
+    }
+  ]
+}

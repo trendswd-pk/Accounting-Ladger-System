@@ -1,0 +1,478 @@
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
+import type { AccountRecord } from '@/lib/accounts'
+import { formatMoney } from '@/lib/money'
+import type { TransactionRecord } from '@/lib/transactions'
+import {
+  listUploadedFiles,
+  transactionAttachmentFolder,
+  type FileAttachment,
+} from '@/lib/uploads'
+
+function stamp(): string {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}${m}${day}`
+}
+
+function safeFilePart(name: string): string {
+  return (
+    name
+      .trim()
+      .replace(/[^a-zA-Z0-9._-]+/g, '-')
+      .replace(/-{2,}/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 40) || 'transaction'
+  )
+}
+
+function formatDisplayDate(iso: string): string {
+  const raw = String(iso ?? '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw || '—'
+  const [y, m, d] = raw.split('-')
+  return `${d}-${m}-${y}`
+}
+
+/** Demo Mode: attachments are data URLs — fetch directly (no branding proxy). */
+async function fetchAttachmentBytes(publicUrl: string): Promise<ArrayBuffer | null> {
+  try {
+    const res = await fetch(publicUrl)
+    if (!res.ok) return null
+    return await res.arrayBuffer()
+  } catch {
+    return null
+  }
+}
+
+function isImageAttachment(file: FileAttachment): boolean {
+  const mime = (file.mimeType || '').toLowerCase()
+  const name = file.fileName.toLowerCase()
+  return (
+    mime.startsWith('image/') ||
+    /\.(png|jpe?g|gif|webp)$/i.test(name)
+  )
+}
+
+function isPdfAttachment(file: FileAttachment): boolean {
+  const mime = (file.mimeType || '').toLowerCase()
+  return mime === 'application/pdf' || file.fileName.toLowerCase().endsWith('.pdf')
+}
+
+function downloadBlob(filename: string, blob: Blob): void {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+/** Build first page(s): transaction details via jsPDF. */
+async function buildDetailsPdfBytes(
+  txn: TransactionRecord,
+  opts: {
+    currency: string
+    businessName: string
+    logoUrl?: string | null
+    account?: AccountRecord | null
+    runningBalance?: number
+    documentCount: number
+  }
+): Promise<ArrayBuffer> {
+  const { jsPDF } = await import('jspdf')
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' })
+  const pageW = doc.internal.pageSize.getWidth()
+  const marginX = 40
+  const contentW = pageW - marginX * 2
+  const brand: [number, number, number] = [37, 99, 235]
+  const ink: [number, number, number] = [17, 24, 39]
+  const muted: [number, number, number] = [100, 116, 139]
+  const panel: [number, number, number] = [248, 250, 252]
+  const line: [number, number, number] = [226, 232, 240]
+  const barH = 58
+
+  // Logo (optional)
+  let logo: { dataUrl: string; width: number; height: number } | null = null
+  const logoHref = String(opts.logoUrl ?? '').trim()
+  if (logoHref) {
+    try {
+      const res = await fetch(logoHref)
+      if (res.ok) {
+        const blob = await res.blob()
+        const objectUrl = URL.createObjectURL(blob)
+        logo = await new Promise((resolve) => {
+          const img = new Image()
+          img.onload = () => {
+            try {
+              const natW = img.naturalWidth || 1
+              const natH = img.naturalHeight || 1
+              const canvas = document.createElement('canvas')
+              canvas.width = natW
+              canvas.height = natH
+              const ctx = canvas.getContext('2d')
+              if (!ctx) {
+                resolve(null)
+                return
+              }
+              ctx.drawImage(img, 0, 0)
+              const maxH = 34
+              const maxW = 140
+              const scale = Math.min(maxH / natH, maxW / natW, 1)
+              resolve({
+                dataUrl: canvas.toDataURL('image/png'),
+                width: Math.max(12, natW * scale),
+                height: Math.max(12, natH * scale),
+              })
+            } catch {
+              resolve(null)
+            } finally {
+              URL.revokeObjectURL(objectUrl)
+            }
+          }
+          img.onerror = () => {
+            URL.revokeObjectURL(objectUrl)
+            resolve(null)
+          }
+          img.src = objectUrl
+        })
+      }
+    } catch {
+      logo = null
+    }
+  }
+
+  doc.setFillColor(...brand)
+  doc.rect(0, 0, pageW, barH, 'F')
+
+  if (logo) {
+    try {
+      doc.addImage(
+        logo.dataUrl,
+        'PNG',
+        marginX,
+        (barH - logo.height) / 2,
+        logo.width,
+        logo.height
+      )
+    } catch {
+      doc.setTextColor(255, 255, 255)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(14)
+      doc.text(opts.businessName || 'Ledger', marginX, barH / 2 + 5)
+    }
+  } else {
+    doc.setTextColor(255, 255, 255)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(14)
+    doc.text(opts.businessName || 'Ledger', marginX, barH / 2 + 5)
+  }
+
+  const exported = new Date().toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
+  doc.setTextColor(255, 255, 255)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(11)
+  doc.text('TRANSACTION VOUCHER', pageW - marginX, 24, { align: 'right' })
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9)
+  doc.text(`Exported ${exported}`, pageW - marginX, 40, { align: 'right' })
+
+  const amount = Math.abs(Number(txn.balance) || 0)
+  const signed = txn.entryType === 'debit' ? -amount : amount
+  const isDebit = txn.entryType === 'debit'
+  const typeLabel = isDebit ? 'Debit (balance removed)' : 'Credit (balance added)'
+  const amountLabel = formatMoney(signed, opts.currency)
+  const runningLabel =
+    opts.runningBalance != null
+      ? formatMoney(opts.runningBalance, opts.currency)
+      : '—'
+  const creditGreen: [number, number, number] = [22, 163, 74]
+  const debitRed: [number, number, number] = [220, 38, 38]
+  const typeColor = isDebit ? debitRed : creditGreen
+
+  // Summary strip: Amount + Running balance
+  const stripTop = barH + 16
+  const stripH = 56
+  const halfGap = 10
+  const halfW = (contentW - halfGap) / 2
+
+  doc.setFillColor(239, 246, 255)
+  doc.setDrawColor(...line)
+  doc.setLineWidth(0.6)
+  doc.roundedRect(marginX, stripTop, halfW, stripH, 5, 5, 'FD')
+  doc.setFillColor(...panel)
+  doc.roundedRect(marginX + halfW + halfGap, stripTop, halfW, stripH, 5, 5, 'FD')
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8)
+  doc.setTextColor(...muted)
+  doc.text('AMOUNT', marginX + 14, stripTop + 18)
+  doc.text('RUNNING BALANCE', marginX + halfW + halfGap + 14, stripTop + 18)
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(14)
+  doc.setTextColor(...typeColor)
+  doc.text(amountLabel, marginX + 14, stripTop + 40)
+  doc.setTextColor(...ink)
+  doc.text(runningLabel, marginX + halfW + halfGap + 14, stripTop + 40)
+
+  // Details grid (2 columns)
+  const gridTop = stripTop + stripH + 14
+  const rowH = 36
+  const gridRows: Array<[[string, string], [string, string]]> = [
+    [
+      ['Date', formatDisplayDate(txn.transactionDate)],
+      ['SR. No.', String(txn.entryNumber)],
+    ],
+    [
+      ['Account', txn.accountName || '—'],
+      ['Phone', opts.account?.phone || '—'],
+    ],
+    [
+      ['Type', typeLabel],
+      ['Documents', String(opts.documentCount)],
+    ],
+  ]
+  const gridH = gridRows.length * rowH + 8
+
+  doc.setFillColor(255, 255, 255)
+  doc.setDrawColor(...line)
+  doc.roundedRect(marginX, gridTop, contentW, gridH, 5, 5, 'FD')
+
+  const col1X = marginX + 14
+  const col2X = marginX + contentW / 2 + 10
+  const valueMaxW = contentW / 2 - 28
+
+  gridRows.forEach((pair, i) => {
+    const rowY = gridTop + 12 + i * rowH
+    if (i > 0) {
+      doc.setDrawColor(...line)
+      doc.setLineWidth(0.5)
+      doc.line(marginX + 10, rowY - 8, marginX + contentW - 10, rowY - 8)
+    }
+
+    const [[lLabel, lValue], [rLabel, rValue]] = pair
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7.5)
+    doc.setTextColor(...muted)
+    doc.text(lLabel.toUpperCase(), col1X, rowY)
+    doc.text(rLabel.toUpperCase(), col2X, rowY)
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(10)
+    if (lLabel === 'Type') doc.setTextColor(...typeColor)
+    else doc.setTextColor(...ink)
+    const lLines = doc.splitTextToSize(lValue, valueMaxW)
+    doc.text(lLines, col1X, rowY + 14)
+
+    doc.setTextColor(...ink)
+    const rLines = doc.splitTextToSize(rValue, valueMaxW)
+    doc.text(rLines, col2X, rowY + 14)
+  })
+
+  // Narration card
+  let ny = gridTop + gridH + 14
+  const narration = txn.narration.trim() || '—'
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(10)
+  const narrLines = doc.splitTextToSize(narration, contentW - 28)
+  const narrH = Math.max(56, 28 + narrLines.length * 13)
+
+  doc.setFillColor(...panel)
+  doc.setDrawColor(...line)
+  doc.setLineWidth(0.6)
+  doc.roundedRect(marginX, ny, contentW, narrH, 5, 5, 'FD')
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(7.5)
+  doc.setTextColor(...muted)
+  doc.text('NARRATION', marginX + 14, ny + 16)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(10)
+  doc.setTextColor(...ink)
+  doc.text(narrLines, marginX + 14, ny + 34)
+
+  ny += narrH + 16
+  doc.setDrawColor(...brand)
+  doc.setLineWidth(1.5)
+  doc.line(marginX, ny, marginX + contentW, ny)
+  doc.setDrawColor(...line)
+  doc.setLineWidth(0.5)
+  doc.line(marginX, ny + 3, marginX + contentW, ny + 3)
+
+  if (opts.documentCount > 0) {
+    ny += 18
+    doc.setFont('helvetica', 'italic')
+    doc.setFontSize(9)
+    doc.setTextColor(...muted)
+    doc.text('Attached documents follow on the next page(s).', marginX, ny)
+  }
+
+  return doc.output('arraybuffer')
+}
+
+async function appendImagePage(
+  pdf: PDFDocument,
+  bytes: ArrayBuffer,
+  fileName: string
+): Promise<void> {
+  const page = pdf.addPage([595.28, 841.89]) // A4
+  const { width, height } = page.getSize()
+  const margin = 40
+  const font = await pdf.embedFont(StandardFonts.HelveticaBold)
+  const fontReg = await pdf.embedFont(StandardFonts.Helvetica)
+
+  page.drawText('Attached document', {
+    x: margin,
+    y: height - 36,
+    size: 11,
+    font,
+    color: rgb(0.15, 0.39, 0.92),
+  })
+  page.drawText(fileName.slice(0, 80), {
+    x: margin,
+    y: height - 52,
+    size: 9,
+    font: fontReg,
+    color: rgb(0.4, 0.45, 0.55),
+  })
+
+  let image
+  try {
+    image = await pdf.embedPng(bytes)
+  } catch {
+    try {
+      image = await pdf.embedJpg(bytes)
+    } catch {
+      page.drawText('Could not render this image in the PDF.', {
+        x: margin,
+        y: height / 2,
+        size: 10,
+        font: fontReg,
+        color: rgb(0.7, 0.2, 0.2),
+      })
+      return
+    }
+  }
+
+  const maxW = width - margin * 2
+  const maxH = height - 80
+  const scale = Math.min(maxW / image.width, maxH / image.height, 1)
+  const drawW = image.width * scale
+  const drawH = image.height * scale
+  page.drawImage(image, {
+    x: margin + (maxW - drawW) / 2,
+    y: margin + (maxH - drawH) / 2,
+    width: drawW,
+    height: drawH,
+  })
+}
+
+async function appendNotePage(
+  pdf: PDFDocument,
+  fileName: string,
+  reason: string
+): Promise<void> {
+  const page = pdf.addPage([595.28, 841.89])
+  const { height } = page.getSize()
+  const margin = 40
+  const font = await pdf.embedFont(StandardFonts.HelveticaBold)
+  const fontReg = await pdf.embedFont(StandardFonts.Helvetica)
+  page.drawText('Attached document', {
+    x: margin,
+    y: height - 48,
+    size: 12,
+    font,
+    color: rgb(0.15, 0.39, 0.92),
+  })
+  page.drawText(fileName.slice(0, 90), {
+    x: margin,
+    y: height - 72,
+    size: 11,
+    font: fontReg,
+    color: rgb(0.07, 0.09, 0.15),
+  })
+  page.drawText(reason, {
+    x: margin,
+    y: height - 96,
+    size: 10,
+    font: fontReg,
+    color: rgb(0.4, 0.45, 0.55),
+  })
+}
+
+/**
+ * PDF: page 1 = transaction details, then each uploaded document
+ * (images embedded, PDFs merged, other types listed as note pages).
+ */
+export async function exportTransactionPdf(
+  txn: TransactionRecord,
+  opts: {
+    currency: string
+    businessName: string
+    logoUrl?: string | null
+    account?: AccountRecord | null
+    runningBalance?: number
+  }
+): Promise<void> {
+  const attachments = await listUploadedFiles(transactionAttachmentFolder(txn.id))
+  const detailsBytes = await buildDetailsPdfBytes(txn, {
+    ...opts,
+    documentCount: attachments.length,
+  })
+
+  const finalPdf = await PDFDocument.create()
+  const detailsPdf = await PDFDocument.load(detailsBytes)
+  const detailPages = await finalPdf.copyPages(detailsPdf, detailsPdf.getPageIndices())
+  for (const page of detailPages) finalPdf.addPage(page)
+
+  for (const file of attachments) {
+    const bytes = await fetchAttachmentBytes(file.publicUrl)
+    if (!bytes) {
+      await appendNotePage(
+        finalPdf,
+        file.fileName,
+        'File could not be loaded for this export.'
+      )
+      continue
+    }
+
+    if (isPdfAttachment(file)) {
+      try {
+        const src = await PDFDocument.load(bytes, { ignoreEncryption: true })
+        const pages = await finalPdf.copyPages(src, src.getPageIndices())
+        for (const page of pages) finalPdf.addPage(page)
+      } catch {
+        await appendNotePage(
+          finalPdf,
+          file.fileName,
+          'This PDF attachment could not be merged into the export.'
+        )
+      }
+      continue
+    }
+
+    if (isImageAttachment(file)) {
+      await appendImagePage(finalPdf, bytes, file.fileName)
+      continue
+    }
+
+    await appendNotePage(
+      finalPdf,
+      file.fileName,
+      'This file type is linked to the transaction but cannot be embedded for print. Open it from Documents in the app.'
+    )
+  }
+
+  const out = await finalPdf.save()
+  const blob = new Blob([new Uint8Array(out)], { type: 'application/pdf' })
+  downloadBlob(
+    `transaction-${txn.entryNumber}-${safeFilePart(txn.accountName)}-${stamp()}.pdf`,
+    blob
+  )
+}

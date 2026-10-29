@@ -1,150 +1,90 @@
-# Accounting Ledger System
+# Accounting Ledger
 
-Web-based accounting ledger for day-to-day books: accounts, journal entries, balances, expense analytics, exports, and WhatsApp-ready messaging. Built with **Next.js 14**, authenticated access, and cloud storage for both structured data and file attachments.
+Day-to-day books for small businesses: accounts, journal entries, balances, expense analytics, exports, and shareable balance messages.
 
-Deployable to Vercel; installable on mobile as a **PWA** (Add to Home Screen).
+![Dashboard](Documentation/images/02-dashboard.png)
 
----
+## Overview
+
+Accounting Ledger is a web app for keeping professional ledgers without spreadsheets. Track cash and savings, payables and receivables, expenses, and investments from one dashboard. Sign-in protects every screen; Demo Mode lets you try the full UI offline with sample data.
 
 ## Features
 
-### Core ledger
-- **Accounts** — ledger accounts with types, cash types, and running balances
-- **Transactions** — credit / debit / transfer entries, narration, filters, search, pagination
-- **Documents** — multi-file attachments per transaction (any type, compressed before upload)
-- **Exports** — account ledger PDF / CSV; transaction PDF with attached images & PDFs merged in
+- **Accounts & transactions** — ledgers with credit / debit / transfer entries, filters, search, and attachments
+- **Dashboard** — balance cards, balance mix, daily and monthly expense charts
+- **Cash & Savings / Payable / Receivable** — filtered balance views driven by your type settings
+- **Expenses & investment** — dedicated lists plus daily and monthly expense grids
+- **Settings** — branding, currency, theme, message templates, account types, and cash types
+- **Exports** — ledger and transaction PDF / CSV
+- **PWA** — installable on phone home screens
 
-### Dashboard & analytics
-- Balance mix (Cash in Pocket, Cash & Savings, Receivable, Payable)
-- Monthly expenses (last 6 months) with per-account stacked breakdown
-- Daily expenses (this month) with per-account series + total
-- Top expense accounts (click-through to filtered transactions)
-- Today / Yesterday expense cards → date-filtered transactions
+## Screenshots
 
-### Messaging & branding
-- Editable WhatsApp message templates (accounts & transactions) with dynamic note lines
-- Logo / favicon branding stored on object storage
-- Theme preference (light / dark)
+![Login](Documentation/images/01-login.png)
 
-### Security & access
-- Login required for all app routes and APIs (session via Auth)
-- Profile page — name, email, password
-- Sidebar logout
+*Demo Mode login — choose an account card to explore.*
 
-### Progressive Web App
-- Web app manifest + icons
-- Service worker for installability
-- Home-screen install on Android / iOS Safari
+![Transactions](Documentation/images/04-transactions.png)
 
----
+*Journal with seeded Northline Advisory entries.*
 
-## Architecture
+![Accounts](Documentation/images/05-accounts.png)
 
-| Layer | Role |
-|--------|------|
-| **Next.js App Router** | UI + API routes |
-| **Auth / database** | Users, rows (accounts, transactions, settings, file metadata) |
-| **Cloudflare R2** | File bytes (uploads via same-origin `/api/uploads`) |
+*Chart of accounts with running balances.*
 
-Business data is **not** stored in `localStorage`. Client modules keep short-lived in-memory caches for snappy navigation after the first fetch.
+![Settings](Documentation/images/13-settings.png)
 
-```
-Browser  →  Next.js API  →  Database (rows + auth)
-                         →  R2 (file objects)
-```
+*General settings, branding, and filters.*
 
----
+![Mobile](Documentation/images/19-mobile-dashboard.png)
+
+*Mobile dashboard (375×812).*
+
+## Demo
+
+- **Local Demo Mode:** see [`demo-mode/README.md`](demo-mode/README.md)  
+  ```bash
+  cd demo-mode && npm install && npm run dev
+  ```
+- **Live demo:** deploy pending — URL will be set in `demo-mode/demo.json` → `live_demo_url` when published (separate Vercel project; Root Directory `demo-mode`).
+- Demo logins appear as **account cards** on the Demo Mode login screen (Admin, Editor, Viewer).
+
+## Documentation
+
+Full client guides and screenshots: [`Documentation/index.md`](Documentation/index.md)
+
+Canonical images: `Documentation/images/` (see `SCREENSHOT-INDEX.md`).
 
 ## Tech stack
 
-- Next.js 14 · React 18 · TypeScript · Tailwind CSS
-- `@supabase/ssr` + `@supabase/supabase-js` (auth & data)
-- Recharts · jsPDF / pdf-lib · Lucide icons
+| Layer | Stack |
+|--------|--------|
+| App | Next.js 14 · React 18 · TypeScript · Tailwind CSS |
+| Auth & data (production) | Supabase |
+| Files (production) | Cloudflare R2 via `/api/uploads` |
+| Charts / PDF | Recharts · jsPDF / pdf-lib |
 
----
-
-## Setup
-
-### 1. Environment
+## Getting started (production app)
 
 ```bash
 cp .env.example .env.local
-```
+# fill Supabase + R2 values
 
-Fill values in `.env.local` (see [Environment variables](#environment-variables)).
+# In your SQL editor, run:
+# database/schema.sql
 
-### 2. Database
-
-In your project SQL editor, run the single schema file once (safe to re-run):
-
-- [`database/schema.sql`](database/schema.sql) — full schema (types, settings, accounts, transactions, attachments, RPCs, seeds)
-
-See [`database/README.md`](database/README.md) for details. Create at least one Auth user (Dashboard → Authentication → Users) before signing in.
-
-### 3. Install & run
-
-```bash
 npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+See [`.env.example`](.env.example) for variables. Optional: `JWT_SECRET`, `CRON_SECRET` (Vercel Cron hits `GET /api/cron` daily at 10:00 UTC).
 
-```bash
-npm run build && npm start   # production
-npm run lint                 # ESLint
-```
+**Note:** `demo-mode/` is excluded from the main product build. Deploy the demo as its own project.
 
----
+## Version
 
-## Environment variables
+**1.0.0** (2026-10-29) — see [`Documentation/APP-VERSION.md`](Documentation/APP-VERSION.md) and [`Documentation/CHANGELOG.md`](Documentation/CHANGELOG.md).
 
-| Variable | Description |
-|----------|-------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anon / public key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role (server only) |
-| `R2_ACCOUNT_ID` | Cloudflare account ID |
-| `R2_ACCESS_KEY_ID` | R2 access key |
-| `R2_SECRET_ACCESS_KEY` | R2 secret |
-| `R2_BUCKET_NAME` | Bucket name |
-| `R2_PUBLIC_BASE_URL` | Public base URL for objects |
-| `R2_FOLDER_PREFIX` | Optional key prefix (e.g. `attachments`) |
+## License / contact
 
-Optional: `JWT_SECRET`, `CRON_SECRET` — see `.env.example`.
-
-**Vercel Cron:** `vercel.json` schedules `GET /api/cron` daily at `10:00` UTC. Set `CRON_SECRET` in the Vercel project; Vercel sends `Authorization: Bearer <CRON_SECRET>`. Hobby plans allow one cron.
-
-Uploads use **same-origin** `POST /api/uploads` (server writes to R2), so browser CORS to R2 is not required for that path.
-
----
-
-## App map
-
-| Path | Description |
-|------|-------------|
-| `/login` | Sign in |
-| `/` | Dashboard |
-| `/transactions` | Journal entries (+ filters via query: `accountId`, `dateFrom`, `dateTo`) |
-| `/accounts` | Chart of accounts / ledgers |
-| `/cash-savings` | Cash & savings view |
-| `/payable` · `/receivable` | Payable / receivable |
-| `/investment` | Investment |
-| `/expenses` · `/expenses/daily` · `/expenses/monthly` | Expense views |
-| `/settings` | General, branding, templates, theme |
-| `/settings/profile` | User profile |
-| `/settings/account-type` · `/settings/cash-type` | Type setup |
-
----
-
-## Development notes
-
-- **Request Profiler** (dev only) — header icon shows API / request counts and dedupes.
-- **PWA** — after deploy over HTTPS, use browser “Install app” / “Add to Home Screen”. Icons live under `public/icons/`.
-- UI navigation patterns were informed by a local `Courier-Dashboard/` reference (not shipped as part of this product).
-
----
-
-## License
-
-Private project — all rights reserved unless otherwise stated.
+Trends WD portfolio product. Contact via [trendswd.com](https://www.trendswd.com/).
