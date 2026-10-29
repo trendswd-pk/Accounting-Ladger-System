@@ -8,11 +8,8 @@ import {
   listUploadedFiles,
   transactionAttachmentFolder,
   uploadFileToR2,
-  UPLOAD_ALLOWED_EXTENSIONS,
   type FileAttachment,
 } from '@/lib/uploads'
-
-const accept = UPLOAD_ALLOWED_EXTENSIONS.map((ext) => `.${ext}`).join(',')
 
 const actionBtnClass =
   'inline-flex h-9 items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
@@ -92,13 +89,12 @@ export default function TransactionDocumentsPanel({
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          PDF, images, and Office files. Multiple uploads allowed.
+          Optional. Any type, multiple files — compressed before upload (max 100MB each).
         </p>
         <div>
           <input
             ref={inputRef}
             type="file"
-            accept={accept}
             multiple
             className="sr-only"
             disabled={uploading}

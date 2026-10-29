@@ -1,12 +1,18 @@
 /**
  * Client helpers: upload file bytes to Cloudflare R2 via same-origin API.
  *
- * Flow: POST /api/uploads (multipart) → server PUTs to R2 → returns file_attachments row.
+ * Flow: compress → POST /api/uploads (multipart) → server PUTs to R2 → returns file_attachments row.
  * File bytes live on R2; only metadata is stored in Supabase.
  */
 
+import {
+  compressForUpload,
+  type CompressUploadOptions,
+} from '@/lib/compressUpload'
+
 export const UPLOAD_MAX_BYTES = 100 * 1024 * 1024 // 100MB
 
+/** Legacy list kept for UI hints; transaction uploads accept any file type. */
 export const UPLOAD_ALLOWED_EXTENSIONS = [
   'pdf',
   'png',
@@ -51,9 +57,9 @@ export function getFileExtension(fileName: string): string {
   return fileName.slice(i + 1).toLowerCase()
 }
 
+/** Any non-empty file name is allowed (all types). Branding still uses `isBrandImageName`. */
 export function isAllowedUploadName(fileName: string): boolean {
-  const ext = getFileExtension(fileName)
-  return (UPLOAD_ALLOWED_EXTENSIONS as readonly string[]).includes(ext)
+  return String(fileName || '').trim().length > 0
 }
 
 export function isBrandImageName(fileName: string): boolean {
@@ -140,20 +146,33 @@ function postFileToUploadApi(
 
 /**
  * Full upload pipeline used by features (logo, vouchers, attachments, …).
+ * Always compresses first (images resized/re-encoded; other files gzipped when smaller).
  * Returns the Supabase `file_attachments` row (file lives on R2).
  */
 export async function uploadFileToR2(
   file: File,
-  options?: { folder?: string; onProgress?: (percent: number) => void }
+  options?: {
+    folder?: string
+    onProgress?: (percent: number) => void
+    compress?: CompressUploadOptions
+  }
 ): Promise<FileAttachment> {
   if (file.size <= 0) throw new Error('The file is empty.')
   if (file.size > UPLOAD_MAX_BYTES) throw new Error('File is larger than 100MB.')
   if (!isAllowedUploadName(file.name)) {
-    throw new Error(`Allowed file types: ${UPLOAD_ALLOWED_EXTENSIONS.join(', ')}`)
+    throw new Error('File name is required.')
   }
 
   options?.onProgress?.(0)
-  return postFileToUploadApi(file, options?.folder ?? '', options?.onProgress)
+  const compressed = await compressForUpload(file, options?.compress)
+  if (compressed.size > UPLOAD_MAX_BYTES) {
+    throw new Error('File is larger than 100MB after compression.')
+  }
+  if (!isAllowedUploadName(compressed.name)) {
+    throw new Error('File name is required.')
+  }
+
+  return postFileToUploadApi(compressed, options?.folder ?? '', options?.onProgress)
 }
 
 export async function deleteUploadedFile(id: string): Promise<void> {

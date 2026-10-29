@@ -371,7 +371,10 @@ function BrandAssetField({
     }
     setUploading(true)
     try {
-      const attachment = await uploadFileToR2(file, { folder: 'branding' })
+      const attachment = await uploadFileToR2(file, {
+        folder: 'branding',
+        compress: { maxEdge: 1600, quality: 0.82 },
+      })
       onUploaded(attachment.publicUrl)
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Upload failed.')

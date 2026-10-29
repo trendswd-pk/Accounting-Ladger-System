@@ -17,6 +17,9 @@ import {
 import SearchableSelect from '@/components/SearchableSelect'
 import { TablePaginationNav } from '@/components/TablePaginationNav'
 import TransactionDocumentsPanel from '@/components/TransactionDocumentsPanel'
+import TransactionFormAttachments, {
+  uploadPendingTransactionFiles,
+} from '@/components/TransactionFormAttachments'
 import { fetchAccounts, getCachedAccounts, type AccountRecord } from '@/lib/accounts'
 import {
   DEFAULT_APP_SETTINGS,
@@ -175,6 +178,7 @@ function TransactionsPageInner() {
   const [narration, setNarration] = useState('')
   const [entryType, setEntryType] = useState<TransactionEntryType | ''>('')
   const [balance, setBalance] = useState('')
+  const [pendingFiles, setPendingFiles] = useState<File[]>([])
   const [formError, setFormError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [infoOpen, setInfoOpen] = useState(false)
@@ -393,6 +397,7 @@ function TransactionsPageInner() {
     setNarration('')
     setEntryType('')
     setBalance('')
+    setPendingFiles([])
     setModalOpen(true)
     void loadAccounts().catch(() => {})
     const cachedSettings = getCachedAppSettings()
@@ -410,6 +415,7 @@ function TransactionsPageInner() {
     setNarration(row.narration)
     setEntryType(row.entryType)
     setBalance(String(row.balance))
+    setPendingFiles([])
     setModalOpen(true)
     void loadAccounts().catch(() => {})
   }
@@ -418,6 +424,7 @@ function TransactionsPageInner() {
     if (submitting) return
     setModalOpen(false)
     setEditingId(null)
+    setPendingFiles([])
     setFormError(null)
   }
 
@@ -474,6 +481,7 @@ function TransactionsPageInner() {
     setFormError(null)
     setLoading(true)
     try {
+      const uploadIds: string[] = []
       if (editingId) {
         const item = await updateTransaction(editingId, {
           transactionDate,
@@ -483,6 +491,7 @@ function TransactionsPageInner() {
           balance: amount,
         })
         setRows((prev) => prev.map((r) => (r.id === item.id ? item : r)))
+        uploadIds.push(item.id)
       } else if (isTransfer) {
         // Two independent entries: debit from Out, credit to In (not linked).
         const debitItem = await createTransaction({
@@ -501,6 +510,7 @@ function TransactionsPageInner() {
         })
         setRows((prev) => [creditItem, debitItem, ...prev])
         setPage(1)
+        uploadIds.push(debitItem.id, creditItem.id)
       } else {
         const item = await createTransaction({
           transactionDate,
@@ -511,7 +521,12 @@ function TransactionsPageInner() {
         })
         setRows((prev) => [item, ...prev])
         setPage(1)
+        uploadIds.push(item.id)
       }
+      if (pendingFiles.length > 0) {
+        await uploadPendingTransactionFiles(uploadIds, pendingFiles)
+      }
+      setPendingFiles([])
       setModalOpen(false)
       setEditingId(null)
     } catch (err) {
@@ -1333,6 +1348,14 @@ function TransactionsPageInner() {
                     placeholder="Enter amount"
                   />
                 </div>
+
+                <TransactionFormAttachments
+                  inputId="txn-attachments"
+                  files={pendingFiles}
+                  onChange={setPendingFiles}
+                  disabled={submitting}
+                  existingTransactionId={editingId}
+                />
               </form>
             </FormModalBody>
             <FormModalFooter>

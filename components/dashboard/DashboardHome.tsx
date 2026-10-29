@@ -240,6 +240,19 @@ export default function DashboardHome() {
   const expenseBalance = useMemo(() => sumBalances(expenseAccounts), [expenseAccounts])
   const investBalance = useMemo(() => sumBalances(investAccounts), [investAccounts])
 
+  const { todayIso, yesterdayIso } = useMemo(() => {
+    const toIso = (d: Date) => {
+      const y = d.getFullYear()
+      const m = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      return `${y}-${m}-${day}`
+    }
+    const today = new Date()
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    return { todayIso: toIso(today), yesterdayIso: toIso(yesterday) }
+  }, [])
+
   const todayExpense = summary?.todayExpense ?? 0
   const yesterdayExpense = summary?.yesterdayExpense ?? 0
 
@@ -296,7 +309,7 @@ export default function DashboardHome() {
       value: summaryReady ? formatMoney(todayExpense, currency) : '—',
       icon: Calendar,
       valueClassName: summaryReady ? expenseColorClass(todayExpense) : undefined,
-      href: '/expenses/daily',
+      href: `/transactions?dateFrom=${encodeURIComponent(todayIso)}&dateTo=${encodeURIComponent(todayIso)}&from=${encodeURIComponent('/')}`,
     },
     {
       name: 'Yesterday Expense',
@@ -305,7 +318,7 @@ export default function DashboardHome() {
       valueClassName: summaryReady
         ? expenseColorClass(yesterdayExpense)
         : undefined,
-      href: '/expenses/daily',
+      href: `/transactions?dateFrom=${encodeURIComponent(yesterdayIso)}&dateTo=${encodeURIComponent(yesterdayIso)}&from=${encodeURIComponent('/')}`,
     },
   ]
 

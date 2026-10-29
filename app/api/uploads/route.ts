@@ -11,7 +11,6 @@ import { getSupabaseAdmin } from '@/lib/supabase-server'
 import {
   inferUploadMimeType,
   isAllowedUploadName,
-  UPLOAD_ALLOWED_EXTENSIONS,
   UPLOAD_MAX_BYTES,
 } from '@/lib/uploads'
 
@@ -104,10 +103,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'File name is required.' }, { status: 400 })
   }
   if (!isAllowedUploadName(fileName)) {
-    return NextResponse.json(
-      { error: `Allowed file types: ${UPLOAD_ALLOWED_EXTENSIONS.join(', ')}` },
-      { status: 400 }
-    )
+    return NextResponse.json({ error: 'File name is required.' }, { status: 400 })
   }
   if (sizeBytes <= 0) {
     return NextResponse.json({ error: 'The file is empty.' }, { status: 400 })

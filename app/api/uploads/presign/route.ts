@@ -7,11 +7,7 @@ import {
   getR2Config,
   isKeyUnderPrefix,
 } from '@/lib/r2'
-import {
-  isAllowedUploadName,
-  UPLOAD_ALLOWED_EXTENSIONS,
-  UPLOAD_MAX_BYTES,
-} from '@/lib/uploads'
+import { isAllowedUploadName, UPLOAD_MAX_BYTES } from '@/lib/uploads'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -46,10 +42,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'File name is required.' }, { status: 400 })
   }
   if (!isAllowedUploadName(fileName)) {
-    return NextResponse.json(
-      { error: `Allowed file types: ${UPLOAD_ALLOWED_EXTENSIONS.join(', ')}` },
-      { status: 400 }
-    )
+    return NextResponse.json({ error: 'File name is required.' }, { status: 400 })
   }
   if (fileSize <= 0) {
     return NextResponse.json({ error: 'The file is empty.' }, { status: 400 })

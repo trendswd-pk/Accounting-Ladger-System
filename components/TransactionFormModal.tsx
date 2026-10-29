@@ -11,6 +11,9 @@ import {
   formModalSecondaryButtonClass,
 } from '@/components/FormModal'
 import SearchableSelect from '@/components/SearchableSelect'
+import TransactionFormAttachments, {
+  uploadPendingTransactionFiles,
+} from '@/components/TransactionFormAttachments'
 import { fetchAccounts, getCachedAccounts } from '@/lib/accounts'
 import {
   DEFAULT_APP_SETTINGS,
@@ -60,6 +63,7 @@ export default function TransactionFormModal({
   const [narration, setNarration] = useState('')
   const [entryType, setEntryType] = useState<TransactionEntryType | ''>('')
   const [balance, setBalance] = useState('')
+  const [pendingFiles, setPendingFiles] = useState<File[]>([])
   const [formError, setFormError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -83,6 +87,7 @@ export default function TransactionFormModal({
     setNarration('')
     setEntryType('')
     setBalance('')
+    setPendingFiles([])
   }, [])
 
   useEffect(() => {
@@ -168,29 +173,35 @@ export default function TransactionFormModal({
     setSubmitting(true)
     setFormError(null)
     try {
+      const uploadIds: string[] = []
       if (isTransfer) {
-        await createTransaction({
+        const debitItem = await createTransaction({
           transactionDate,
           accountId: fromAccountId,
           narration: narrationTrim,
           entryType: 'debit',
           balance: amount,
         })
-        await createTransaction({
+        const creditItem = await createTransaction({
           transactionDate,
           accountId: toAccountId,
           narration: narrationTrim,
           entryType: 'credit',
           balance: amount,
         })
+        uploadIds.push(debitItem.id, creditItem.id)
       } else {
-        await createTransaction({
+        const item = await createTransaction({
           transactionDate,
           accountId,
           narration: narrationTrim,
           entryType: entryType as TransactionEntryType,
           balance: amount,
         })
+        uploadIds.push(item.id)
+      }
+      if (pendingFiles.length > 0) {
+        await uploadPendingTransactionFiles(uploadIds, pendingFiles)
       }
       invalidateTransactionsCache()
       onClose()
@@ -430,6 +441,13 @@ export default function TransactionFormModal({
                 placeholder="Enter amount"
               />
             </div>
+
+            <TransactionFormAttachments
+              inputId="dash-txn-attachments"
+              files={pendingFiles}
+              onChange={setPendingFiles}
+              disabled={submitting}
+            />
           </form>
         </FormModalBody>
         <FormModalFooter>

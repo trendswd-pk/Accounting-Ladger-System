@@ -7,7 +7,7 @@ import {
   isKeyUnderPrefix,
 } from '@/lib/r2'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
-import { isAllowedUploadName, UPLOAD_ALLOWED_EXTENSIONS } from '@/lib/uploads'
+import { isAllowedUploadName } from '@/lib/uploads'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -71,10 +71,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'fileName and storageKey are required.' }, { status: 400 })
   }
   if (!isAllowedUploadName(fileName)) {
-    return NextResponse.json(
-      { error: `Allowed file types: ${UPLOAD_ALLOWED_EXTENSIONS.join(', ')}` },
-      { status: 400 }
-    )
+    return NextResponse.json({ error: 'File name is required.' }, { status: 400 })
   }
   if (!isKeyUnderPrefix(r2, storageKey)) {
     return NextResponse.json({ error: 'Invalid storage key.' }, { status: 400 })
