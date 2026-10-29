@@ -99,6 +99,8 @@ function TransactionsPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const accountIdFilter = searchParams.get('accountId')?.trim() || ''
+  const dateFromParam = searchParams.get('dateFrom')?.trim() || ''
+  const dateToParam = searchParams.get('dateTo')?.trim() || ''
   const returnTo = safeReturnPath(searchParams.get('from'))
 
   const cached = getCachedTransactions()
@@ -111,9 +113,14 @@ function TransactionsPageInner() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
   const filterAsideRef = useRef<HTMLElement>(null)
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+  const [dateFrom, setDateFrom] = useState(dateFromParam)
+  const [dateTo, setDateTo] = useState(dateToParam)
   const [typeFilter, setTypeFilter] = useState<TransactionEntryType | ''>('')
+
+  useEffect(() => {
+    setDateFrom(dateFromParam)
+    setDateTo(dateToParam)
+  }, [dateFromParam, dateToParam])
 
   const [accounts, setAccounts] = useState<AccountRecord[]>(() => getCachedAccounts() ?? [])
 

@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import {
   Area,
@@ -147,8 +148,30 @@ export default function DashboardCharts({
   receivable,
   summary,
 }: DashboardChartsProps) {
+  const router = useRouter()
   const pieDecorRef = useRef<HTMLDivElement>(null)
   useStripFocusUnderAriaHidden(pieDecorRef)
+
+  const thisMonthRange = useMemo(() => {
+    const now = new Date()
+    const y = now.getFullYear()
+    const m = String(now.getMonth() + 1).padStart(2, '0')
+    const lastDay = new Date(y, now.getMonth() + 1, 0).getDate()
+    return {
+      from: `${y}-${m}-01`,
+      to: `${y}-${m}-${String(lastDay).padStart(2, '0')}`,
+    }
+  }, [])
+
+  const openAccountTransactions = (accountId: string) => {
+    const qs = new URLSearchParams({
+      accountId,
+      dateFrom: thisMonthRange.from,
+      dateTo: thisMonthRange.to,
+      from: '/',
+    })
+    router.push(`/transactions?${qs.toString()}`)
+  }
 
   const mixData = useMemo((): MixSlice[] => {
     const slices: MixSlice[] = [
@@ -428,6 +451,12 @@ export default function DashboardCharts({
                   radius={[0, 6, 6, 0]}
                   maxBarSize={22}
                   isAnimationActive={false}
+                  cursor="pointer"
+                  onClick={(data) => {
+                    const point = data as { payload?: { id?: string }; id?: string }
+                    const id = point?.payload?.id ?? point?.id
+                    if (id) openAccountTransactions(id)
+                  }}
                 />
               </BarChart>
             </ResponsiveContainer>
