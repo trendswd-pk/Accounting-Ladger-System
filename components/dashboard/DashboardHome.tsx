@@ -122,8 +122,8 @@ export default function DashboardHome() {
     void (async () => {
       try {
         const [items, txs] = await Promise.all([
-          fetchAccounts(),
-          fetchTransactions(),
+          fetchAccounts({ force: true }),
+          fetchTransactions({ force: true }),
         ])
         if (!cancelled) {
           setAccounts(items)

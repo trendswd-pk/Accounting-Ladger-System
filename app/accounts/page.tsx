@@ -82,7 +82,7 @@ export default function AccountsPage() {
   const loadRows = useCallback(async () => {
     setListError(null)
     try {
-      const items = await fetchAccounts()
+      const items = await fetchAccounts({ force: true })
       setRows(items)
     } catch (err) {
       setRows([])

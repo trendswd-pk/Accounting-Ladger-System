@@ -4,6 +4,7 @@ import { getSupabaseAdmin } from '@/lib/supabase-server'
 import { normalizeEntryType } from '@/lib/transactions'
 
 const NO_STORE = { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
+const TX_PAGE = 1000
 
 function json(data: unknown, status = 200) {
   return NextResponse.json(data, { status, headers: NO_STORE })
@@ -43,26 +44,53 @@ type JoinRow = {
   cash_types: { name: string; code: string } | { name: string; code: string }[] | null
 }
 
-async function loadBalancesByAccountId(): Promise<Map<string, number>> {
+function signedAmount(entryTypeRaw: unknown, balanceRaw: unknown): number {
+  const amount = Math.abs(Number(balanceRaw) || 0)
+  return normalizeEntryType(entryTypeRaw) === 'debit' ? -amount : amount
+}
+
+/**
+ * Full ledger totals per account (credit +, debit −).
+ * Paginates past PostgREST’s default ~1000-row cap so balances match
+ * the Transactions page running balance.
+ */
+async function loadBalancesByAccountId(
+  accountId?: string
+): Promise<Map<string, number>> {
   const admin = getSupabaseAdmin()
-  const { data, error } = await admin
-    .from('transactions')
-    .select('account_id, entry_type, balance')
-
   const map = new Map<string, number>()
-  if (error) {
-    // Table/column may not exist yet — treat as zero balances.
-    return map
+
+  for (let from = 0; ; from += TX_PAGE) {
+    let query = admin
+      .from('transactions')
+      .select('account_id, entry_type, balance')
+      .order('entry_number', { ascending: true })
+      .range(from, from + TX_PAGE - 1)
+
+    if (accountId) {
+      query = query.eq('account_id', accountId)
+    }
+
+    const { data, error } = await query
+    if (error) {
+      // Table/column may not exist yet — treat as zero balances.
+      return map
+    }
+
+    const rows = data ?? []
+    for (const row of rows) {
+      const id = String((row as { account_id?: string }).account_id ?? '')
+      if (!id) continue
+      const signed = signedAmount(
+        (row as { entry_type?: string }).entry_type,
+        (row as { balance?: number | string }).balance
+      )
+      map.set(id, (map.get(id) ?? 0) + signed)
+    }
+
+    if (rows.length < TX_PAGE) break
   }
 
-  for (const row of data ?? []) {
-    const accountId = String((row as { account_id?: string }).account_id ?? '')
-    if (!accountId) continue
-    const entryType = normalizeEntryType((row as { entry_type?: string }).entry_type)
-    const amount = Math.abs(Number((row as { balance?: number | string }).balance) || 0)
-    const signed = entryType === 'debit' ? -amount : amount
-    map.set(accountId, (map.get(accountId) ?? 0) + signed)
-  }
   return map
 }
 
@@ -120,7 +148,7 @@ async function fetchAccountItem(id: string) {
 
   if (error) throw new Error(error.message)
 
-  const balances = await loadBalancesByAccountId()
+  const balances = await loadBalancesByAccountId(id)
   return mapJoinWithBalance(data as unknown as JoinRow, balances.get(id) ?? 0)
 }
 
@@ -135,15 +163,24 @@ export async function listAccounts() {
       }
       return json({ error: error.message }, 500)
     }
+    // RPC already SUMs all transactions (same formula as running balance).
+    // Do NOT overwrite with a truncated PostgREST select (~1000 row cap).
     const rows = (Array.isArray(data) ? data : []) as RpcRow[]
     const items = rows.map(mapAccountRow)
-    // Prefer live ledger totals so Balance stays correct even if RPC is outdated.
-    const balances = await loadBalancesByAccountId()
-    const withBalances = items.map((item) => ({
-      ...item,
-      balance: balances.get(item.id) ?? item.balance ?? 0,
-    }))
-    return json({ items: withBalances, via: 'rpc' })
+    const rpcHasBalance = rows.some((r) =>
+      Object.prototype.hasOwnProperty.call(r ?? {}, 'balance')
+    )
+    if (!rpcHasBalance) {
+      const balances = await loadBalancesByAccountId()
+      return json({
+        items: items.map((item) => ({
+          ...item,
+          balance: balances.get(item.id) ?? 0,
+        })),
+        via: 'rpc+paginated-balances',
+      })
+    }
+    return json({ items, via: 'rpc' })
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : 'Server error' }, 500)
   }

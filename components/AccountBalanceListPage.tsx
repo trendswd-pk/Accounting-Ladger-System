@@ -54,7 +54,7 @@ export default function AccountBalanceListPage({
     void (async () => {
       setListError(null)
       try {
-        const items = await fetchAccounts()
+        const items = await fetchAccounts({ force: true })
         if (!cancelled) setAllAccounts(items)
       } catch (err) {
         if (!cancelled) {
