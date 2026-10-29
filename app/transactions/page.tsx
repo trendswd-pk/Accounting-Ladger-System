@@ -199,9 +199,14 @@ function TransactionsPageInner() {
       setRows(hit)
       setReady(true)
       setListError(null)
+      // Background refresh without blanking the page.
+      void fetchTransactions()
+        .then((items) => setRows(items))
+        .catch(() => {})
       return
     }
     setListError(null)
+    setLoading(true)
     try {
       const items = await fetchTransactions()
       setRows(items)
@@ -210,6 +215,7 @@ function TransactionsPageInner() {
       setListError(err instanceof Error ? err.message : 'Failed to load transactions')
     } finally {
       setReady(true)
+      setLoading(false)
     }
   }, [])
 
@@ -1557,13 +1563,34 @@ function TransactionsPageInner() {
   )
 }
 
+function TransactionsPageFallback() {
+  return (
+    <div className="p-4 lg:p-8">
+      <div className="mb-4 h-9 w-48 animate-pulse rounded bg-gray-200 dark:bg-gray-700 lg:mb-6" />
+      <div className="space-y-3 lg:hidden">
+        {Array.from({ length: 3 }, (_, i) => (
+          <div
+            key={i}
+            className="h-28 animate-pulse rounded-xl border border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800"
+          />
+        ))}
+      </div>
+      <div className="hidden overflow-hidden rounded-xl border border-gray-100 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800 lg:block">
+        <div className="h-12 border-b border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-700/40" />
+        {Array.from({ length: 6 }, (_, i) => (
+          <div
+            key={i}
+            className="h-12 animate-pulse border-b border-gray-50 dark:border-gray-700/50"
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function TransactionsPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="p-4 text-sm text-gray-500 lg:p-8 dark:text-gray-400">Loading…</div>
-      }
-    >
+    <Suspense fallback={<TransactionsPageFallback />}>
       <TransactionsPageInner />
     </Suspense>
   )

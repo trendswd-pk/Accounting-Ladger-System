@@ -13,6 +13,8 @@ import {
   getCachedAppSettings,
   watchAppSettings,
 } from '@/lib/appSettings'
+import { fetchAccounts } from '@/lib/accounts'
+import { fetchTransactions } from '@/lib/transactions'
 
 export default function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -39,6 +41,13 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
       setLogoUrl(s.logoUrl)
     })
   }, [])
+
+  // Prefetch core lists so Transactions / Accounts open without a cold full-load flash.
+  useEffect(() => {
+    if (isLogin) return
+    void fetchTransactions().catch(() => {})
+    void fetchAccounts().catch(() => {})
+  }, [isLogin])
 
   if (isLogin) {
     return <>{children}</>

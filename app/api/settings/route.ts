@@ -210,7 +210,7 @@ export async function PATCH(request: Request) {
         return json(
           {
             error:
-              'Branding columns missing. Run database/settings-branding.sql in your database.',
+              'Branding columns missing. Run database/schema.sql in your database.',
           },
           500
         )
@@ -224,7 +224,7 @@ export async function PATCH(request: Request) {
         return json(
           {
             error:
-              'Message template columns missing. Run database/settings-message-templates.sql in your database.',
+              'Message template columns missing. Run database/schema.sql in your database.',
           },
           500
         )
@@ -236,7 +236,7 @@ export async function PATCH(request: Request) {
         return json(
           {
             error:
-              'Dashboard filter columns missing. Run database/settings-cash-savings-types.sql in your database.',
+              'Dashboard filter columns missing. Run database/schema.sql in your database.',
           },
           500
         )

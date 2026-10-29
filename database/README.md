@@ -1,23 +1,33 @@
 # Database
 
-Run in **Supabase → SQL Editor** (safe to re-run):
+Single source of truth:
 
-1. [`schema.sql`](schema.sql) — core tables, seeds, RPCs, `file_attachments`  
-2. [`accounts.sql`](accounts.sql) — `accounts` table + `rpc_list_accounts`  
-3. [`transactions.sql`](transactions.sql) — `transactions` table + `rpc_list_transactions`  
-4. [`transactions-entry-type.sql`](transactions-entry-type.sql) — credit/debit column (if table already created)  
-5. [`transactions-narration.sql`](transactions-narration.sql) — narration/details column (if table already created)  
-6. [`accounts-balance.sql`](accounts-balance.sql) — account Balance from transactions (re-run `rpc_list_accounts`)  
-7. [`settings-default-entry-mode.sql`](settings-default-entry-mode.sql) — default Normal/Transfer entry mode in General settings  
-   Or piece-wise: [`rpcs.sql`](rpcs.sql) + [`file-attachments.sql`](file-attachments.sql)
+**[`schema.sql`](schema.sql)** — full schema (tables, RLS, seeds, RPCs).
+
+## How to apply
+
+1. Open **Supabase → SQL Editor**
+2. Paste / run `schema.sql` once (safe to re-run)
+
+## What it includes
+
+| Area | Objects |
+|------|---------|
+| Types | `account_types`, `cash_types` |
+| Settings | `app_settings` (branding, templates, notes, dashboard filters, theme) |
+| Ledger | `accounts`, `transactions` |
+| Files | `file_attachments` (metadata only; bytes on Cloudflare R2) |
+| RPCs | `rpc_get_app_settings`, `rpc_list_account_types`, `rpc_list_cash_types`, `rpc_list_accounts`, `rpc_list_transactions` |
+
+## Clear transactions only (optional)
+
+At the bottom of `schema.sql` there is a commented `TRUNCATE` line. Uncomment and run **only** when you intentionally want to wipe ledger entries (accounts/settings stay).
 
 ## Storage split
 
 | Where | What |
-|---|---|
-| **Supabase** | Normal entries + file *metadata* (`file_attachments`) |
-| **Cloudflare R2** | File *bytes* (PDF, images, Excel, …) |
+|-------|------|
+| Database | Rows + file metadata |
+| Cloudflare R2 | File bytes |
 
-Upload flow: `POST /api/uploads/presign` → browser PUT to R2 → `POST /api/uploads/complete` (HEAD verify + insert metadata).
-
-API routes use `SUPABASE_SERVICE_ROLE_KEY` and R2 keys from `.env.local`.
+App uploads: `POST /api/uploads` (server → R2). Use `SUPABASE_SERVICE_ROLE_KEY` and R2 keys from `.env.local`.

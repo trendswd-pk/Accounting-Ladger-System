@@ -23,7 +23,7 @@ import {
 } from '@/lib/appSettings'
 import {
   createTransaction,
-  invalidateTransactionsCache,
+  fetchTransactions,
   type TransactionEntryType,
 } from '@/lib/transactions'
 
@@ -203,7 +203,8 @@ export default function TransactionFormModal({
       if (pendingFiles.length > 0) {
         await uploadPendingTransactionFiles(uploadIds, pendingFiles)
       }
-      invalidateTransactionsCache()
+      // Warm / refresh list cache in background (no full invalidate flash).
+      void fetchTransactions({ force: true }).catch(() => {})
       onClose()
       onSaved?.()
     } catch (err) {

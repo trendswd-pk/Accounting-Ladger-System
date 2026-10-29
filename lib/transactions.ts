@@ -118,7 +118,9 @@ export async function createTransaction(input: TransactionInput): Promise<Transa
   const data = await res.json()
   if (!res.ok) throw new Error(data.error || 'Failed to create transaction')
   const item = data.item as TransactionRecord
-  cache = [item, ...(cache ?? [])]
+  // Only prepend when we already have a full list cached; otherwise leave
+  // cache null so the next fetchTransactions() loads the complete set.
+  if (cache) cache = [item, ...cache]
   invalidateAccountsCache()
   return item
 }
