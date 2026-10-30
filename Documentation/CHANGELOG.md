@@ -4,6 +4,13 @@ All notable changes to Accounting Ledger are documented here.
 
 ## [1.0.1] — 2026-10-30
 
+### Added
+- Balance mix ribbons show day-over-day up/down % vs yesterday, with category icons on the colored strip.
+- Transactions table headers: click **Transaction Date**, **Type**, or **Balance** to sort ascending/descending.
+
+### Changed
+- Dashboard chart cards tighten for mobile (no horizontal overflow; wrapping legends; compact balance-mix ribbons).
+
 ### Fixed
 - Today Expense and Yesterday Expense dashboard cards now open Transactions filtered to **Expense accounts only** for that date (not every account’s entries).
 - Transaction save is much quicker: single DB round-trip on create/update, no full accounts reload after each entry, modal closes before file uploads, and the list no longer waits on a full-page loading state.

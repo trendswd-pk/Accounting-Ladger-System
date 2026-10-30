@@ -2,7 +2,17 @@
 
 import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ArrowLeft, Filter, Info, Plus, Search, X } from 'lucide-react'
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowUp,
+  ArrowUpDown,
+  Filter,
+  Info,
+  Plus,
+  Search,
+  X,
+} from 'lucide-react'
 import ActionsDropdown from '@/components/ActionsDropdown'
 import {
   FormModalBody,
@@ -50,6 +60,9 @@ const inputClass =
   'w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500'
 
 type FormMode = DefaultEntryMode
+
+type TxnSortKey = 'date' | 'type' | 'balance'
+type TxnSortDir = 'asc' | 'desc'
 
 function todayISO(): string {
   const d = new Date()
@@ -122,11 +135,24 @@ function TransactionsPageInner() {
   const [dateFrom, setDateFrom] = useState(dateFromParam)
   const [dateTo, setDateTo] = useState(dateToParam)
   const [typeFilter, setTypeFilter] = useState<TransactionEntryType | ''>('')
+  const [sortKey, setSortKey] = useState<TxnSortKey>('date')
+  const [sortDir, setSortDir] = useState<TxnSortDir>('desc')
 
   useEffect(() => {
     setDateFrom(dateFromParam)
     setDateTo(dateToParam)
   }, [dateFromParam, dateToParam])
+
+  const toggleSort = (key: TxnSortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortKey(key)
+      // Date defaults to newest first; type/balance start ascending.
+      setSortDir(key === 'date' ? 'desc' : 'asc')
+    }
+    setPage(1)
+  }
 
   const [accounts, setAccounts] = useState<AccountRecord[]>(() => getCachedAccounts() ?? [])
 
@@ -274,22 +300,52 @@ function TransactionsPageInner() {
       list = list.filter((row) => row.entryType === typeFilter)
     }
     const q = searchQuery.trim().toLowerCase()
-    if (!q) return list
-    return list.filter((row) => {
-      const haystack = [
-        String(row.entryNumber),
-        row.transactionDate,
-        formatDisplayDate(row.transactionDate),
-        row.accountName,
-        row.narration,
-        row.entryType,
-        String(row.balance),
-      ]
-        .join(' ')
-        .toLowerCase()
-      return haystack.includes(q)
+    if (q) {
+      list = list.filter((row) => {
+        const haystack = [
+          String(row.entryNumber),
+          row.transactionDate,
+          formatDisplayDate(row.transactionDate),
+          row.accountName,
+          row.narration,
+          row.entryType,
+          String(row.balance),
+        ]
+          .join(' ')
+          .toLowerCase()
+        return haystack.includes(q)
+      })
+    }
+
+    const sorted = list.slice()
+    sorted.sort((a, b) => {
+      let cmp = 0
+      if (sortKey === 'date') {
+        cmp = a.transactionDate.localeCompare(b.transactionDate)
+        if (cmp === 0) cmp = a.entryNumber - b.entryNumber
+      } else if (sortKey === 'type') {
+        cmp = a.entryType.localeCompare(b.entryType)
+        if (cmp === 0) cmp = a.transactionDate.localeCompare(b.transactionDate)
+      } else {
+        cmp = Math.abs(a.balance) - Math.abs(b.balance)
+        if (cmp === 0) cmp = a.transactionDate.localeCompare(b.transactionDate)
+      }
+      if (cmp === 0) cmp = a.entryNumber - b.entryNumber
+      return sortDir === 'asc' ? cmp : -cmp
     })
-  }, [rows, searchQuery, accountIdFilter, expenseOnly, expenseAccountIds, dateFrom, dateTo, typeFilter])
+    return sorted
+  }, [
+    rows,
+    searchQuery,
+    accountIdFilter,
+    expenseOnly,
+    expenseAccountIds,
+    dateFrom,
+    dateTo,
+    typeFilter,
+    sortKey,
+    sortDir,
+  ])
 
   const activeFilterCount = useMemo(() => {
     let n = 0
@@ -1032,7 +1088,29 @@ function TransactionsPageInner() {
                   SR.
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Transaction Date
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('date')}
+                    className="inline-flex items-center gap-1 rounded text-gray-500 hover:text-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:text-gray-400 dark:hover:text-gray-200"
+                    aria-label={`Sort by transaction date, currently ${
+                      sortKey === 'date'
+                        ? sortDir === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : 'unsorted'
+                    }`}
+                  >
+                    Transaction Date
+                    {sortKey === 'date' ? (
+                      sortDir === 'asc' ? (
+                        <ArrowUp className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      ) : (
+                        <ArrowDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      )
+                    ) : (
+                      <ArrowUpDown className="h-3.5 w-3.5 shrink-0 opacity-40" aria-hidden />
+                    )}
+                  </button>
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   Account Name
@@ -1041,10 +1119,54 @@ function TransactionsPageInner() {
                   Narration
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Type
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('type')}
+                    className="inline-flex items-center gap-1 rounded text-gray-500 hover:text-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:text-gray-400 dark:hover:text-gray-200"
+                    aria-label={`Sort by type, currently ${
+                      sortKey === 'type'
+                        ? sortDir === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : 'unsorted'
+                    }`}
+                  >
+                    Type
+                    {sortKey === 'type' ? (
+                      sortDir === 'asc' ? (
+                        <ArrowUp className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      ) : (
+                        <ArrowDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      )
+                    ) : (
+                      <ArrowUpDown className="h-3.5 w-3.5 shrink-0 opacity-40" aria-hidden />
+                    )}
+                  </button>
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Balance
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('balance')}
+                    className="ml-auto inline-flex items-center gap-1 rounded text-gray-500 hover:text-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:text-gray-400 dark:hover:text-gray-200"
+                    aria-label={`Sort by balance, currently ${
+                      sortKey === 'balance'
+                        ? sortDir === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : 'unsorted'
+                    }`}
+                  >
+                    Balance
+                    {sortKey === 'balance' ? (
+                      sortDir === 'asc' ? (
+                        <ArrowUp className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      ) : (
+                        <ArrowDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      )
+                    ) : (
+                      <ArrowUpDown className="h-3.5 w-3.5 shrink-0 opacity-40" aria-hidden />
+                    )}
+                  </button>
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   Running Balance
