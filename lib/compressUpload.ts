@@ -1,12 +1,14 @@
 /**
- * Client-side compression before any R2 upload.
- * - Images: resize + re-encode (JPEG/WebP)
- * - Other files: gzip when it meaningfully shrinks the payload
+ * Client-side compression before upload — kept intentionally light.
+ * Heavy multi-format / gzip-everything was making uploads feel stuck.
  */
 
-const DEFAULT_MAX_EDGE = 1920
-const DEFAULT_QUALITY = 0.72
-const MIN_GZIP_SAVINGS = 0.08 // keep gzip only if ≥8% smaller
+const DEFAULT_MAX_EDGE = 1600
+const DEFAULT_QUALITY = 0.78
+/** Skip recompress when already a small JPEG/WebP. */
+const SKIP_IMAGE_UNDER_BYTES = 450_000
+/** Never gzip tiny files. */
+const SKIP_GZIP_UNDER_BYTES = 48_000
 
 function stemAndExt(fileName: string): { stem: string; ext: string } {
   const base = fileName.split(/[/\\]/).pop() || fileName
@@ -14,6 +16,46 @@ function stemAndExt(fileName: string): { stem: string; ext: string } {
   if (i <= 0) return { stem: base, ext: '' }
   return { stem: base.slice(0, i), ext: base.slice(i + 1).toLowerCase() }
 }
+
+/** Formats that are already compressed — gzip wastes CPU and rarely helps. */
+const SKIP_GZIP_EXT = new Set([
+  'jpg',
+  'jpeg',
+  'png',
+  'webp',
+  'gif',
+  'avif',
+  'heic',
+  'heif',
+  'pdf',
+  'zip',
+  'gz',
+  'tgz',
+  'rar',
+  '7z',
+  'bz2',
+  'xz',
+  'mp3',
+  'mp4',
+  'mov',
+  'webm',
+  'm4a',
+  'aac',
+  'ogg',
+  'opus',
+  'docx',
+  'xlsx',
+  'pptx',
+  'odt',
+  'ods',
+  'odp',
+  'apk',
+  'jar',
+  'wasm',
+  'br',
+  'woff',
+  'woff2',
+])
 
 function isSvgOrIco(file: File): boolean {
   const { ext } = stemAndExt(file.name)
@@ -33,6 +75,38 @@ function isRasterImage(file: File): boolean {
   if (t.startsWith('image/')) return true
   const { ext } = stemAndExt(file.name)
   return ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'heic', 'heif', 'tif', 'tiff'].includes(ext)
+}
+
+function shouldSkipGzip(file: File): boolean {
+  if (file.size < SKIP_GZIP_UNDER_BYTES) return true
+  const { ext } = stemAndExt(file.name)
+  if (SKIP_GZIP_EXT.has(ext)) return true
+  const t = (file.type || '').toLowerCase()
+  if (
+    t.startsWith('image/') ||
+    t.startsWith('audio/') ||
+    t.startsWith('video/') ||
+    t === 'application/pdf' ||
+    t === 'application/zip' ||
+    t.includes('zip') ||
+    t.includes('gzip')
+  ) {
+    return true
+  }
+  return false
+}
+
+function alreadySmallJpegOrWebp(file: File): boolean {
+  if (file.size > SKIP_IMAGE_UNDER_BYTES) return false
+  const { ext } = stemAndExt(file.name)
+  const t = (file.type || '').toLowerCase()
+  return (
+    ext === 'jpg' ||
+    ext === 'jpeg' ||
+    ext === 'webp' ||
+    t === 'image/jpeg' ||
+    t === 'image/webp'
+  )
 }
 
 function loadImageElement(file: File): Promise<HTMLImageElement> {
@@ -64,6 +138,23 @@ async function canvasToFile(
   return new File([blob], fileName, { type: mime, lastModified: Date.now() })
 }
 
+/** One encode pass (WebP, else JPEG) — not a multi-format bake-off. */
+async function finalizeImageCanvas(
+  canvas: HTMLCanvasElement,
+  original: File,
+  quality: number
+): Promise<File> {
+  const { stem } = stemAndExt(original.name)
+
+  const webp = await canvasToFile(canvas, 'image/webp', quality, `${stem}.webp`)
+  if (webp && webp.size < original.size * 0.97) return webp
+
+  const jpeg = await canvasToFile(canvas, 'image/jpeg', quality, `${stem}.jpg`)
+  if (jpeg && jpeg.size < original.size * 0.97) return jpeg
+
+  return original
+}
+
 async function compressRasterImage(
   file: File,
   options: { maxEdge: number; quality: number }
@@ -82,68 +173,36 @@ async function compressRasterImage(
     bitmap = null
   }
 
+  const draw = async (
+    source: CanvasImageSource,
+    w: number,
+    h: number
+  ): Promise<File> => {
+    const scale = Math.min(1, options.maxEdge / Math.max(w, h, 1))
+    // Already within size budget and not oversized — skip canvas work.
+    if (scale >= 1 && alreadySmallJpegOrWebp(file)) return file
+
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(w * scale))
+    canvas.height = Math.max(1, Math.round(h * scale))
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return file
+    ctx.drawImage(source, 0, 0, canvas.width, canvas.height)
+    return finalizeImageCanvas(canvas, file, options.quality)
+  }
+
   if (!bitmap) {
     const img = await loadImageElement(file)
     width = img.naturalWidth || img.width
     height = img.naturalHeight || img.height
-    const canvas = document.createElement('canvas')
-    const scale = Math.min(1, options.maxEdge / Math.max(width, height, 1))
-    canvas.width = Math.max(1, Math.round(width * scale))
-    canvas.height = Math.max(1, Math.round(height * scale))
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return file
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-    return finalizeImageCanvas(canvas, file, options.quality)
+    return draw(img, width, height)
   }
 
   try {
-    const scale = Math.min(1, options.maxEdge / Math.max(width, height, 1))
-    const canvas = document.createElement('canvas')
-    canvas.width = Math.max(1, Math.round(width * scale))
-    canvas.height = Math.max(1, Math.round(height * scale))
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return file
-    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
-    return finalizeImageCanvas(canvas, file, options.quality)
+    return await draw(bitmap, width, height)
   } finally {
     bitmap.close()
   }
-}
-
-async function finalizeImageCanvas(
-  canvas: HTMLCanvasElement,
-  original: File,
-  quality: number
-): Promise<File> {
-  const { stem } = stemAndExt(original.name)
-  const hasAlphaHint =
-    (original.type || '').toLowerCase() === 'image/png' ||
-    stemAndExt(original.name).ext === 'png'
-
-  const candidates: Array<{ mime: string; name: string; quality?: number }> = hasAlphaHint
-    ? [
-        { mime: 'image/webp', name: `${stem}.webp`, quality },
-        { mime: 'image/png', name: `${stem}.png` },
-        { mime: 'image/jpeg', name: `${stem}.jpg`, quality },
-      ]
-    : [
-        { mime: 'image/webp', name: `${stem}.webp`, quality },
-        { mime: 'image/jpeg', name: `${stem}.jpg`, quality },
-      ]
-
-  let best: File | null = null
-  for (const c of candidates) {
-    const out = await canvasToFile(canvas, c.mime, c.quality ?? 0.92, c.name)
-    if (!out) continue
-    if (!best || out.size < best.size) best = out
-  }
-
-  if (!best) return original
-  // Prefer compressed only when it actually helps (or format normalized).
-  if (best.size < original.size * 0.98) return best
-  // Still prefer webp/jpeg rename when same-ish size but original was huge png decoded path
-  if (best.size <= original.size) return best
-  return original
 }
 
 async function gzipCompressFile(file: File): Promise<File | null> {
@@ -152,7 +211,7 @@ async function gzipCompressFile(file: File): Promise<File | null> {
     const compressed = file.stream().pipeThrough(new CompressionStream('gzip'))
     const blob = await new Response(compressed).blob()
     if (blob.size <= 0) return null
-    if (blob.size >= file.size * (1 - MIN_GZIP_SAVINGS)) return null
+    if (blob.size >= file.size * 0.92) return null
     const name = file.name.toLowerCase().endsWith('.gz') ? file.name : `${file.name}.gz`
     return new File([blob], name, {
       type: 'application/gzip',
@@ -164,17 +223,17 @@ async function gzipCompressFile(file: File): Promise<File | null> {
 }
 
 export type CompressUploadOptions = {
-  /** Longest image edge in px (default 1920). */
+  /** Longest image edge in px (default 1600). */
   maxEdge?: number
-  /** JPEG/WebP quality 0–1 (default 0.72). */
+  /** JPEG/WebP quality 0–1 (default 0.78). */
   quality?: number
   /** Skip compression entirely. */
   skip?: boolean
 }
 
 /**
- * Compress a file for upload. Safe to call for any type; returns original if
- * compression is unavailable or does not shrink the file.
+ * Compress a file for upload. Safe for any type; returns original when
+ * compression would not help (or would only burn CPU).
  */
 export async function compressForUpload(
   file: File,
@@ -184,16 +243,18 @@ export async function compressForUpload(
   if (file.size <= 0) return file
 
   if (isRasterImage(file)) {
+    if (alreadySmallJpegOrWebp(file)) return file
     try {
       return await compressRasterImage(file, {
         maxEdge: options?.maxEdge ?? DEFAULT_MAX_EDGE,
         quality: options?.quality ?? DEFAULT_QUALITY,
       })
     } catch {
-      // fall through to gzip attempt
+      return file
     }
   }
 
+  if (shouldSkipGzip(file)) return file
   const gz = await gzipCompressFile(file)
   return gz ?? file
 }

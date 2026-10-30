@@ -153,9 +153,30 @@ export function transactionAttachmentFolder(transactionId: string): string {
   return `transactions/${String(transactionId).trim()}`
 }
 
-export async function listUploadedFiles(folder: string): Promise<FileAttachment[]> {
+const listCache = new Map<string, FileAttachment[]>()
+
+export function getCachedUploadedFiles(folder: string): FileAttachment[] | null {
+  const hit = listCache.get(folder)
+  return hit ? hit.map((r) => ({ ...r })) : null
+}
+
+export function setCachedUploadedFiles(folder: string, items: FileAttachment[]): void {
+  listCache.set(folder, items.map((r) => ({ ...r })))
+}
+
+export function invalidateUploadedFilesCache(folder?: string): void {
+  if (folder) listCache.delete(folder)
+  else listCache.clear()
+}
+
+export async function listUploadedFiles(
+  folder: string,
+  _options?: { force?: boolean }
+): Promise<FileAttachment[]> {
   requireDemoUser()
-  return getStoredUploads().filter((f) => f.folder === folder)
+  const items = getStoredUploads().filter((f) => f.folder === folder)
+  listCache.set(folder, items)
+  return items.map((r) => ({ ...r }))
 }
 
 export function formatUploadSize(bytes: number): string {

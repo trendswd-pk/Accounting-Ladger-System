@@ -61,7 +61,7 @@ Canonical images: `Documentation/images/` (see `SCREENSHOT-INDEX.md`).
 |--------|--------|
 | App | Next.js 14 · React 18 · TypeScript · Tailwind CSS |
 | Auth & data (production) | Supabase |
-| Files (production) | Cloudflare R2 via `/api/uploads` |
+| Files (production) | Cloudflare R2 (browser PUT via presign when CORS allows; `/api/uploads` fallback) |
 | Charts / PDF | Recharts · jsPDF / pdf-lib |
 
 ## Getting started (production app)
@@ -78,6 +78,8 @@ npm run dev
 ```
 
 See [`.env.example`](.env.example) for variables. Optional: `JWT_SECRET`, `CRON_SECRET` (Vercel Cron hits `GET /api/cron` daily at 10:00 UTC).
+
+For the fastest file uploads, allow your app origin in the R2 bucket CORS (PUT + GET). If CORS is missing, the app automatically falls back to same-origin `/api/uploads`.
 
 **Note:** `demo-mode/` is excluded from the main product build. Deploy the demo as its own project.
 

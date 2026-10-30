@@ -72,12 +72,17 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
         if (route !== pathname) router.prefetch(route)
       }
     }
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      const id = window.requestIdleCallback(run, { timeout: 2500 })
-      return () => window.cancelIdleCallback(id)
+    const w = window as Window &
+      typeof globalThis & {
+        requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number
+        cancelIdleCallback?: (id: number) => void
+      }
+    if (typeof w.requestIdleCallback === 'function') {
+      const id = w.requestIdleCallback(run, { timeout: 2500 })
+      return () => w.cancelIdleCallback?.(id)
     }
-    const t = window.setTimeout(run, 400)
-    return () => window.clearTimeout(t)
+    const t = globalThis.setTimeout(run, 400)
+    return () => globalThis.clearTimeout(t)
   }, [isLogin, pathname, router])
 
   if (isLogin) {

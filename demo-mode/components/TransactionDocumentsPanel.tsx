@@ -5,7 +5,9 @@ import { FileText, Trash2, Upload } from 'lucide-react'
 import {
   deleteUploadedFile,
   formatUploadSize,
+  getCachedUploadedFiles,
   listUploadedFiles,
+  setCachedUploadedFiles,
   transactionAttachmentFolder,
   uploadFileToR2,
   type FileAttachment,
@@ -16,53 +18,96 @@ const actionBtnClass =
 
 type TransactionDocumentsPanelProps = {
   transactionId: string
+  /** Called whenever the file list changes (for tab badges, etc.). */
+  onFilesChange?: (files: FileAttachment[]) => void
+  /** When false, still loads/prefetches but stays visually hidden. */
+  active?: boolean
 }
 
 export default function TransactionDocumentsPanel({
   transactionId,
+  onFilesChange,
+  active = true,
 }: TransactionDocumentsPanelProps) {
   const folder = transactionAttachmentFolder(transactionId)
   const inputRef = useRef<HTMLInputElement | null>(null)
-  const [files, setFiles] = useState<FileAttachment[]>([])
-  const [loading, setLoading] = useState(true)
+  const cached = getCachedUploadedFiles(folder)
+  const [files, setFiles] = useState<FileAttachment[]>(() => cached ?? [])
+  const [loading, setLoading] = useState(() => cached == null)
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const onFilesChangeRef = useRef(onFilesChange)
+  onFilesChangeRef.current = onFilesChange
 
-  const load = useCallback(async () => {
-    setError(null)
-    try {
-      const items = await listUploadedFiles(folder)
-      setFiles(items)
-    } catch (err) {
-      setFiles([])
-      setError(err instanceof Error ? err.message : 'Could not load files.')
-    } finally {
-      setLoading(false)
-    }
+  const publish = useCallback((next: FileAttachment[]) => {
+    setFiles(next)
+    setCachedUploadedFiles(folder, next)
+    onFilesChangeRef.current?.(next)
   }, [folder])
 
+  const load = useCallback(
+    async (opts?: { force?: boolean; silent?: boolean }) => {
+      setError(null)
+      if (!opts?.silent && getCachedUploadedFiles(folder) == null) {
+        setLoading(true)
+      }
+      try {
+        const items = await listUploadedFiles(folder, { force: opts?.force })
+        publish(items)
+      } catch (err) {
+        if (getCachedUploadedFiles(folder) == null) {
+          publish([])
+          setError(err instanceof Error ? err.message : 'Could not load files.')
+        }
+      } finally {
+        setLoading(false)
+      }
+    },
+    [folder, publish]
+  )
+
   useEffect(() => {
+    const hit = getCachedUploadedFiles(folder)
+    if (hit) {
+      setFiles(hit)
+      setLoading(false)
+      onFilesChangeRef.current?.(hit)
+      // Soft refresh in background.
+      void load({ force: true, silent: true })
+      return
+    }
     setLoading(true)
     void load()
-  }, [load])
+  }, [folder, load])
 
   const handleFiles = async (list: FileList | null) => {
     if (!list || list.length === 0) return
     setUploading(true)
     setError(null)
+    setProgress(0)
     try {
       const queue = Array.from(list)
-      for (let i = 0; i < queue.length; i++) {
-        const file = queue[i]
-        setProgress(0)
-        await uploadFileToR2(file, {
-          folder,
-          onProgress: setProgress,
+      let done = 0
+      const uploaded: FileAttachment[] = []
+      await Promise.all(
+        queue.map(async (file) => {
+          const attachment = await uploadFileToR2(file, {
+            folder,
+            onProgress: (p) => {
+              const approx = Math.round(((done + p / 100) / queue.length) * 100)
+              setProgress(Math.min(99, approx))
+            },
+          })
+          uploaded.push(attachment)
+          done += 1
+          setProgress(Math.round((done / queue.length) * 100))
         })
-      }
-      await load()
+      )
+      // Instant UI: prepend new rows, then reconcile from server.
+      publish([...uploaded, ...files.filter((f) => !uploaded.some((u) => u.id === f.id))])
+      void load({ force: true, silent: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed.')
     } finally {
@@ -75,10 +120,12 @@ export default function TransactionDocumentsPanel({
   const handleDelete = async (id: string) => {
     setDeletingId(id)
     setError(null)
+    const prev = files
+    publish(files.filter((f) => f.id !== id))
     try {
       await deleteUploadedFile(id)
-      setFiles((prev) => prev.filter((f) => f.id !== id))
     } catch (err) {
+      publish(prev)
       setError(err instanceof Error ? err.message : 'Could not delete file.')
     } finally {
       setDeletingId(null)
@@ -86,10 +133,10 @@ export default function TransactionDocumentsPanel({
   }
 
   return (
-    <div className="space-y-3">
+    <div className={`space-y-3 ${active ? '' : 'hidden'}`} aria-hidden={!active}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          Optional. Any type, multiple files — compressed before upload (max 100MB each).
+          Optional. Any type, multiple files (max 100MB each).
         </p>
         <div>
           <input
@@ -124,7 +171,7 @@ export default function TransactionDocumentsPanel({
         </p>
       ) : null}
 
-      {loading ? (
+      {loading && files.length === 0 ? (
         <p className="text-sm text-gray-500 dark:text-gray-400">Loading files…</p>
       ) : files.length === 0 ? (
         <div className="rounded-lg border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500 dark:border-gray-600 dark:text-gray-400">

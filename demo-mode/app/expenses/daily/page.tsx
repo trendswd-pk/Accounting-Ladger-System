@@ -458,7 +458,7 @@ export default function DailyExpensePage() {
                       className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
                     >
                       <Link
-                        href={`/transactions?accountId=${encodeURIComponent(row.id)}&from=${encodeURIComponent('/expenses/daily')}`}
+                        href={`/transactions?accountId=${encodeURIComponent(row.id)}&dateFrom=${encodeURIComponent(`${year}-${pad2(monthIndex + 1)}-${pad2(selectedDay)}`)}&dateTo=${encodeURIComponent(`${year}-${pad2(monthIndex + 1)}-${pad2(selectedDay)}`)}&from=${encodeURIComponent('/expenses/daily')}`}
                         className="min-w-0 truncate text-sm font-medium text-primary-700 hover:underline dark:text-primary-300"
                         onClick={closeDay}
                       >

@@ -137,9 +137,11 @@ function TransactionsPageInner() {
     (TransactionRecord & { runningBalance: number }) | null
   >(null)
   const [detailTab, setDetailTab] = useState<'details' | 'documents'>('details')
+  const [detailDocCount, setDetailDocCount] = useState(0)
 
   const openDetail = (row: TransactionRecord & { runningBalance: number }) => {
     setDetailTab('details')
+    setDetailDocCount(0)
     setDetailRow(row)
   }
   const [currency, setCurrency] = useState(
@@ -1440,7 +1442,13 @@ function TransactionsPageInner() {
                 {(
                   [
                     { id: 'details' as const, label: 'Details' },
-                    { id: 'documents' as const, label: 'Documents' },
+                    {
+                      id: 'documents' as const,
+                      label:
+                        detailDocCount > 0
+                          ? `Documents (${detailDocCount})`
+                          : 'Documents',
+                    },
                   ] as const
                 ).map((tab) => (
                   <button
@@ -1460,7 +1468,7 @@ function TransactionsPageInner() {
                 ))}
               </div>
 
-              {detailTab === 'details' ? (
+              <div className={detailTab === 'details' ? '' : 'hidden'}>
                 <dl className="space-y-3 text-sm">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -1512,11 +1520,23 @@ function TransactionsPageInner() {
                     </div>
                   </div>
                 </dl>
-              ) : (
-                <TransactionDocumentsPanel transactionId={detailRow.id} />
-              )}
+              </div>
+              {/* Prefetch while Details is open so Documents tab is ready instantly. */}
+              <TransactionDocumentsPanel
+                key={detailRow.id}
+                transactionId={detailRow.id}
+                active={detailTab === 'documents'}
+                onFilesChange={(items) => setDetailDocCount(items.length)}
+              />
             </FormModalBody>
             <FormModalFooter className="justify-center sm:justify-end">
+              <button
+                type="button"
+                onClick={() => sendTransactionMessage(detailRow)}
+                className={`${formModalSecondaryButtonClass} flex-none`}
+              >
+                Send message
+              </button>
               {detailTab === 'details' ? (
                 <button
                   type="button"

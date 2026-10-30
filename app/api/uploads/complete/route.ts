@@ -1,11 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireUser } from '@/lib/auth'
-import {
-  buildR2PublicUrl,
-  getR2Config,
-  headR2Object,
-  isKeyUnderPrefix,
-} from '@/lib/r2'
+import { buildR2PublicUrl, getR2Config, isKeyUnderPrefix } from '@/lib/r2'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
 import { isAllowedUploadName } from '@/lib/uploads'
 
@@ -77,14 +72,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid storage key.' }, { status: 400 })
   }
 
-  const head = await headR2Object(r2, storageKey)
-  if (!head) {
-    return NextResponse.json(
-      { error: 'File not found on R2. Upload may have failed.' },
-      { status: 400 }
-    )
-  }
-
+  // Trust successful client PUT — skip HEAD round-trip (was adding noticeable latency).
+  // Key prefix is still validated above.
   const publicUrl = buildR2PublicUrl(r2, storageKey)
   const admin = getSupabaseAdmin()
   const { data, error } = await admin
@@ -93,8 +82,8 @@ export async function POST(request: Request) {
       storage_key: storageKey,
       public_url: publicUrl,
       file_name: fileName,
-      mime_type: head.contentType || mimeType,
-      size_bytes: head.size || sizeBytes,
+      mime_type: mimeType || 'application/octet-stream',
+      size_bytes: sizeBytes > 0 ? sizeBytes : null,
       folder,
     })
     .select('id, storage_key, public_url, file_name, mime_type, size_bytes, folder, created_at')

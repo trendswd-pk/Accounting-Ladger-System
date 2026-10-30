@@ -107,7 +107,7 @@ export default function TransactionFormAttachments({
           onChange={(e) => addFiles(e.target.files)}
         />
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          Optional. Any type, multiple files — compressed before upload (max 100MB each).
+          Optional. Any type, multiple files (max 100MB each).
         </p>
       </div>
 

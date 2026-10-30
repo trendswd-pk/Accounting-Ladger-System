@@ -177,7 +177,12 @@ async function signedRequest(
   const canonicalUri = `/${cfg.bucket}/${encodeKeyPath(key)}`
   const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '')
   const dateStamp = amzDate.slice(0, 8)
-  const payloadHash = sha256Hex(body ? new Uint8Array(body) : '')
+  // Hashing multi‑MB bodies for SigV4 made proxy uploads feel stuck.
+  // UNSIGNED-PAYLOAD matches our presigned PUT path and is accepted by R2.
+  const payloadHash =
+    method === 'PUT' && body && body.byteLength > 0
+      ? 'UNSIGNED-PAYLOAD'
+      : sha256Hex(body ? new Uint8Array(body) : '')
 
   const signedValues: Record<string, string> = {
     host,

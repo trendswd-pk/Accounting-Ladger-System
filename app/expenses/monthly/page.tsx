@@ -409,7 +409,7 @@ export default function MonthlyExpensePage() {
                       className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
                     >
                       <Link
-                        href={`/transactions?accountId=${encodeURIComponent(row.id)}&from=${encodeURIComponent('/expenses/monthly')}`}
+                        href={`/transactions?accountId=${encodeURIComponent(row.id)}&dateFrom=${encodeURIComponent(`${year}-${String(selectedMonthIndex + 1).padStart(2, '0')}-01`)}&dateTo=${encodeURIComponent(`${year}-${String(selectedMonthIndex + 1).padStart(2, '0')}-${String(new Date(year, selectedMonthIndex + 1, 0).getDate()).padStart(2, '0')}`)}&from=${encodeURIComponent('/expenses/monthly')}`}
                         className="min-w-0 truncate text-sm font-medium text-primary-700 hover:underline dark:text-primary-300"
                         onClick={closeMonth}
                       >
