@@ -68,10 +68,13 @@ const infoHintPanelClass =
 function InfoHint({
   label,
   placement = 'below',
+  tone = 'default',
   children,
 }: {
   label: string
   placement?: 'above' | 'below'
+  /** `onBrand` for white header bars (primary gradient). */
+  tone?: 'default' | 'onBrand'
   children: React.ReactNode
 }) {
   const [open, setOpen] = useState(false)
@@ -93,16 +96,26 @@ function InfoHint({
     }
   }, [open])
 
+  const buttonClass =
+    tone === 'onBrand'
+      ? open
+        ? 'text-white'
+        : 'text-white/80 hover:text-white'
+      : open
+        ? 'text-primary-600 dark:text-primary-400'
+        : 'text-gray-400 hover:text-primary-600 dark:text-gray-500 dark:hover:text-primary-400'
+
   return (
     <div className="relative shrink-0" ref={rootRef}>
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
-        className={`rounded-full p-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-          open
-            ? 'text-primary-600 dark:text-primary-400'
-            : 'text-gray-400 hover:text-primary-600 dark:text-gray-500 dark:hover:text-primary-400'
-        }`}
+        onClick={(e) => {
+          e.stopPropagation()
+          setOpen((v) => !v)
+        }}
+        className={`rounded-full p-0.5 focus:outline-none focus:ring-2 ${
+          tone === 'onBrand' ? 'focus:ring-white/50' : 'focus:ring-primary-500'
+        } ${buttonClass}`}
         aria-label={`About ${label}`}
         aria-expanded={open}
       >
@@ -210,7 +223,8 @@ function MessageTemplateModal({
   /** Zero or more Allow-URL toggles (transaction PDF, account ledger, …). */
   shareUrlOptions?: ShareUrlOptionConfig[]
   onClose: () => void
-  onSave: (next: string, payload: MessageTemplateSavePayload) => void
+  /** Persist to the server; modal stays open on error. */
+  onSave: (next: string, payload: MessageTemplateSavePayload) => void | Promise<void>
 }) {
   const [draft, setDraft] = useState(value)
   const [notePlus, setNotePlus] = useState(notes.plus)
@@ -219,6 +233,8 @@ function MessageTemplateModal({
   const [shareUrlAllowed, setShareUrlAllowed] = useState(() =>
     shareUrlEnabledMap(shareUrlOptions)
   )
+  const [savingTemplate, setSavingTemplate] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const shareUrlOptionsKey = shareUrlOptions
     .map((o) => `${o.key}:${o.enabled ? 1 : 0}`)
@@ -231,6 +247,8 @@ function MessageTemplateModal({
     setNoteMinus(notes.minus)
     setNoteZero(notes.zero)
     setShareUrlAllowed(shareUrlEnabledMap(shareUrlOptions))
+    setSavingTemplate(false)
+    setSaveError(null)
     // shareUrlOptions identity changes every render; key tracks enabled values.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- shareUrlOptionsKey
   }, [open, value, notes.plus, notes.minus, notes.zero, shareUrlOptionsKey])
@@ -238,11 +256,11 @@ function MessageTemplateModal({
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape' && !savingTemplate) onClose()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+  }, [open, onClose, savingTemplate])
 
   if (!open) return null
 
@@ -278,12 +296,18 @@ function MessageTemplateModal({
         onClick={(e) => e.stopPropagation()}
       >
         <FormModalHeader
-          title={title}
+          title={
+            <>
+              <span className="truncate">{title}</span>
+              <InfoHint label={title} placement="below" tone="onBrand">
+                {description}
+              </InfoHint>
+            </>
+          }
           titleId="message-template-title"
           onClose={onClose}
         />
         <FormModalBody>
-          <p className="mb-3 text-sm text-gray-600 dark:text-gray-300">{description}</p>
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
             Insert variable
           </p>
@@ -316,12 +340,15 @@ function MessageTemplateModal({
           </p>
 
           <div className="mt-5 space-y-3 border-t border-gray-200 pt-4 dark:border-gray-700">
-            <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-              Balance notes for {'{{note}}'}
-            </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Only the matching line is inserted: plus, minus, or zero balance.
-            </p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                Balance notes for {'{{note}}'}
+              </p>
+              <InfoHint label="Balance notes" placement="above">
+                Only the matching line is inserted into the message: plus (+), minus (−), or
+                zero balance — based on the account or running balance.
+              </InfoHint>
+            </div>
             <div>
               <label
                 htmlFor="messageNotePlus"
@@ -427,26 +454,49 @@ function MessageTemplateModal({
             ) : null}
           </div>
         </FormModalBody>
+        {saveError ? (
+          <p className="border-t border-gray-200 px-4 py-2 text-sm text-red-600 dark:border-gray-700 dark:text-red-400 sm:px-6">
+            {saveError}
+          </p>
+        ) : null}
         <FormModalFooter>
-          <button type="button" className={formModalSecondaryButtonClass} onClick={onClose}>
+          <button
+            type="button"
+            className={formModalSecondaryButtonClass}
+            onClick={onClose}
+            disabled={savingTemplate}
+          >
             Cancel
           </button>
           <button
             type="button"
             className={formModalPrimaryButtonClass}
+            disabled={savingTemplate}
             onClick={() => {
-              onSave(draft, {
-                plus: notePlus,
-                minus: noteMinus,
-                zero: noteZero,
-                ...(shareUrlOptions.length > 0
-                  ? { shareUrlEnabled: { ...shareUrlAllowed } }
-                  : {}),
-              })
-              onClose()
+              void (async () => {
+                setSavingTemplate(true)
+                setSaveError(null)
+                try {
+                  await onSave(draft, {
+                    plus: notePlus,
+                    minus: noteMinus,
+                    zero: noteZero,
+                    ...(shareUrlOptions.length > 0
+                      ? { shareUrlEnabled: { ...shareUrlAllowed } }
+                      : {}),
+                  })
+                  onClose()
+                } catch (err) {
+                  setSaveError(
+                    err instanceof Error ? err.message : 'Could not save message template.'
+                  )
+                } finally {
+                  setSavingTemplate(false)
+                }
+              })()
             }}
           >
-            Apply
+            {savingTemplate ? 'Saving…' : 'Save'}
           </button>
         </FormModalFooter>
       </div>
@@ -1304,14 +1354,24 @@ export default function SettingsPage() {
             },
           ]}
           onClose={() => setMessageEditor(null)}
-          onSave={(next, notes) => {
-            setAccountMessageTemplate(next)
-            setMessageNotePlus(notes.plus)
-            setMessageNoteMinus(notes.minus)
-            setMessageNoteZero(notes.zero)
-            if (typeof notes.shareUrlEnabled?.ledger_url === 'boolean') {
-              setAccountMessageIncludeLedgerUrl(notes.shareUrlEnabled.ledger_url)
-            }
+          onSave={async (next, notes) => {
+            const includeLedger =
+              typeof notes.shareUrlEnabled?.ledger_url === 'boolean'
+                ? notes.shareUrlEnabled.ledger_url
+                : accountMessageIncludeLedgerUrl
+            const saved = await saveAppSettings({
+              accountMessageTemplate: next,
+              messageNotePlus: notes.plus,
+              messageNoteMinus: notes.minus,
+              messageNoteZero: notes.zero,
+              accountMessageIncludeLedgerUrl: includeLedger,
+            })
+            setAccountMessageTemplate(saved.accountMessageTemplate)
+            setMessageNotePlus(saved.messageNotePlus)
+            setMessageNoteMinus(saved.messageNoteMinus)
+            setMessageNoteZero(saved.messageNoteZero)
+            setAccountMessageIncludeLedgerUrl(saved.accountMessageIncludeLedgerUrl)
+            setMessage({ type: 'success', text: 'Account message template saved.' })
           }}
         />
         <MessageTemplateModal
@@ -1340,17 +1400,30 @@ export default function SettingsPage() {
             },
           ]}
           onClose={() => setMessageEditor(null)}
-          onSave={(next, notes) => {
-            setTransactionMessageTemplate(next)
-            setMessageNotePlus(notes.plus)
-            setMessageNoteMinus(notes.minus)
-            setMessageNoteZero(notes.zero)
-            if (typeof notes.shareUrlEnabled?.pdf_url === 'boolean') {
-              setTransactionMessageIncludePdfUrl(notes.shareUrlEnabled.pdf_url)
-            }
-            if (typeof notes.shareUrlEnabled?.ledger_url === 'boolean') {
-              setTransactionMessageIncludeLedgerUrl(notes.shareUrlEnabled.ledger_url)
-            }
+          onSave={async (next, notes) => {
+            const includePdf =
+              typeof notes.shareUrlEnabled?.pdf_url === 'boolean'
+                ? notes.shareUrlEnabled.pdf_url
+                : transactionMessageIncludePdfUrl
+            const includeLedger =
+              typeof notes.shareUrlEnabled?.ledger_url === 'boolean'
+                ? notes.shareUrlEnabled.ledger_url
+                : transactionMessageIncludeLedgerUrl
+            const saved = await saveAppSettings({
+              transactionMessageTemplate: next,
+              messageNotePlus: notes.plus,
+              messageNoteMinus: notes.minus,
+              messageNoteZero: notes.zero,
+              transactionMessageIncludePdfUrl: includePdf,
+              transactionMessageIncludeLedgerUrl: includeLedger,
+            })
+            setTransactionMessageTemplate(saved.transactionMessageTemplate)
+            setMessageNotePlus(saved.messageNotePlus)
+            setMessageNoteMinus(saved.messageNoteMinus)
+            setMessageNoteZero(saved.messageNoteZero)
+            setTransactionMessageIncludePdfUrl(saved.transactionMessageIncludePdfUrl)
+            setTransactionMessageIncludeLedgerUrl(saved.transactionMessageIncludeLedgerUrl)
+            setMessage({ type: 'success', text: 'Transaction message template saved.' })
           }}
         />
 

@@ -23,9 +23,12 @@ All notable changes to Accounting Ledger are documented here.
 ### Changed
 - Dashboard chart cards tighten for mobile (no horizontal overflow; wrapping legends; compact balance-mix ribbons).
 - Message template Allow URL control is a single row: heading + info tip on the left, enable/disable switch on the right.
+- Message template balance-notes help text is on an info icon next to the heading (account and transaction editors).
+- Message template intro copy moved into an info tip beside the modal title (account and transaction).
 - Settings info tips no longer use a full-screen overlay (modal body stays scrollable while a tip is open).
 
 ### Fixed
+- Message template editor **Save** now writes to the database immediately (no need to also click the page Save), and custom templates are no longer reset to defaults on reload.
 - Transaction Export PDF no longer duplicates the voucher when a previously saved voucher PDF sits in Documents; uploaded images (including WebP/GIF) rasterize into the PDF instead of showing “Could not render”.
 - Today Expense and Yesterday Expense dashboard cards now open Transactions filtered to **Expense accounts only** for that date (not every account’s entries).
 - Transaction save is much quicker: single DB round-trip on create/update, no full accounts reload after each entry, modal closes before file uploads, and the list no longer waits on a full-page loading state.

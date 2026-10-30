@@ -49,8 +49,15 @@ type FormModalHeaderProps = {
 export function FormModalHeader({ title, titleId, onClose }: FormModalHeaderProps) {
   return (
     <div className={formModalHeaderClass}>
-      <h2 id={titleId} className={formModalTitleClass}>
-        {title}
+      <h2
+        id={titleId}
+        className="flex min-w-0 flex-1 items-center gap-1.5 text-lg font-semibold text-white sm:text-xl"
+      >
+        {typeof title === 'string' || typeof title === 'number' ? (
+          <span className="truncate">{title}</span>
+        ) : (
+          title
+        )}
       </h2>
       <button type="button" onClick={onClose} className={formModalCloseButtonClass} aria-label="Close">
         <X className="h-5 w-5" />

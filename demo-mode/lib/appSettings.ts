@@ -12,12 +12,14 @@ import type { ThemePreference } from '@/lib/theme'
 import { requireDemoUser } from '@/lib/demoAuth'
 import { getStoredSettings, setStoredSettings } from '@/lib/demoStore'
 
-/** Prefer dynamic {{note}} over older long static Note text. */
+/**
+ * Migrate only known early seed templates. Do not rewrite user-edited text
+ * (e.g. templates that say "Note:" without {{note}} must still persist).
+ */
 function coerceMessageTemplate(stored: unknown, fallback: string): string {
   const text = normalizeMessageTemplate(stored)
   if (!text) return fallback
   if (text.includes('A plus (+) balance means this account owes you')) return fallback
-  if (text.includes('Note:') && !text.includes('{{note}}')) return fallback
   return text
 }
 
