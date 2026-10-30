@@ -27,14 +27,11 @@ export async function middleware(request: NextRequest) {
     },
   })
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
   const { pathname } = request.nextUrl
   const isLogin = pathname === '/login'
   // Vercel Cron has no session cookie; /api/cron authenticates via CRON_SECRET itself.
   const isCron = pathname === '/api/cron'
+  const isApi = pathname.startsWith('/api/')
   const isPublicAsset =
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
@@ -46,23 +43,32 @@ export async function middleware(request: NextRequest) {
 
   if (isPublicAsset || isCron) return supabaseResponse
 
-  if (!user && !isLogin) {
-    if (pathname.startsWith('/api/')) {
-      return NextResponse.json({ error: 'Unauthorized. Please sign in.' }, { status: 401 })
+  // Page navigations: read session from cookies only (no Auth network round-trip).
+  // That was making every Link click wait 2–4s. APIs still verify with getUser below.
+  if (!isApi) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+
+    if (!session && !isLogin) {
+      const redirectUrl = request.nextUrl.clone()
+      redirectUrl.pathname = '/login'
+      redirectUrl.searchParams.set('next', pathname)
+      return NextResponse.redirect(redirectUrl)
     }
-    const redirectUrl = request.nextUrl.clone()
-    redirectUrl.pathname = '/login'
-    redirectUrl.searchParams.set('next', pathname)
-    return NextResponse.redirect(redirectUrl)
+
+    if (session && isLogin) {
+      const redirectUrl = request.nextUrl.clone()
+      redirectUrl.pathname = '/'
+      redirectUrl.search = ''
+      return NextResponse.redirect(redirectUrl)
+    }
+
+    return supabaseResponse
   }
 
-  if (user && isLogin) {
-    const redirectUrl = request.nextUrl.clone()
-    redirectUrl.pathname = '/'
-    redirectUrl.search = ''
-    return NextResponse.redirect(redirectUrl)
-  }
-
+  // API: do not call getUser here — each route uses requireUser() once.
+  // Avoids a double Auth round-trip on every save/list request.
   return supabaseResponse
 }
 

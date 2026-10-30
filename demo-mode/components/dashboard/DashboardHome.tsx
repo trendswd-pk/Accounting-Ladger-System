@@ -309,7 +309,7 @@ export default function DashboardHome() {
       value: summaryReady ? formatMoney(todayExpense, currency) : '—',
       icon: Calendar,
       valueClassName: summaryReady ? expenseColorClass(todayExpense) : undefined,
-      href: `/transactions?dateFrom=${encodeURIComponent(todayIso)}&dateTo=${encodeURIComponent(todayIso)}&from=${encodeURIComponent('/')}`,
+      href: `/transactions?dateFrom=${encodeURIComponent(todayIso)}&dateTo=${encodeURIComponent(todayIso)}&expenseOnly=1&from=${encodeURIComponent('/')}`,
     },
     {
       name: 'Yesterday Expense',
@@ -318,7 +318,7 @@ export default function DashboardHome() {
       valueClassName: summaryReady
         ? expenseColorClass(yesterdayExpense)
         : undefined,
-      href: `/transactions?dateFrom=${encodeURIComponent(yesterdayIso)}&dateTo=${encodeURIComponent(yesterdayIso)}&from=${encodeURIComponent('/')}`,
+      href: `/transactions?dateFrom=${encodeURIComponent(yesterdayIso)}&dateTo=${encodeURIComponent(yesterdayIso)}&expenseOnly=1&from=${encodeURIComponent('/')}`,
     },
   ]
 
@@ -423,7 +423,6 @@ export default function DashboardHome() {
             <Link
               key={card.name}
               href={card.href}
-              prefetch={false}
               className={className}
             >
               {body}

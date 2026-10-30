@@ -287,7 +287,6 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
                   >
                     <Link
                       href={hasSubItems ? item.subItems![0].path : item.path}
-                      prefetch={false}
                       onClick={onClose}
                       className="flex min-w-0 flex-1 items-center"
                       aria-current={pathname === item.path ? 'page' : undefined}
@@ -330,7 +329,6 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
                               <li key={sub.path}>
                                 <Link
                                   href={sub.path}
-                                  prefetch={false}
                                   onClick={onClose}
                                   className={`flex px-6 py-2 pl-14 text-xs text-gray-600 transition-colors hover:bg-primary-50 hover:text-primary-600 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-primary-400 ${
                                     isSubActive

@@ -1,4 +1,4 @@
-import { invalidateAccountsCache } from '@/lib/accounts'
+import { adjustCachedAccountBalance } from '@/lib/accounts'
 import { recordRequestDeduped } from '@/lib/requestProfiler'
 import { requireDemoUser } from '@/lib/demoAuth'
 import {
@@ -160,7 +160,7 @@ export async function createTransaction(
   }
   setStoredTransactions([...getStoredTransactions(), item])
   if (cache) cache = [item, ...cache]
-  invalidateAccountsCache()
+  adjustCachedAccountBalance(item.accountId, signedTransactionAmount(item))
   return item
 }
 
@@ -183,9 +183,10 @@ export async function updateTransaction(
   const rows = getStoredTransactions()
   const idx = rows.findIndex((r) => r.id === id)
   if (idx < 0) throw new Error('Transaction not found.')
+  const prev = rows[idx]
 
   const item: TransactionRecord = {
-    ...rows[idx],
+    ...prev,
     transactionDate,
     accountId,
     accountName: accountNameById(accountId),
@@ -197,13 +198,17 @@ export async function updateTransaction(
   updated[idx] = item
   setStoredTransactions(updated)
   cache = listFromStore()
-  invalidateAccountsCache()
+  adjustCachedAccountBalance(prev.accountId, -signedTransactionAmount(prev))
+  adjustCachedAccountBalance(item.accountId, signedTransactionAmount(item))
   return item
 }
 
 export async function deleteTransaction(id: string): Promise<void> {
   requireDemoUser()
+  const prev = getStoredTransactions().find((r) => r.id === id)
   setStoredTransactions(getStoredTransactions().filter((r) => r.id !== id))
   cache = (cache ?? []).filter((r) => r.id !== id)
-  invalidateAccountsCache()
+  if (prev) {
+    adjustCachedAccountBalance(prev.accountId, -signedTransactionAmount(prev))
+  }
 }

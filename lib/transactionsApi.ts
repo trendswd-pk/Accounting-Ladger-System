@@ -74,18 +74,6 @@ async function listViaJoin() {
   return rows.map(mapJoinRow)
 }
 
-async function fetchTransactionItem(id: string) {
-  const admin = getSupabaseAdmin()
-  const { data, error } = await admin
-    .from('transactions')
-    .select(SELECT_COLS)
-    .eq('id', id)
-    .single()
-
-  if (error) throw new Error(error.message)
-  return mapJoinRow(data as unknown as JoinRow)
-}
-
 export async function listTransactions() {
   try {
     const admin = getSupabaseAdmin()
@@ -124,6 +112,7 @@ export async function createTransactionRow(body: {
     if (!Number.isFinite(balance)) return json({ error: 'Balance must be a number.' }, 400)
 
     const admin = getSupabaseAdmin()
+    // One round-trip: insert + join select (no follow-up fetch).
     const { data, error } = await admin
       .from('transactions')
       .insert({
@@ -133,12 +122,11 @@ export async function createTransactionRow(body: {
         entry_type: entryType,
         balance,
       })
-      .select('id')
+      .select(SELECT_COLS)
       .single()
 
     if (error) return json({ error: error.message }, 400)
-    const item = await fetchTransactionItem(data.id)
-    return json({ item }, 201)
+    return json({ item: mapJoinRow(data as unknown as JoinRow) }, 201)
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : 'Server error' }, 500)
   }
@@ -168,7 +156,7 @@ export async function updateTransactionRow(
     if (!Number.isFinite(balance)) return json({ error: 'Balance must be a number.' }, 400)
 
     const admin = getSupabaseAdmin()
-    const { error } = await admin
+    const { data, error } = await admin
       .from('transactions')
       .update({
         transaction_date: transactionDate,
@@ -179,10 +167,11 @@ export async function updateTransactionRow(
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)
+      .select(SELECT_COLS)
+      .single()
 
     if (error) return json({ error: error.message }, 400)
-    const item = await fetchTransactionItem(id)
-    return json({ item })
+    return json({ item: mapJoinRow(data as unknown as JoinRow) })
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : 'Server error' }, 500)
   }

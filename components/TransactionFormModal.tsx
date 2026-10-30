@@ -21,11 +21,7 @@ import {
   getCachedAppSettings,
   type DefaultEntryMode,
 } from '@/lib/appSettings'
-import {
-  createTransaction,
-  fetchTransactions,
-  type TransactionEntryType,
-} from '@/lib/transactions'
+import { createTransaction, type TransactionEntryType } from '@/lib/transactions'
 
 const inputClass =
   'w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500'
@@ -200,16 +196,17 @@ export default function TransactionFormModal({
         })
         uploadIds.push(item.id)
       }
-      if (pendingFiles.length > 0) {
-        await uploadPendingTransactionFiles(uploadIds, pendingFiles)
-      }
-      // Warm / refresh list cache in background (no full invalidate flash).
-      void fetchTransactions({ force: true }).catch(() => {})
+      const filesToUpload = pendingFiles
+      setPendingFiles([])
+      setSubmitting(false)
       onClose()
       onSaved?.()
+      // Files + any extra refresh stay off the critical save path.
+      if (filesToUpload.length > 0) {
+        void uploadPendingTransactionFiles(uploadIds, filesToUpload).catch(() => {})
+      }
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Save failed')
-    } finally {
       setSubmitting(false)
     }
   }

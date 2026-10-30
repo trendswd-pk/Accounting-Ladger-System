@@ -6,8 +6,8 @@ Accounting Ledger helps small businesses keep professional books: journals, acco
 
 | | |
 |---|---|
-| **Version** | 1.0.0 |
-| **Released** | 2026-10-29 |
+| **Version** | 1.0.1 |
+| **Released** | 2026-10-30 |
 | **Live demo** | Deploy pending — available on the project page when published |
 
 ## How to open the demo

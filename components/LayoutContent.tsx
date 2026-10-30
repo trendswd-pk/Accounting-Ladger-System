@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { BookOpen, Menu } from 'lucide-react'
 import Sidebar from './Sidebar'
 import RequestProfilerIcon from './RequestProfilerIcon'
@@ -16,8 +16,23 @@ import {
 import { fetchAccounts } from '@/lib/accounts'
 import { fetchTransactions } from '@/lib/transactions'
 
+const PREFETCH_ROUTES = [
+  '/',
+  '/transactions',
+  '/accounts',
+  '/cash-savings',
+  '/payable',
+  '/receivable',
+  '/expenses',
+  '/expenses/daily',
+  '/expenses/monthly',
+  '/investment',
+  '/settings',
+] as const
+
 export default function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
   const [navOpen, setNavOpen] = useState(false)
   const [profilerOpen, setProfilerOpen] = useState(false)
   const [businessName, setBusinessName] = useState(
@@ -48,6 +63,22 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
     void fetchTransactions().catch(() => {})
     void fetchAccounts().catch(() => {})
   }, [isLogin])
+
+  // Warm Next.js route payloads so sidebar / dashboard clicks feel instant.
+  useEffect(() => {
+    if (isLogin) return
+    const run = () => {
+      for (const route of PREFETCH_ROUTES) {
+        if (route !== pathname) router.prefetch(route)
+      }
+    }
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      const id = window.requestIdleCallback(run, { timeout: 2500 })
+      return () => window.cancelIdleCallback(id)
+    }
+    const t = window.setTimeout(run, 400)
+    return () => window.clearTimeout(t)
+  }, [isLogin, pathname, router])
 
   if (isLogin) {
     return <>{children}</>

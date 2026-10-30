@@ -87,7 +87,6 @@ export default function BalanceMixRibbons({
             <li key={item.key}>
               <Link
                 href={item.href}
-                prefetch={false}
                 className="group relative flex min-h-[3.75rem] items-stretch outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-800 sm:min-h-[4rem]"
               >
                 {/* Fold under ribbon */}

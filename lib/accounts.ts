@@ -63,6 +63,14 @@ export function invalidateAccountsCache(): void {
   inflight = null
 }
 
+/** Soft-update a cached account balance after a journal entry (avoids full /api/accounts reload). */
+export function adjustCachedAccountBalance(accountId: string, delta: number): void {
+  if (!cache || !accountId || !Number.isFinite(delta) || delta === 0) return
+  cache = cache.map((row) =>
+    row.id === accountId ? { ...row, balance: (Number(row.balance) || 0) + delta } : row
+  )
+}
+
 export async function fetchAccounts(options?: { force?: boolean }): Promise<AccountRecord[]> {
   const force = options?.force === true
   if (!force && cache) {

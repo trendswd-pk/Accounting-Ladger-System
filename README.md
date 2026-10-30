@@ -83,7 +83,7 @@ See [`.env.example`](.env.example) for variables. Optional: `JWT_SECRET`, `CRON_
 
 ## Version
 
-**1.0.0** (2026-10-29) — see [`Documentation/APP-VERSION.md`](Documentation/APP-VERSION.md) and [`Documentation/CHANGELOG.md`](Documentation/CHANGELOG.md).
+**1.0.1** (2026-10-30) — see [`Documentation/APP-VERSION.md`](Documentation/APP-VERSION.md) and [`Documentation/CHANGELOG.md`](Documentation/CHANGELOG.md).
 
 ## License / contact
 

@@ -1,4 +1,4 @@
-import { invalidateAccountsCache } from '@/lib/accounts'
+import { adjustCachedAccountBalance } from '@/lib/accounts'
 import { recordRequestDeduped } from '@/lib/requestProfiler'
 
 export type TransactionEntryType = 'credit' | 'debit'
@@ -121,7 +121,8 @@ export async function createTransaction(input: TransactionInput): Promise<Transa
   // Only prepend when we already have a full list cached; otherwise leave
   // cache null so the next fetchTransactions() loads the complete set.
   if (cache) cache = [item, ...cache]
-  invalidateAccountsCache()
+  // Soft balance update — do not wipe accounts cache (full reload is slow).
+  adjustCachedAccountBalance(item.accountId, signedTransactionAmount(item))
   return item
 }
 
@@ -129,6 +130,7 @@ export async function updateTransaction(
   id: string,
   input: TransactionInput
 ): Promise<TransactionRecord> {
+  const prev = cache?.find((r) => r.id === id)
   const res = await fetch(`${ENDPOINT}/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -138,14 +140,20 @@ export async function updateTransaction(
   if (!res.ok) throw new Error(data.error || 'Failed to update transaction')
   const item = data.item as TransactionRecord
   cache = (cache ?? []).map((r) => (r.id === item.id ? item : r))
-  invalidateAccountsCache()
+  if (prev) {
+    adjustCachedAccountBalance(prev.accountId, -signedTransactionAmount(prev))
+  }
+  adjustCachedAccountBalance(item.accountId, signedTransactionAmount(item))
   return item
 }
 
 export async function deleteTransaction(id: string): Promise<void> {
+  const prev = cache?.find((r) => r.id === id)
   const res = await fetch(`${ENDPOINT}/${id}`, { method: 'DELETE' })
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error((data as { error?: string }).error || 'Failed to delete transaction')
   cache = (cache ?? []).filter((r) => r.id !== id)
-  invalidateAccountsCache()
+  if (prev) {
+    adjustCachedAccountBalance(prev.accountId, -signedTransactionAmount(prev))
+  }
 }

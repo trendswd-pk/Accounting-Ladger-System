@@ -160,10 +160,11 @@ export async function uploadPendingTransactionFiles(
 ): Promise<void> {
   const ids = transactionIds.map((id) => String(id).trim()).filter(Boolean)
   if (ids.length === 0 || files.length === 0) return
-  for (const id of ids) {
-    const folder = transactionAttachmentFolder(id)
-    for (const file of files) {
-      await uploadFileToR2(file, { folder })
-    }
-  }
+  // Parallel uploads — save UX no longer awaits this path for closing the modal.
+  await Promise.all(
+    ids.flatMap((id) => {
+      const folder = transactionAttachmentFolder(id)
+      return files.map((file) => uploadFileToR2(file, { folder }))
+    })
+  )
 }

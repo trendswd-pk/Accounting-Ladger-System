@@ -20,6 +20,7 @@ import TransactionDocumentsPanel from '@/components/TransactionDocumentsPanel'
 import TransactionFormAttachments, {
   uploadPendingTransactionFiles,
 } from '@/components/TransactionFormAttachments'
+import { isExpenseAccount } from '@/lib/accountFilters'
 import { fetchAccounts, getCachedAccounts, type AccountRecord } from '@/lib/accounts'
 import {
   DEFAULT_APP_SETTINGS,
@@ -33,7 +34,6 @@ import {
   transactionMessageVars,
 } from '@/lib/messageTemplates'
 import { formatMoney } from '@/lib/money'
-import { exportTransactionPdf } from '@/lib/transactionExport'
 import {
   createTransaction,
   deleteTransaction,
@@ -104,6 +104,9 @@ function TransactionsPageInner() {
   const accountIdFilter = searchParams.get('accountId')?.trim() || ''
   const dateFromParam = searchParams.get('dateFrom')?.trim() || ''
   const dateToParam = searchParams.get('dateTo')?.trim() || ''
+  const expenseOnly =
+    searchParams.get('expenseOnly') === '1' ||
+    searchParams.get('expenseOnly')?.toLowerCase() === 'true'
   const returnTo = safeReturnPath(searchParams.get('from'))
 
   const cached = getCachedTransactions()
@@ -243,10 +246,21 @@ function TransactionsPageInner() {
     )
   }, [accountIdFilter, accounts, rows])
 
+  const expenseAccountIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const a of accounts) {
+      if (isExpenseAccount(a)) ids.add(a.id)
+    }
+    return ids
+  }, [accounts])
+
   const filteredRows = useMemo(() => {
     let list = rows
     if (accountIdFilter) {
       list = list.filter((row) => row.accountId === accountIdFilter)
+    } else if (expenseOnly && expenseAccountIds.size > 0) {
+      // Today / Yesterday Expense cards: only entries on Expense-type accounts.
+      list = list.filter((row) => expenseAccountIds.has(row.accountId))
     }
     if (dateFrom) {
       list = list.filter((row) => row.transactionDate >= dateFrom)
@@ -273,16 +287,17 @@ function TransactionsPageInner() {
         .toLowerCase()
       return haystack.includes(q)
     })
-  }, [rows, searchQuery, accountIdFilter, dateFrom, dateTo, typeFilter])
+  }, [rows, searchQuery, accountIdFilter, expenseOnly, expenseAccountIds, dateFrom, dateTo, typeFilter])
 
   const activeFilterCount = useMemo(() => {
     let n = 0
     if (accountIdFilter) n += 1
+    else if (expenseOnly) n += 1
     if (dateFrom) n += 1
     if (dateTo) n += 1
     if (typeFilter) n += 1
     return n
-  }, [accountIdFilter, dateFrom, dateTo, typeFilter])
+  }, [accountIdFilter, expenseOnly, dateFrom, dateTo, typeFilter])
 
   const totalItems = filteredRows.length
   const totalPages = Math.max(1, Math.ceil(totalItems / listPageSize) || 1)
@@ -293,7 +308,7 @@ function TransactionsPageInner() {
 
   useEffect(() => {
     setPage(1)
-  }, [searchQuery, accountIdFilter, dateFrom, dateTo, typeFilter])
+  }, [searchQuery, accountIdFilter, expenseOnly, dateFrom, dateTo, typeFilter])
 
   useEffect(() => {
     if (!filterOpen) return
@@ -485,7 +500,6 @@ function TransactionsPageInner() {
 
     setSubmitting(true)
     setFormError(null)
-    setLoading(true)
     try {
       const uploadIds: string[] = []
       if (editingId) {
@@ -499,7 +513,7 @@ function TransactionsPageInner() {
         setRows((prev) => prev.map((r) => (r.id === item.id ? item : r)))
         uploadIds.push(item.id)
       } else if (isTransfer) {
-        // Two independent entries: debit from Out, credit to In (not linked).
+        // Debit from Out, then credit to In (sequential to keep client cache consistent).
         const debitItem = await createTransaction({
           transactionDate,
           accountId: fromAccountId,
@@ -529,17 +543,18 @@ function TransactionsPageInner() {
         setPage(1)
         uploadIds.push(item.id)
       }
-      if (pendingFiles.length > 0) {
-        await uploadPendingTransactionFiles(uploadIds, pendingFiles)
-      }
+      const filesToUpload = pendingFiles
       setPendingFiles([])
       setModalOpen(false)
       setEditingId(null)
+      setSubmitting(false)
+      // Attachments after close — do not block the quick entry UX.
+      if (filesToUpload.length > 0) {
+        void uploadPendingTransactionFiles(uploadIds, filesToUpload).catch(() => {})
+      }
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Save failed')
-    } finally {
       setSubmitting(false)
-      setLoading(false)
     }
   }
 
@@ -590,6 +605,8 @@ function TransactionsPageInner() {
     setListError(null)
     try {
       const account = accounts.find((a) => a.id === row.accountId) ?? null
+      // Lazy-load pdf-lib only when exporting (keeps /transactions chunk small & nav faster).
+      const { exportTransactionPdf } = await import('@/lib/transactionExport')
       await exportTransactionPdf(row, {
         currency,
         businessName,
@@ -756,6 +773,11 @@ function TransactionsPageInner() {
               <>
                 Account:{' '}
                 <span className="font-semibold">{filteredAccountName ?? 'selected'}</span>
+                {(dateFrom || dateTo || typeFilter || expenseOnly) && ' · '}
+              </>
+            ) : expenseOnly ? (
+              <>
+                Accounts: <span className="font-semibold">Expense only</span>
                 {(dateFrom || dateTo || typeFilter) && ' · '}
               </>
             ) : null}

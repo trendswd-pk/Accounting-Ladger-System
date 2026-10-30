@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   Banknote,
   Briefcase,
@@ -88,6 +89,7 @@ function scheduleIdle(cb: () => void): () => void {
 }
 
 export default function DashboardHome() {
+  const router = useRouter()
   const cachedAccounts = getCachedAccounts()
   const cachedSummary = getCachedDashboardExpenseSummary()
   const [accounts, setAccounts] = useState<AccountRecord[]>(() => cachedAccounts ?? [])
@@ -130,14 +132,22 @@ export default function DashboardHome() {
   }, [])
 
   const refreshDashboard = useCallback(async () => {
-    try {
-      const items = await fetchAccounts({ force: true })
-      setAccounts(items)
+    // Prefer soft-updated accounts cache (instant). Reconcile from API in background.
+    const soft = getCachedAccounts()
+    if (soft) {
+      setAccounts(soft)
       setReady(true)
-    } catch {
-      /* keep current */
     }
-    await loadSummary(true)
+    void (async () => {
+      try {
+        const items = await fetchAccounts({ force: true })
+        setAccounts(items)
+        setReady(true)
+      } catch {
+        /* keep soft / current */
+      }
+    })()
+    void loadSummary(true)
   }, [loadSummary])
 
   useEffect(() => {
@@ -309,7 +319,7 @@ export default function DashboardHome() {
       value: summaryReady ? formatMoney(todayExpense, currency) : '—',
       icon: Calendar,
       valueClassName: summaryReady ? expenseColorClass(todayExpense) : undefined,
-      href: `/transactions?dateFrom=${encodeURIComponent(todayIso)}&dateTo=${encodeURIComponent(todayIso)}&from=${encodeURIComponent('/')}`,
+      href: `/transactions?dateFrom=${encodeURIComponent(todayIso)}&dateTo=${encodeURIComponent(todayIso)}&expenseOnly=1&from=${encodeURIComponent('/')}`,
     },
     {
       name: 'Yesterday Expense',
@@ -318,9 +328,23 @@ export default function DashboardHome() {
       valueClassName: summaryReady
         ? expenseColorClass(yesterdayExpense)
         : undefined,
-      href: `/transactions?dateFrom=${encodeURIComponent(yesterdayIso)}&dateTo=${encodeURIComponent(yesterdayIso)}&from=${encodeURIComponent('/')}`,
+      href: `/transactions?dateFrom=${encodeURIComponent(yesterdayIso)}&dateTo=${encodeURIComponent(yesterdayIso)}&expenseOnly=1&from=${encodeURIComponent('/')}`,
     },
   ]
+
+  // Prefetch card targets (incl. Today/Yesterday query URLs) once per day key.
+  useEffect(() => {
+    const hrefs = [
+      '/expenses',
+      '/cash-savings',
+      '/payable',
+      '/receivable',
+      '/investment',
+      `/transactions?dateFrom=${encodeURIComponent(todayIso)}&dateTo=${encodeURIComponent(todayIso)}&expenseOnly=1&from=${encodeURIComponent('/')}`,
+      `/transactions?dateFrom=${encodeURIComponent(yesterdayIso)}&dateTo=${encodeURIComponent(yesterdayIso)}&expenseOnly=1&from=${encodeURIComponent('/')}`,
+    ]
+    for (const href of hrefs) router.prefetch(href)
+  }, [router, todayIso, yesterdayIso])
 
   return (
     <div className="w-full p-4 lg:p-8">
@@ -420,12 +444,7 @@ export default function DashboardHome() {
             </div>
           )
           return card.href ? (
-            <Link
-              key={card.name}
-              href={card.href}
-              prefetch={false}
-              className={className}
-            >
+            <Link key={card.name} href={card.href} className={className}>
               {body}
             </Link>
           ) : (

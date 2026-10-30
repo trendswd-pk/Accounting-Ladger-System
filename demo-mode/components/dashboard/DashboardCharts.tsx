@@ -79,7 +79,6 @@ function ChartCard({
         {href ? (
           <Link
             href={href}
-            prefetch={false}
             className="shrink-0 text-xs font-medium text-primary-600 hover:underline dark:text-primary-400"
           >
             View

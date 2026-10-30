@@ -102,6 +102,13 @@ export function invalidateAccountsCache(): void {
   inflight = null
 }
 
+export function adjustCachedAccountBalance(accountId: string, delta: number): void {
+  if (!cache || !accountId || !Number.isFinite(delta) || delta === 0) return
+  cache = cache.map((row) =>
+    row.id === accountId ? { ...row, balance: (Number(row.balance) || 0) + delta } : row
+  )
+}
+
 function listAccountsFromStore(): AccountRecord[] {
   requireDemoUser()
   const balances = balancesByAccountId()
