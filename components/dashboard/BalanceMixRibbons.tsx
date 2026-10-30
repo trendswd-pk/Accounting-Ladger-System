@@ -2,7 +2,10 @@
 
 import Link from 'next/link'
 import {
+  ArrowDown,
+  ArrowUp,
   Banknote,
+  Minus,
   TrendingDown,
   TrendingUp,
   Wallet,
@@ -16,6 +19,10 @@ export type BalanceMixRibbonItem = {
   value: number
   href: string
   pct: number
+  /** Absolute change in displayed mix amount vs end of yesterday */
+  dayDelta?: number
+  /** Percent change vs yesterday's displayed amount */
+  dayDeltaPct?: number
 }
 
 const RIBBON_THEMES = [
@@ -65,7 +72,15 @@ type BalanceMixRibbonsProps = {
 
 function formatPct(pct: number): string {
   const n = Math.max(0, pct)
-  return `${n % 1 === 0 ? n.toFixed(0) : n.toFixed(1)}%`
+  return `${n.toFixed(2)}%`
+}
+
+function formatDayDeltaPct(pct: number): string {
+  const abs = Math.abs(pct)
+  const body = abs >= 10 ? abs.toFixed(1) : abs.toFixed(2)
+  if (pct > 0) return `+${body}%`
+  if (pct < 0) return `-${body}%`
+  return '0%'
 }
 
 export default function BalanceMixRibbons({
@@ -76,18 +91,27 @@ export default function BalanceMixRibbons({
   if (items.length === 0) return null
 
   return (
-    <div className="space-y-4">
-      <ul className="space-y-3.5">
+    <div className="min-w-0 space-y-3 sm:space-y-4">
+      <ul className="min-w-0 space-y-3 sm:space-y-3.5">
         {items.map((item, index) => {
           const theme = RIBBON_THEMES[index % RIBBON_THEMES.length]!
           const Icon: LucideIcon = theme.icon
-          const num = String(index + 1).padStart(2, '0')
+          const dayDelta = item.dayDelta ?? 0
+          const dayDeltaPct = item.dayDeltaPct ?? 0
+          const trend =
+            dayDelta > 0 ? 'up' : dayDelta < 0 ? 'down' : 'flat'
+          const trendTitle =
+            trend === 'flat'
+              ? 'No change vs yesterday'
+              : `${formatMoney(Math.abs(dayDelta), currency)} ${
+                  trend === 'up' ? 'up' : 'down'
+                } vs yesterday`
 
           return (
-            <li key={item.key}>
+            <li key={item.key} className="min-w-0">
               <Link
                 href={item.href}
-                className="group relative flex min-h-[3.75rem] items-stretch outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-800 sm:min-h-[4rem]"
+                className="group relative flex min-h-[3.5rem] w-full min-w-0 max-w-full items-stretch overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-800 sm:min-h-[4rem]"
               >
                 {/* Fold under ribbon */}
                 <span
@@ -101,9 +125,9 @@ export default function BalanceMixRibbons({
                   aria-hidden
                 />
 
-                {/* Number ribbon */}
+                {/* Category icon ribbon (replaces 01/02/…) */}
                 <span
-                  className="relative z-20 flex w-12 shrink-0 items-center justify-center self-stretch rounded-l-md sm:w-[3.25rem]"
+                  className="relative z-20 flex w-10 shrink-0 items-center justify-center self-stretch rounded-l-md sm:w-[3.25rem]"
                   style={{
                     background: `linear-gradient(160deg, ${theme.from} 0%, ${theme.to} 100%)`,
                     clipPath: 'polygon(0 0, 100% 0, 78% 100%, 0 100%)',
@@ -112,45 +136,59 @@ export default function BalanceMixRibbons({
                   }}
                   aria-hidden
                 >
-                  <span className="pr-1 text-[15px] font-light tracking-wide text-white sm:text-lg">
-                    {num}
-                  </span>
+                  <Icon
+                    className="mr-1 h-4 w-4 text-white sm:h-[1.15rem] sm:w-[1.15rem]"
+                    strokeWidth={1.85}
+                  />
                 </span>
 
                 {/* Body */}
                 <div
-                  className="relative z-10 -ml-4 flex min-w-0 flex-1 items-center gap-2.5 bg-white py-2.5 pl-6 pr-8 shadow-[0_3px_12px_rgba(15,23,42,0.12),0_1px_2px_rgba(15,23,42,0.06)] transition-shadow group-hover:shadow-lg dark:bg-gray-700 dark:shadow-[0_4px_16px_rgba(0,0,0,0.45),inset_0_0_0_1px_rgba(255,255,255,0.06)] dark:group-hover:shadow-[0_6px_20px_rgba(0,0,0,0.55),inset_0_0_0_1px_rgba(255,255,255,0.1)] sm:-ml-5 sm:pl-7 sm:pr-10"
+                  className="relative z-10 -ml-3 flex min-w-0 flex-1 items-center gap-2 bg-white py-2 pl-4 pr-6 shadow-[0_3px_12px_rgba(15,23,42,0.12),0_1px_2px_rgba(15,23,42,0.06)] transition-shadow group-hover:shadow-lg dark:bg-gray-700 dark:shadow-[0_4px_16px_rgba(0,0,0,0.45),inset_0_0_0_1px_rgba(255,255,255,0.06)] dark:group-hover:shadow-[0_6px_20px_rgba(0,0,0,0.55),inset_0_0_0_1px_rgba(255,255,255,0.1)] sm:-ml-5 sm:gap-2.5 sm:py-2.5 sm:pl-7 sm:pr-10"
                   style={{
                     clipPath:
-                      'polygon(0 0, calc(100% - 18px) 0, 100% 50%, calc(100% - 18px) 100%, 0 100%)',
+                      'polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%)',
                   }}
                 >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-bold uppercase tracking-[0.04em] text-slate-800 dark:text-gray-100 sm:text-[13px]">
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <p className="truncate text-[11px] font-bold uppercase tracking-[0.04em] text-slate-800 dark:text-gray-100 sm:text-[13px]">
                       {item.name}
                     </p>
-                    <p className="mt-0.5 truncate text-[11px] leading-snug text-slate-500 dark:text-gray-400 sm:text-xs">
-                      {formatPct(item.pct)} of mix ·{' '}
+                    <p className="mt-0.5 truncate text-[10px] leading-snug text-slate-500 dark:text-gray-400 sm:text-xs">
+                      <span className="sm:hidden">{formatPct(item.pct)}</span>
+                      <span className="hidden sm:inline">
+                        {formatPct(item.pct)} of mix
+                      </span>
+                      {' · '}
                       <span className="tabular-nums font-medium text-slate-600 dark:text-gray-300">
                         {formatMoney(item.value, currency)}
                       </span>
                     </p>
                   </div>
 
+                  {/* Day-over-day vs yesterday */}
                   <span
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black/[0.05] dark:bg-white/10 sm:h-9 sm:w-9"
-                    aria-hidden
+                    className={[
+                      'mr-0.5 flex shrink-0 flex-col items-center justify-center gap-0.5 sm:mr-1',
+                      trend === 'up'
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : trend === 'down'
+                          ? 'text-red-600 dark:text-red-400'
+                          : 'text-slate-400 dark:text-gray-500',
+                    ].join(' ')}
+                    title={trendTitle}
+                    aria-label={trendTitle}
                   >
-                    <Icon
-                      className="h-4 w-4 dark:hidden sm:h-[1.15rem] sm:w-[1.15rem]"
-                      style={{ color: theme.iconLight }}
-                      strokeWidth={1.6}
-                    />
-                    <Icon
-                      className="hidden h-4 w-4 dark:block sm:h-[1.15rem] sm:w-[1.15rem]"
-                      style={{ color: theme.iconDark }}
-                      strokeWidth={1.6}
-                    />
+                    {trend === 'up' ? (
+                      <ArrowUp className="h-3 w-3 sm:h-3.5 sm:w-3.5" strokeWidth={2.4} aria-hidden />
+                    ) : trend === 'down' ? (
+                      <ArrowDown className="h-3 w-3 sm:h-3.5 sm:w-3.5" strokeWidth={2.4} aria-hidden />
+                    ) : (
+                      <Minus className="h-3 w-3 sm:h-3.5 sm:w-3.5" strokeWidth={2.4} aria-hidden />
+                    )}
+                    <span className="text-[9px] font-semibold leading-none tabular-nums tracking-tight sm:text-[11px]">
+                      {formatDayDeltaPct(dayDeltaPct)}
+                    </span>
                   </span>
                 </div>
               </Link>
@@ -159,9 +197,9 @@ export default function BalanceMixRibbons({
         })}
       </ul>
 
-      <p className="flex items-baseline justify-end gap-1.5 border-t border-gray-100 pt-3 text-[10px] uppercase tracking-wider text-gray-400 dark:border-gray-700 dark:text-gray-500">
+      <p className="flex min-w-0 items-baseline justify-end gap-1.5 overflow-hidden border-t border-gray-100 pt-2.5 text-[10px] uppercase tracking-wider text-gray-400 dark:border-gray-700 dark:text-gray-500 sm:pt-3">
         Total
-        <span className="text-sm font-semibold normal-case tracking-normal tabular-nums text-gray-900 dark:text-gray-100">
+        <span className="truncate text-sm font-semibold normal-case tracking-normal tabular-nums text-gray-900 dark:text-gray-100">
           {formatMoney(total, currency)}
         </span>
       </p>

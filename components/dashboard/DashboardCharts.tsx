@@ -39,6 +39,15 @@ type MixSlice = {
   value: number
   href: string
   pct: number
+  dayDelta: number
+  dayDeltaPct: number
+}
+
+export type BalanceMixDayNets = {
+  pocket: number
+  cash: number
+  recv: number
+  pay: number
 }
 
 type DashboardChartsProps = {
@@ -49,7 +58,31 @@ type DashboardChartsProps = {
   cashSavings: number
   payable: number
   receivable: number
+  /** Today's signed net change per mix bucket (current − yesterday) */
+  mixDayNets?: BalanceMixDayNets
   summary: DashboardExpenseSummary | null
+}
+
+/** Displayed mix amount change vs end of yesterday. */
+function mixDayChange(
+  rawToday: number,
+  todayNet: number,
+  mode: 'clamp0' | 'abs'
+): { dayDelta: number; dayDeltaPct: number } {
+  const rawYesterday = rawToday - todayNet
+  const today = mode === 'abs' ? Math.abs(rawToday) : Math.max(0, rawToday)
+  const yesterday =
+    mode === 'abs' ? Math.abs(rawYesterday) : Math.max(0, rawYesterday)
+  const dayDelta = today - yesterday
+  const dayDeltaPct =
+    yesterday === 0
+      ? dayDelta === 0
+        ? 0
+        : dayDelta > 0
+          ? 100
+          : -100
+      : (dayDelta / yesterday) * 100
+  return { dayDelta, dayDeltaPct }
 }
 
 function ChartCard({
@@ -64,14 +97,14 @@ function ChartCard({
   children: React.ReactNode
 }) {
   return (
-    <section className="flex min-h-[16rem] flex-col rounded-xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-5">
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <div className="min-w-0">
+    <section className="flex min-h-0 min-w-0 w-full flex-col overflow-hidden rounded-xl border border-gray-100 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-5">
+      <div className="mb-2 flex items-start justify-between gap-2 sm:mb-3">
+        <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
             {title}
           </h2>
           {subtitle ? (
-            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+            <p className="mt-0.5 break-words text-xs leading-snug text-gray-500 dark:text-gray-400">
               {subtitle}
             </p>
           ) : null}
@@ -85,8 +118,45 @@ function ChartCard({
           </Link>
         ) : null}
       </div>
-      <div className="min-h-[14rem] flex-1">{children}</div>
+      <div className="min-h-0 min-w-0 w-full flex-1 overflow-x-hidden">
+        {children}
+      </div>
     </section>
+  )
+}
+
+/** Fixed-height chart shell so ResponsiveContainer gets a real size on mobile. */
+function ChartFrame({
+  children,
+  className = 'h-[15.5rem] sm:h-[16.5rem]',
+}: {
+  children: React.ReactNode
+  className?: string
+}) {
+  return <div className={`w-full min-w-0 ${className}`}>{children}</div>
+}
+
+function WrapLegend(props: {
+  payload?: Array<{ value?: string; color?: string }>
+}) {
+  const payload = props.payload ?? []
+  if (payload.length === 0) return null
+  return (
+    <ul className="flex max-w-full flex-wrap items-center justify-center gap-x-3 gap-y-1 px-1 pt-1">
+      {payload.map((entry, i) => (
+        <li
+          key={`${entry.value ?? 'item'}-${i}`}
+          className="flex max-w-full items-center gap-1.5 text-[10px] text-gray-500 dark:text-gray-400 sm:text-[11px]"
+        >
+          <span
+            className="h-2 w-2 shrink-0 rounded-sm"
+            style={{ backgroundColor: entry.color }}
+            aria-hidden
+          />
+          <span className="truncate">{entry.value}</span>
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -127,6 +197,7 @@ export default function DashboardCharts({
   cashSavings,
   payable,
   receivable,
+  mixDayNets,
   summary,
 }: DashboardChartsProps) {
   const router = useRouter()
@@ -162,37 +233,43 @@ export default function DashboardCharts({
   )
 
   const mixData = useMemo((): MixSlice[] => {
+    const nets = mixDayNets ?? { pocket: 0, cash: 0, recv: 0, pay: 0 }
     // Fixed order: Pocket → Savings → Receivable → Payable
-    return [
+    const rows: Omit<MixSlice, 'pct'>[] = [
       {
         key: 'pocket',
         name: 'Cash in Pocket',
         value: Math.max(0, cashInPocket),
         href: '/',
+        ...mixDayChange(cashInPocket, nets.pocket, 'clamp0'),
       },
       {
         key: 'cash',
         name: 'Cash & Savings',
         value: Math.max(0, cashSavings),
         href: '/cash-savings',
+        ...mixDayChange(cashSavings, nets.cash, 'clamp0'),
       },
       {
         key: 'recv',
         name: 'Receivable',
         value: Math.max(0, receivable),
         href: '/receivable',
+        ...mixDayChange(receivable, nets.recv, 'clamp0'),
       },
       {
         key: 'pay',
         name: 'Payable',
         value: Math.abs(payable),
         href: '/payable',
+        ...mixDayChange(payable, nets.pay, 'abs'),
       },
-    ].map((s) => ({
+    ]
+    return rows.map((s) => ({
       ...s,
-      pct: mixTotal > 0 ? Math.round((s.value / mixTotal) * 1000) / 10 : 0,
+      pct: mixTotal > 0 ? Math.round((s.value / mixTotal) * 10000) / 100 : 0,
     }))
-  }, [cashInPocket, cashSavings, payable, receivable, mixTotal])
+  }, [cashInPocket, cashSavings, payable, receivable, mixTotal, mixDayNets])
 
   const monthlyExpenseData = summary?.monthly ?? []
   const monthlySeries = summary?.monthlySeries ?? []
@@ -202,11 +279,11 @@ export default function DashboardCharts({
 
   if (!ready) {
     return (
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      <div className="mt-6 grid min-w-0 gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         {Array.from({ length: 4 }, (_, i) => (
           <div
             key={i}
-            className="h-64 animate-pulse rounded-xl border border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800"
+            className="h-64 min-w-0 animate-pulse rounded-xl border border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800"
           />
         ))}
       </div>
@@ -214,11 +291,11 @@ export default function DashboardCharts({
   }
 
   return (
-    <div className="mt-6 space-y-4">
-      <div className="grid gap-4 lg:grid-cols-2">
+    <div className="mt-6 min-w-0 space-y-4">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <ChartCard
           title="Balance mix"
-          subtitle="Cash in Pocket, Cash & Savings, Receivable and Payable"
+          subtitle="Pocket · Savings · Receivable · Payable · vs yesterday"
         >
           <BalanceMixRibbons items={mixData} currency={currency} total={mixTotal} />
         </ChartCard>
@@ -229,142 +306,153 @@ export default function DashboardCharts({
           href="/expenses/monthly"
         >
           {!summaryReady ? (
-            <div className="h-full min-h-[14rem] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-700/50" />
+            <div className="h-[15.5rem] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-700/50 sm:h-[16.5rem]" />
           ) : (
-            <ResponsiveContainer width="100%" height="100%" minHeight={240}>
-              <ComposedChart
-                data={monthlyExpenseData}
-                margin={{ top: 8, right: 8, left: 0, bottom: 4 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  className="stroke-gray-200 dark:stroke-gray-700"
-                />
-                <XAxis
-                  dataKey="label"
-                  tick={{ fontSize: 11, fill: '#9ca3af' }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fontSize: 11, fill: '#9ca3af' }}
-                  axisLine={false}
-                  tickLine={false}
-                  width={48}
-                  tickFormatter={(v) =>
-                    Math.abs(Number(v)) >= 1000
-                      ? `${Math.round(Number(v) / 1000)}k`
-                      : String(v)
-                  }
-                />
-                <Tooltip content={<ChartTooltip currency={currency} />} />
-                <Legend
-                  verticalAlign="bottom"
-                  height={36}
-                  wrapperStyle={{ fontSize: 11, paddingTop: 4 }}
-                />
-                {monthlySeries.length > 0 ? (
-                  monthlySeries.map((s, i) => (
+            <ChartFrame className="h-[16.5rem] sm:h-[17.5rem]">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart
+                  data={monthlyExpenseData}
+                  margin={{ top: 4, right: 4, left: -8, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    className="stroke-gray-200 dark:stroke-gray-700"
+                  />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 10, fill: '#9ca3af' }}
+                    axisLine={false}
+                    tickLine={false}
+                    interval={0}
+                    height={28}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 10, fill: '#9ca3af' }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={36}
+                    tickFormatter={(v) =>
+                      Math.abs(Number(v)) >= 1000
+                        ? `${Math.round(Number(v) / 1000)}k`
+                        : String(v)
+                    }
+                  />
+                  <Tooltip content={<ChartTooltip currency={currency} />} />
+                  <Legend
+                    verticalAlign="bottom"
+                    content={<WrapLegend />}
+                    wrapperStyle={{ width: '100%', paddingTop: 2 }}
+                  />
+                  {monthlySeries.length > 0 ? (
+                    monthlySeries.map((s, i) => (
+                      <Bar
+                        key={s.key}
+                        dataKey={s.key}
+                        name={s.name}
+                        stackId="accounts"
+                        fill={ACCOUNT_SERIES_COLORS[i % ACCOUNT_SERIES_COLORS.length]}
+                        radius={
+                          i === monthlySeries.length - 1
+                            ? [6, 6, 0, 0]
+                            : [0, 0, 0, 0]
+                        }
+                        maxBarSize={28}
+                        isAnimationActive={false}
+                      />
+                    ))
+                  ) : (
                     <Bar
-                      key={s.key}
-                      dataKey={s.key}
-                      name={s.name}
-                      stackId="accounts"
-                      fill={ACCOUNT_SERIES_COLORS[i % ACCOUNT_SERIES_COLORS.length]}
-                      radius={
-                        i === monthlySeries.length - 1 ? [6, 6, 0, 0] : [0, 0, 0, 0]
-                      }
-                      maxBarSize={36}
+                      dataKey="expense"
+                      name="Total"
+                      fill="#f59e0b"
+                      radius={[6, 6, 0, 0]}
+                      maxBarSize={28}
                       isAnimationActive={false}
                     />
-                  ))
-                ) : (
-                  <Bar
-                    dataKey="expense"
-                    name="Total"
-                    fill="#f59e0b"
-                    radius={[6, 6, 0, 0]}
-                    maxBarSize={36}
-                    isAnimationActive={false}
-                  />
-                )}
-              </ComposedChart>
-            </ResponsiveContainer>
+                  )}
+                </ComposedChart>
+              </ResponsiveContainer>
+            </ChartFrame>
           )}
         </ChartCard>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <ChartCard
           title="Daily expenses"
           subtitle={`${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][new Date().getMonth()]} · this month · accounts + total`}
           href="/expenses/daily"
         >
           {!summaryReady ? (
-            <div className="h-full min-h-[14rem] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-700/50" />
+            <div className="h-[15.5rem] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-700/50 sm:h-[16.5rem]" />
           ) : (
-            <ResponsiveContainer width="100%" height="100%" minHeight={240}>
-              <ComposedChart
-                data={dailyExpenseData}
-                margin={{ top: 8, right: 8, left: 0, bottom: 4 }}
-              >
-                <defs>
-                  <linearGradient id="expenseArea" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#ef4444" stopOpacity={0.28} />
-                    <stop offset="100%" stopColor="#ef4444" stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  className="stroke-gray-200 dark:stroke-gray-700"
-                />
-                <XAxis
-                  dataKey="day"
-                  tick={{ fontSize: 10, fill: '#9ca3af' }}
-                  axisLine={false}
-                  tickLine={false}
-                  interval="preserveStartEnd"
-                />
-                <YAxis
-                  tick={{ fontSize: 11, fill: '#9ca3af' }}
-                  axisLine={false}
-                  tickLine={false}
-                  width={48}
-                  tickFormatter={(v) =>
-                    Math.abs(Number(v)) >= 1000
-                      ? `${Math.round(Number(v) / 1000)}k`
-                      : String(v)
-                  }
-                />
-                <Tooltip content={<ChartTooltip currency={currency} />} />
-                <Legend
-                  verticalAlign="bottom"
-                  height={36}
-                  wrapperStyle={{ fontSize: 11, paddingTop: 4 }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="expense"
-                  name="Total"
-                  stroke="#ef4444"
-                  fill="url(#expenseArea)"
-                  strokeWidth={2.5}
-                  isAnimationActive={false}
-                />
-                {dailySeries.map((s, i) => (
-                  <Line
-                    key={s.key}
+            <ChartFrame className="h-[16.5rem] sm:h-[17.5rem]">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart
+                  data={dailyExpenseData}
+                  margin={{ top: 4, right: 4, left: -8, bottom: 0 }}
+                >
+                  <defs>
+                    <linearGradient id="expenseArea" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#ef4444" stopOpacity={0.28} />
+                      <stop offset="100%" stopColor="#ef4444" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    className="stroke-gray-200 dark:stroke-gray-700"
+                  />
+                  <XAxis
+                    dataKey="day"
+                    tick={{ fontSize: 10, fill: '#9ca3af' }}
+                    axisLine={false}
+                    tickLine={false}
+                    interval="preserveStartEnd"
+                    height={28}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 10, fill: '#9ca3af' }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={36}
+                    tickFormatter={(v) =>
+                      Math.abs(Number(v)) >= 1000
+                        ? `${Math.round(Number(v) / 1000)}k`
+                        : String(v)
+                    }
+                  />
+                  <Tooltip content={<ChartTooltip currency={currency} />} />
+                  <Legend
+                    verticalAlign="bottom"
+                    content={<WrapLegend />}
+                    wrapperStyle={{ width: '100%', paddingTop: 2 }}
+                  />
+                  <Area
                     type="monotone"
-                    dataKey={s.key}
-                    name={s.name}
-                    stroke={ACCOUNT_SERIES_COLORS[i % ACCOUNT_SERIES_COLORS.length]}
-                    strokeWidth={1.75}
-                    dot={false}
+                    dataKey="expense"
+                    name="Total"
+                    stroke="#ef4444"
+                    fill="url(#expenseArea)"
+                    strokeWidth={2.5}
                     isAnimationActive={false}
                   />
-                ))}
-              </ComposedChart>
-            </ResponsiveContainer>
+                  {dailySeries.map((s, i) => (
+                    <Line
+                      key={s.key}
+                      type="monotone"
+                      dataKey={s.key}
+                      name={s.name}
+                      stroke={
+                        ACCOUNT_SERIES_COLORS[i % ACCOUNT_SERIES_COLORS.length]
+                      }
+                      strokeWidth={1.75}
+                      dot={false}
+                      isAnimationActive={false}
+                    />
+                  ))}
+                </ComposedChart>
+              </ResponsiveContainer>
+            </ChartFrame>
           )}
         </ChartCard>
 
@@ -374,59 +462,68 @@ export default function DashboardCharts({
           href="/expenses"
         >
           {!summaryReady ? (
-            <div className="h-full min-h-[14rem] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-700/50" />
+            <div className="h-[15.5rem] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-700/50 sm:h-[16.5rem]" />
           ) : topExpenseAccounts.length === 0 ? (
-            <p className="flex h-full items-center justify-center text-sm text-gray-500 dark:text-gray-400">
+            <p className="flex h-[15.5rem] items-center justify-center text-sm text-gray-500 dark:text-gray-400 sm:h-[16.5rem]">
               No expense activity this month.
             </p>
           ) : (
-            <ResponsiveContainer width="100%" height="100%" minHeight={220}>
-              <BarChart
-                data={topExpenseAccounts}
-                layout="vertical"
-                margin={{ top: 4, right: 12, left: 4, bottom: 0 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  horizontal={false}
-                  className="stroke-gray-200 dark:stroke-gray-700"
-                />
-                <XAxis
-                  type="number"
-                  tick={{ fontSize: 11, fill: '#9ca3af' }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(v) =>
-                    Math.abs(Number(v)) >= 1000
-                      ? `${Math.round(Number(v) / 1000)}k`
-                      : String(v)
-                  }
-                />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  width={88}
-                  tick={{ fontSize: 11, fill: '#9ca3af' }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip content={<ChartTooltip currency={currency} />} />
-                <Bar
-                  dataKey="total"
-                  name="Expense"
-                  fill="#0ea5e9"
-                  radius={[0, 6, 6, 0]}
-                  maxBarSize={22}
-                  isAnimationActive={false}
-                  cursor="pointer"
-                  onClick={(data) => {
-                    const point = data as { payload?: { id?: string }; id?: string }
-                    const id = point?.payload?.id ?? point?.id
-                    if (id) openAccountTransactions(id)
-                  }}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+            <ChartFrame>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={topExpenseAccounts}
+                  layout="vertical"
+                  margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    horizontal={false}
+                    className="stroke-gray-200 dark:stroke-gray-700"
+                  />
+                  <XAxis
+                    type="number"
+                    tick={{ fontSize: 10, fill: '#9ca3af' }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(v) =>
+                      Math.abs(Number(v)) >= 1000
+                        ? `${Math.round(Number(v) / 1000)}k`
+                        : String(v)
+                    }
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={72}
+                    tick={{ fontSize: 10, fill: '#9ca3af' }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(v) => {
+                      const s = String(v)
+                      return s.length > 10 ? `${s.slice(0, 9)}…` : s
+                    }}
+                  />
+                  <Tooltip content={<ChartTooltip currency={currency} />} />
+                  <Bar
+                    dataKey="total"
+                    name="Expense"
+                    fill="#0ea5e9"
+                    radius={[0, 6, 6, 0]}
+                    maxBarSize={22}
+                    isAnimationActive={false}
+                    cursor="pointer"
+                    onClick={(data) => {
+                      const point = data as {
+                        payload?: { id?: string }
+                        id?: string
+                      }
+                      const id = point?.payload?.id ?? point?.id
+                      if (id) openAccountTransactions(id)
+                    }}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartFrame>
           )}
         </ChartCard>
       </div>

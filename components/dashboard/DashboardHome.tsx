@@ -23,6 +23,12 @@ import {
   type AccountRecord,
 } from '@/lib/accounts'
 import {
+  fetchTransactions,
+  getCachedTransactions,
+  signedTransactionAmount,
+  type TransactionRecord,
+} from '@/lib/transactions'
+import {
   isCashInPocketAccount,
   isCashSavingsAccount,
   isExpenseAccount,
@@ -93,6 +99,9 @@ export default function DashboardHome() {
   const cachedAccounts = getCachedAccounts()
   const cachedSummary = getCachedDashboardExpenseSummary()
   const [accounts, setAccounts] = useState<AccountRecord[]>(() => cachedAccounts ?? [])
+  const [transactions, setTransactions] = useState<TransactionRecord[]>(
+    () => getCachedTransactions() ?? []
+  )
   const [summary, setSummary] = useState<DashboardExpenseSummary | null>(
     () => cachedSummary
   )
@@ -138,6 +147,8 @@ export default function DashboardHome() {
       setAccounts(soft)
       setReady(true)
     }
+    const softTx = getCachedTransactions()
+    if (softTx) setTransactions(softTx)
     void (async () => {
       try {
         const items = await fetchAccounts({ force: true })
@@ -147,6 +158,9 @@ export default function DashboardHome() {
         /* keep soft / current */
       }
     })()
+    void fetchTransactions({ force: true })
+      .then(setTransactions)
+      .catch(() => {})
     void loadSummary(true)
   }, [loadSummary])
 
@@ -262,6 +276,47 @@ export default function DashboardHome() {
     yesterday.setDate(yesterday.getDate() - 1)
     return { todayIso: toIso(today), yesterdayIso: toIso(yesterday) }
   }, [])
+
+  // Soft-cached transactions for balance-mix day-over-day deltas
+  useEffect(() => {
+    const hit = getCachedTransactions()
+    if (hit) setTransactions(hit)
+    let cancelled = false
+    void fetchTransactions()
+      .then((items) => {
+        if (!cancelled) setTransactions(items)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const mixDayNets = useMemo(() => {
+    const byAccount = new Map<string, number>()
+    for (const tx of transactions) {
+      if (tx.transactionDate.slice(0, 10) !== todayIso) continue
+      byAccount.set(
+        tx.accountId,
+        (byAccount.get(tx.accountId) ?? 0) + signedTransactionAmount(tx)
+      )
+    }
+    const sumNet = (list: AccountRecord[]) =>
+      list.reduce((s, a) => s + (byAccount.get(a.id) ?? 0), 0)
+    return {
+      pocket: sumNet(pocketAccounts),
+      cash: sumNet(cashSavingsAccounts),
+      recv: sumNet(receivableAccounts),
+      pay: sumNet(payableAccounts),
+    }
+  }, [
+    transactions,
+    todayIso,
+    pocketAccounts,
+    cashSavingsAccounts,
+    receivableAccounts,
+    payableAccounts,
+  ])
 
   const todayExpense = summary?.todayExpense ?? 0
   const yesterdayExpense = summary?.yesterdayExpense ?? 0
@@ -464,6 +519,7 @@ export default function DashboardHome() {
           cashSavings={cashInHandBalance}
           payable={loanBalance}
           receivable={receivableBalance}
+          mixDayNets={mixDayNets}
           summary={summary}
         />
       ) : (
