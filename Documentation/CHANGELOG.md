@@ -14,6 +14,9 @@ All notable changes to Accounting Ledger are documented here.
 - Account message settings: **Allow URL / Do not send URL** toggle for ledger PDF links, plus insertable `{{ledger_url}}` variable.
 - DB migration file for the ledger-URL setting: `database/migrations/2026-10-30_account_message_ledger_url.sql` (run in Supabase SQL editor).
 - Ledger WhatsApp links use **ad-free** first-party URLs (`/l/f/{fileId}`, or `/l/{code}` if short_links migration is applied) instead of TinyURL ads. Links are always filled into the message when Allow URL is on.
+- Transaction **Send message** now generates/saves a voucher PDF and fills **`{{pdf_url}}`** with a short public link (same Allow URL pattern as accounts).
+- Transaction message settings: **Allow URL / Do not send URL** toggle for PDF links, plus insertable `{{pdf_url}}` variable.
+- DB migration file for the transaction PDF-URL setting: `database/migrations/2026-10-30_transaction_message_pdf_url.sql` (run in Supabase SQL editor).
 
 ### Changed
 - Dashboard chart cards tighten for mobile (no horizontal overflow; wrapping legends; compact balance-mix ribbons).

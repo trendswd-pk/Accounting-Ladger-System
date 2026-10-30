@@ -146,7 +146,7 @@ type MessageNoteDrafts = {
 }
 
 type MessageTemplateSavePayload = MessageNoteDrafts & {
-  includeLedgerUrl?: boolean
+  includeShareUrl?: boolean
 }
 
 function MessageTemplateModal({
@@ -156,8 +156,10 @@ function MessageTemplateModal({
   value,
   notes,
   variables,
-  showLedgerUrlOption = false,
-  includeLedgerUrl = true,
+  showShareUrlOption = false,
+  includeShareUrl = true,
+  shareUrlVariable = 'ledger_url',
+  shareUrlTitle = 'PDF link',
   onClose,
   onSave,
 }: {
@@ -167,9 +169,11 @@ function MessageTemplateModal({
   value: string
   notes: MessageNoteDrafts
   variables: readonly { key: string; label: string }[]
-  /** Account templates only: allow/deny attaching shortened ledger PDF URL. */
-  showLedgerUrlOption?: boolean
-  includeLedgerUrl?: boolean
+  /** Allow/deny attaching a short public PDF URL to the WhatsApp message. */
+  showShareUrlOption?: boolean
+  includeShareUrl?: boolean
+  shareUrlVariable?: string
+  shareUrlTitle?: string
   onClose: () => void
   onSave: (next: string, payload: MessageTemplateSavePayload) => void
 }) {
@@ -177,7 +181,7 @@ function MessageTemplateModal({
   const [notePlus, setNotePlus] = useState(notes.plus)
   const [noteMinus, setNoteMinus] = useState(notes.minus)
   const [noteZero, setNoteZero] = useState(notes.zero)
-  const [ledgerUrlAllowed, setLedgerUrlAllowed] = useState(includeLedgerUrl)
+  const [shareUrlAllowed, setShareUrlAllowed] = useState(includeShareUrl)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
   useEffect(() => {
@@ -186,8 +190,8 @@ function MessageTemplateModal({
     setNotePlus(notes.plus)
     setNoteMinus(notes.minus)
     setNoteZero(notes.zero)
-    setLedgerUrlAllowed(includeLedgerUrl)
-  }, [open, value, notes.plus, notes.minus, notes.zero, includeLedgerUrl])
+    setShareUrlAllowed(includeShareUrl)
+  }, [open, value, notes.plus, notes.minus, notes.zero, includeShareUrl])
 
   useEffect(() => {
     if (!open) return
@@ -328,40 +332,40 @@ function MessageTemplateModal({
               />
             </div>
 
-            {showLedgerUrlOption ? (
+            {showShareUrlOption ? (
               <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-900/40">
                 <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                  Ledger PDF link
+                  {shareUrlTitle}
                 </p>
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  When allowed, Send message saves a ledger PDF and fills{' '}
+                  When allowed, Send message saves a PDF and fills{' '}
                   <code className="rounded bg-white px-1 py-0.5 text-[11px] dark:bg-gray-800">
-                    {'{{ledger_url}}'}
+                    {`{{${shareUrlVariable}}}`}
                   </code>{' '}
-                  with a short public link.
+                  with a short public link (no ads).
                 </p>
                 <div className="mt-3 flex gap-2">
                   <button
                     type="button"
                     className={`flex-1 rounded-md px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                      ledgerUrlAllowed
+                      shareUrlAllowed
                         ? 'bg-primary-600 text-white'
                         : 'border border-gray-300 bg-white text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200'
                     }`}
-                    aria-pressed={ledgerUrlAllowed}
-                    onClick={() => setLedgerUrlAllowed(true)}
+                    aria-pressed={shareUrlAllowed}
+                    onClick={() => setShareUrlAllowed(true)}
                   >
                     Allow URL
                   </button>
                   <button
                     type="button"
                     className={`flex-1 rounded-md px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                      !ledgerUrlAllowed
+                      !shareUrlAllowed
                         ? 'bg-primary-600 text-white'
                         : 'border border-gray-300 bg-white text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200'
                     }`}
-                    aria-pressed={!ledgerUrlAllowed}
-                    onClick={() => setLedgerUrlAllowed(false)}
+                    aria-pressed={!shareUrlAllowed}
+                    onClick={() => setShareUrlAllowed(false)}
                   >
                     Do not send URL
                   </button>
@@ -382,8 +386,8 @@ function MessageTemplateModal({
                 plus: notePlus,
                 minus: noteMinus,
                 zero: noteZero,
-                ...(showLedgerUrlOption
-                  ? { includeLedgerUrl: ledgerUrlAllowed }
+                ...(showShareUrlOption
+                  ? { includeShareUrl: shareUrlAllowed }
                   : {}),
               })
               onClose()
@@ -550,6 +554,9 @@ export default function SettingsPage() {
   const [accountMessageIncludeLedgerUrl, setAccountMessageIncludeLedgerUrl] = useState(
     DEFAULT_APP_SETTINGS.accountMessageIncludeLedgerUrl
   )
+  const [transactionMessageIncludePdfUrl, setTransactionMessageIncludePdfUrl] = useState(
+    DEFAULT_APP_SETTINGS.transactionMessageIncludePdfUrl
+  )
   const [messageEditor, setMessageEditor] = useState<'account' | 'transaction' | null>(null)
   const [cashSavingsCashTypeIds, setCashSavingsCashTypeIds] = useState<string[]>(
     () => DEFAULT_APP_SETTINGS.cashSavingsCashTypeIds
@@ -632,6 +639,7 @@ export default function SettingsPage() {
         setMessageNoteMinus(settings.messageNoteMinus)
         setMessageNoteZero(settings.messageNoteZero)
         setAccountMessageIncludeLedgerUrl(settings.accountMessageIncludeLedgerUrl)
+        setTransactionMessageIncludePdfUrl(settings.transactionMessageIncludePdfUrl)
         applyThemePreference(settings.theme)
 
         const pickSavedOrDefault = (
@@ -728,6 +736,7 @@ export default function SettingsPage() {
         messageNoteMinus,
         messageNoteZero,
         accountMessageIncludeLedgerUrl,
+        transactionMessageIncludePdfUrl,
         cashSavingsCashTypeIds,
         cashSavingsAccountTypeIds,
         payableReceivableCashTypeIds,
@@ -745,6 +754,7 @@ export default function SettingsPage() {
       setMessageNoteMinus(saved.messageNoteMinus)
       setMessageNoteZero(saved.messageNoteZero)
       setAccountMessageIncludeLedgerUrl(saved.accountMessageIncludeLedgerUrl)
+      setTransactionMessageIncludePdfUrl(saved.transactionMessageIncludePdfUrl)
       setCashSavingsCashTypeIds(saved.cashSavingsCashTypeIds)
       setCashSavingsAccountTypeIds(saved.cashSavingsAccountTypeIds)
       setPayableReceivableCashTypeIds(saved.payableReceivableCashTypeIds)
@@ -1227,16 +1237,18 @@ export default function SettingsPage() {
             zero: messageNoteZero,
           }}
           variables={ACCOUNT_MESSAGE_VARS}
-          showLedgerUrlOption
-          includeLedgerUrl={accountMessageIncludeLedgerUrl}
+          showShareUrlOption
+          includeShareUrl={accountMessageIncludeLedgerUrl}
+          shareUrlVariable="ledger_url"
+          shareUrlTitle="Ledger PDF link"
           onClose={() => setMessageEditor(null)}
           onSave={(next, notes) => {
             setAccountMessageTemplate(next)
             setMessageNotePlus(notes.plus)
             setMessageNoteMinus(notes.minus)
             setMessageNoteZero(notes.zero)
-            if (typeof notes.includeLedgerUrl === 'boolean') {
-              setAccountMessageIncludeLedgerUrl(notes.includeLedgerUrl)
+            if (typeof notes.includeShareUrl === 'boolean') {
+              setAccountMessageIncludeLedgerUrl(notes.includeShareUrl)
             }
           }}
         />
@@ -1251,12 +1263,19 @@ export default function SettingsPage() {
             zero: messageNoteZero,
           }}
           variables={TRANSACTION_MESSAGE_VARS}
+          showShareUrlOption
+          includeShareUrl={transactionMessageIncludePdfUrl}
+          shareUrlVariable="pdf_url"
+          shareUrlTitle="Transaction PDF link"
           onClose={() => setMessageEditor(null)}
           onSave={(next, notes) => {
             setTransactionMessageTemplate(next)
             setMessageNotePlus(notes.plus)
             setMessageNoteMinus(notes.minus)
             setMessageNoteZero(notes.zero)
+            if (typeof notes.includeShareUrl === 'boolean') {
+              setTransactionMessageIncludePdfUrl(notes.includeShareUrl)
+            }
           }}
         />
 

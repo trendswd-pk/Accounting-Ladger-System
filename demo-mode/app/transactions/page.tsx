@@ -9,6 +9,7 @@ import {
   ArrowUpDown,
   Filter,
   Info,
+  Loader2,
   MessageCircle,
   Pencil,
   Plus,
@@ -199,6 +200,13 @@ function TransactionsPageInner() {
   const [messageNoteZero, setMessageNoteZero] = useState(
     () => getCachedAppSettings()?.messageNoteZero ?? DEFAULT_APP_SETTINGS.messageNoteZero
   )
+  const [transactionMessageIncludePdfUrl, setTransactionMessageIncludePdfUrl] =
+    useState(
+      () =>
+        getCachedAppSettings()?.transactionMessageIncludePdfUrl ??
+        DEFAULT_APP_SETTINGS.transactionMessageIncludePdfUrl
+    )
+  const [sendingMessage, setSendingMessage] = useState(false)
   const [defaultEntryMode, setDefaultEntryMode] = useState<FormMode>(
     () => getCachedAppSettings()?.defaultEntryMode ?? DEFAULT_APP_SETTINGS.defaultEntryMode
   )
@@ -267,6 +275,7 @@ function TransactionsPageInner() {
       setMessageNotePlus(s.messageNotePlus)
       setMessageNoteMinus(s.messageNoteMinus)
       setMessageNoteZero(s.messageNoteZero)
+      setTransactionMessageIncludePdfUrl(s.transactionMessageIncludePdfUrl)
     })
   }, [loadRows, loadAccounts])
 
@@ -634,31 +643,91 @@ function TransactionsPageInner() {
     }
   }
 
-  const sendTransactionMessage = (row: TransactionRecord) => {
+  const sendTransactionMessage = async (row: TransactionRecord) => {
     const template = transactionMessageTemplate.trim()
     if (!template) {
       setListError('Set a Transaction message template in Settings first.')
       return
     }
-    const account = accounts.find((a) => a.id === row.accountId)
-    const currentBalance = runningBalanceById.get(row.id) ?? signedTransactionAmount(row)
-    const previousBalance = currentBalance - signedTransactionAmount(row)
-    const text = fillMessageTemplate(
-      template,
-      transactionMessageVars(row, {
-        businessName,
-        currency,
-        phone: account?.phone,
-        previousBalance,
-        currentBalance,
-        notes: {
-          plus: messageNotePlus,
-          minus: messageNoteMinus,
-          zero: messageNoteZero,
-        },
-      })
-    )
-    openWhatsAppMessage(account?.phone, text)
+    if (sendingMessage || exportingPdfId) return
+    setSendingMessage(true)
+    setListError(null)
+    try {
+      const account = accounts.find((a) => a.id === row.accountId)
+      const currentBalance =
+        runningBalanceById.get(row.id) ?? signedTransactionAmount(row)
+      const previousBalance = currentBalance - signedTransactionAmount(row)
+
+      let pdfUrl = ''
+      if (transactionMessageIncludePdfUrl) {
+        try {
+          const { saveTransactionPdfToDocuments } = await import(
+            '@/lib/transactionExport'
+          )
+          const attachment = await saveTransactionPdfToDocuments(row, {
+            currency,
+            businessName,
+            logoUrl,
+            account: account ?? null,
+            runningBalance: currentBalance,
+          })
+          setDetailDocCount((n) => Math.max(n, 1))
+          const { shareUrlForAttachment, isShareableHttpUrl } = await import(
+            '@/lib/shortUrl'
+          )
+          const share = await shareUrlForAttachment(attachment)
+          if (isShareableHttpUrl(share)) {
+            pdfUrl = share
+          } else {
+            setListError(
+              'Transaction PDF saved, but share link could not be built. Check Allow URL in Settings.'
+            )
+          }
+        } catch (err) {
+          setListError(
+            err instanceof Error
+              ? err.message
+              : 'Could not save transaction PDF for the message link.'
+          )
+        }
+      }
+
+      let text = fillMessageTemplate(
+        template,
+        transactionMessageVars(row, {
+          businessName,
+          currency,
+          phone: account?.phone,
+          previousBalance,
+          currentBalance,
+          notes: {
+            plus: messageNotePlus,
+            minus: messageNoteMinus,
+            zero: messageNoteZero,
+          },
+          pdfUrl,
+        })
+      )
+
+      if (pdfUrl && transactionMessageIncludePdfUrl) {
+        if (/\{\{\s*pdf_url\s*\}\}/i.test(template)) {
+          if (!text.includes(pdfUrl)) {
+            text = `${text.trim()}\n\nPDF: ${pdfUrl}`
+          }
+        } else {
+          text = `${text.trim()}\n\nPDF: ${pdfUrl}`
+        }
+      }
+
+      text = text
+        .replace(/^[ \t]*PDF:[ \t]*$/gim, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim()
+
+      openWhatsAppMessage(account?.phone, text)
+    } finally {
+      setSendingMessage(false)
+    }
   }
 
   const exportTransactionAsPdf = async (row: TransactionRecord) => {
@@ -693,8 +762,11 @@ function TransactionsPageInner() {
         },
         {
           key: 'send',
-          label: 'Send message',
-          onClick: () => sendTransactionMessage(row),
+          label: sendingMessage ? 'Sending…' : 'Send message',
+          disabled: sendingMessage,
+          onClick: () => {
+            void sendTransactionMessage(row)
+          },
         },
         {
           key: 'delete',
@@ -1654,12 +1726,17 @@ function TransactionsPageInner() {
             <FormModalFooter className="justify-center sm:justify-end">
               <button
                 type="button"
-                onClick={() => sendTransactionMessage(detailRow)}
+                onClick={() => void sendTransactionMessage(detailRow)}
+                disabled={sendingMessage || exportingPdfId === detailRow.id}
                 className={formModalSecondaryIconButtonClass}
-                aria-label="Send message"
-                title="Send message"
+                aria-label="Send message with PDF link"
+                title="Send message with PDF link"
               >
-                <MessageCircle className="h-5 w-5" aria-hidden />
+                {sendingMessage ? (
+                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                ) : (
+                  <MessageCircle className="h-5 w-5" aria-hidden />
+                )}
               </button>
               {detailTab === 'details' ? (
                 <button

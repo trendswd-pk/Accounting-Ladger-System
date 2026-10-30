@@ -25,6 +25,7 @@ export const TRANSACTION_MESSAGE_VARS = [
   { key: 'current_transaction', label: 'This entry' },
   { key: 'current_balance', label: 'Current bal.' },
   { key: 'note', label: 'Note' },
+  { key: 'pdf_url', label: 'PDF URL' },
   { key: 'balance', label: 'Amount (alias)' },
   { key: 'business_name', label: 'Business' },
   { key: 'currency', label: 'Currency' },
@@ -95,7 +96,9 @@ Previous Balance: {{previous_balance}}
 Current Transaction: {{current_transaction}}
 Current Balance: {{current_balance}}
 
-Note: {{note}}`
+Note: {{note}}
+
+PDF: {{pdf_url}}`
 
 /** Cap stored template length. */
 export function normalizeMessageTemplate(value: unknown): string {
@@ -149,6 +152,8 @@ export function transactionMessageVars(
     currentBalance?: number
     /** Running balance before this entry. */
     previousBalance?: number
+    /** Short public transaction PDF link (empty when disabled / unavailable). */
+    pdfUrl?: string
   }
 ): Record<string, string> {
   const amount = Math.abs(Number(txn.balance) || 0)
@@ -182,6 +187,7 @@ export function transactionMessageVars(
     current_transaction: formatMoney(signed, opts.currency),
     current_balance: formatMoney(current, opts.currency),
     note: balanceNoteFor(current, opts.notes),
+    pdf_url: String(opts.pdfUrl ?? '').trim(),
     business_name: opts.businessName,
     currency: opts.currency,
   }

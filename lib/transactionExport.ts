@@ -5,6 +5,7 @@ import type { TransactionRecord } from '@/lib/transactions'
 import {
   listUploadedFiles,
   transactionAttachmentFolder,
+  uploadFileToR2,
   type FileAttachment,
 } from '@/lib/uploads'
 
@@ -410,10 +411,9 @@ async function appendNotePage(
 }
 
 /**
- * PDF: page 1 = transaction details, then each uploaded document
- * (images embedded, PDFs merged, other types listed as note pages).
+ * Build transaction PDF bytes (details + attached docs) without downloading.
  */
-export async function exportTransactionPdf(
+export async function buildTransactionPdfBlob(
   txn: TransactionRecord,
   opts: {
     currency: string
@@ -422,7 +422,7 @@ export async function exportTransactionPdf(
     account?: AccountRecord | null
     runningBalance?: number
   }
-): Promise<void> {
+): Promise<{ blob: Blob; filename: string }> {
   const attachments = await listUploadedFiles(transactionAttachmentFolder(txn.id))
   const detailsBytes = await buildDetailsPdfBytes(txn, {
     ...opts,
@@ -473,9 +473,44 @@ export async function exportTransactionPdf(
   }
 
   const out = await finalPdf.save()
+  const filename = `transaction-${txn.entryNumber}-${safeFilePart(txn.accountName)}-${stamp()}.pdf`
   const blob = new Blob([new Uint8Array(out)], { type: 'application/pdf' })
-  downloadBlob(
-    `transaction-${txn.entryNumber}-${safeFilePart(txn.accountName)}-${stamp()}.pdf`,
-    blob
-  )
+  return { blob, filename }
+}
+
+/**
+ * PDF: page 1 = transaction details, then each uploaded document
+ * (images embedded, PDFs merged, other types listed as note pages).
+ */
+export async function exportTransactionPdf(
+  txn: TransactionRecord,
+  opts: {
+    currency: string
+    businessName: string
+    logoUrl?: string | null
+    account?: AccountRecord | null
+    runningBalance?: number
+  }
+): Promise<void> {
+  const { blob, filename } = await buildTransactionPdfBlob(txn, opts)
+  downloadBlob(filename, blob)
+}
+
+/** Generate transaction PDF and store it under that transaction’s Documents. */
+export async function saveTransactionPdfToDocuments(
+  txn: TransactionRecord,
+  opts: {
+    currency: string
+    businessName: string
+    logoUrl?: string | null
+    account?: AccountRecord | null
+    runningBalance?: number
+  }
+): Promise<FileAttachment> {
+  const { blob, filename } = await buildTransactionPdfBlob(txn, opts)
+  const file = new File([blob], filename, { type: 'application/pdf' })
+  return uploadFileToR2(file, {
+    folder: transactionAttachmentFolder(txn.id),
+    compress: { skip: true },
+  })
 }
