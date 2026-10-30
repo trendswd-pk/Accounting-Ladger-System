@@ -61,6 +61,67 @@ const primaryActionBtnClass =
 const inputClass =
   'w-full sm:w-72 px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500'
 
+const infoHintPanelClass =
+  'absolute left-0 z-50 w-64 max-w-[min(16rem,calc(100vw-2rem))] rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs leading-relaxed text-gray-700 shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200'
+
+/** Info tip without a full-screen overlay (that would block modal scrolling). */
+function InfoHint({
+  label,
+  placement = 'below',
+  children,
+}: {
+  label: string
+  placement?: 'above' | 'below'
+  children: React.ReactNode
+}) {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onPointerDown = (e: PointerEvent) => {
+      if (rootRef.current?.contains(e.target as Node)) return
+      setOpen(false)
+    }
+    // Capture scroll from FormModalBody / page without eating wheel events.
+    const onScroll = () => setOpen(false)
+    document.addEventListener('pointerdown', onPointerDown, true)
+    document.addEventListener('scroll', onScroll, true)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true)
+      document.removeEventListener('scroll', onScroll, true)
+    }
+  }, [open])
+
+  return (
+    <div className="relative shrink-0" ref={rootRef}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={`rounded-full p-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+          open
+            ? 'text-primary-600 dark:text-primary-400'
+            : 'text-gray-400 hover:text-primary-600 dark:text-gray-500 dark:hover:text-primary-400'
+        }`}
+        aria-label={`About ${label}`}
+        aria-expanded={open}
+      >
+        <Info className="h-3.5 w-3.5" aria-hidden />
+      </button>
+      {open ? (
+        <div
+          role="dialog"
+          className={`${infoHintPanelClass} ${
+            placement === 'above' ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
+          }`}
+        >
+          {children}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 function SettingRow({
   label,
   description,
@@ -72,8 +133,6 @@ function SettingRow({
   htmlFor?: string
   children: React.ReactNode
 }) {
-  const [hintOpen, setHintOpen] = useState(false)
-
   return (
     <div className="flex flex-col gap-3 border-b border-gray-200 px-4 py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between sm:gap-6 dark:border-gray-700">
       <div className="min-w-0 flex-1 text-left sm:max-w-sm lg:max-w-md">
@@ -90,38 +149,7 @@ function SettingRow({
               {label}
             </span>
           )}
-          {description ? (
-            <div className="relative shrink-0">
-              <button
-                type="button"
-                onClick={() => setHintOpen((v) => !v)}
-                className={`rounded-full p-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                  hintOpen
-                    ? 'text-primary-600 dark:text-primary-400'
-                    : 'text-gray-400 hover:text-primary-600 dark:text-gray-500 dark:hover:text-primary-400'
-                }`}
-                aria-label={`About ${label}`}
-                aria-expanded={hintOpen}
-              >
-                <Info className="h-3.5 w-3.5" aria-hidden />
-              </button>
-              {hintOpen ? (
-                <>
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={() => setHintOpen(false)}
-                    aria-hidden
-                  />
-                  <div
-                    role="dialog"
-                    className="absolute left-0 top-full z-50 mt-1.5 w-64 max-w-[min(16rem,calc(100vw-2rem))] rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs leading-relaxed text-gray-700 shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
-                  >
-                    {description}
-                  </div>
-                </>
-              ) : null}
-            </div>
-          ) : null}
+          {description ? <InfoHint label={label}>{description}</InfoHint> : null}
         </div>
       </div>
       <div className="flex w-full shrink-0 justify-end sm:w-auto sm:min-w-[14rem] sm:max-w-xl">
@@ -145,8 +173,21 @@ type MessageNoteDrafts = {
   zero: string
 }
 
+type ShareUrlOptionConfig = {
+  key: string
+  title: string
+  variable: string
+  enabled: boolean
+}
+
 type MessageTemplateSavePayload = MessageNoteDrafts & {
-  includeShareUrl?: boolean
+  shareUrlEnabled?: Record<string, boolean>
+}
+
+function shareUrlEnabledMap(options: ShareUrlOptionConfig[]): Record<string, boolean> {
+  const next: Record<string, boolean> = {}
+  for (const opt of options) next[opt.key] = opt.enabled
+  return next
 }
 
 function MessageTemplateModal({
@@ -156,10 +197,7 @@ function MessageTemplateModal({
   value,
   notes,
   variables,
-  showShareUrlOption = false,
-  includeShareUrl = true,
-  shareUrlVariable = 'ledger_url',
-  shareUrlTitle = 'PDF link',
+  shareUrlOptions = [],
   onClose,
   onSave,
 }: {
@@ -169,11 +207,8 @@ function MessageTemplateModal({
   value: string
   notes: MessageNoteDrafts
   variables: readonly { key: string; label: string }[]
-  /** Allow/deny attaching a short public PDF URL to the WhatsApp message. */
-  showShareUrlOption?: boolean
-  includeShareUrl?: boolean
-  shareUrlVariable?: string
-  shareUrlTitle?: string
+  /** Zero or more Allow-URL toggles (transaction PDF, account ledger, …). */
+  shareUrlOptions?: ShareUrlOptionConfig[]
   onClose: () => void
   onSave: (next: string, payload: MessageTemplateSavePayload) => void
 }) {
@@ -181,8 +216,13 @@ function MessageTemplateModal({
   const [notePlus, setNotePlus] = useState(notes.plus)
   const [noteMinus, setNoteMinus] = useState(notes.minus)
   const [noteZero, setNoteZero] = useState(notes.zero)
-  const [shareUrlAllowed, setShareUrlAllowed] = useState(includeShareUrl)
+  const [shareUrlAllowed, setShareUrlAllowed] = useState(() =>
+    shareUrlEnabledMap(shareUrlOptions)
+  )
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const shareUrlOptionsKey = shareUrlOptions
+    .map((o) => `${o.key}:${o.enabled ? 1 : 0}`)
+    .join('|')
 
   useEffect(() => {
     if (!open) return
@@ -190,8 +230,10 @@ function MessageTemplateModal({
     setNotePlus(notes.plus)
     setNoteMinus(notes.minus)
     setNoteZero(notes.zero)
-    setShareUrlAllowed(includeShareUrl)
-  }, [open, value, notes.plus, notes.minus, notes.zero, includeShareUrl])
+    setShareUrlAllowed(shareUrlEnabledMap(shareUrlOptions))
+    // shareUrlOptions identity changes every render; key tracks enabled values.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- shareUrlOptionsKey
+  }, [open, value, notes.plus, notes.minus, notes.zero, shareUrlOptionsKey])
 
   useEffect(() => {
     if (!open) return
@@ -332,44 +374,55 @@ function MessageTemplateModal({
               />
             </div>
 
-            {showShareUrlOption ? (
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-900/40">
-                <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                  {shareUrlTitle}
-                </p>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  When allowed, Send message saves a PDF and fills{' '}
-                  <code className="rounded bg-white px-1 py-0.5 text-[11px] dark:bg-gray-800">
-                    {`{{${shareUrlVariable}}}`}
-                  </code>{' '}
-                  with a short public link (no ads).
-                </p>
-                <div className="mt-3 flex gap-2">
-                  <button
-                    type="button"
-                    className={`flex-1 rounded-md px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                      shareUrlAllowed
-                        ? 'bg-primary-600 text-white'
-                        : 'border border-gray-300 bg-white text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200'
-                    }`}
-                    aria-pressed={shareUrlAllowed}
-                    onClick={() => setShareUrlAllowed(true)}
-                  >
-                    Allow URL
-                  </button>
-                  <button
-                    type="button"
-                    className={`flex-1 rounded-md px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                      !shareUrlAllowed
-                        ? 'bg-primary-600 text-white'
-                        : 'border border-gray-300 bg-white text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200'
-                    }`}
-                    aria-pressed={!shareUrlAllowed}
-                    onClick={() => setShareUrlAllowed(false)}
-                  >
-                    Do not send URL
-                  </button>
-                </div>
+            {shareUrlOptions.length > 0 ? (
+              <div className="space-y-2">
+                {shareUrlOptions.map((opt) => {
+                  const enabled = shareUrlAllowed[opt.key] !== false
+                  return (
+                    <div
+                      key={opt.key}
+                      className="flex items-center justify-between gap-3 rounded-md border border-gray-200 px-3 py-2.5 dark:border-gray-600"
+                    >
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <p className="truncate text-sm font-medium text-gray-700 dark:text-gray-300">
+                          {opt.title}
+                        </p>
+                        <InfoHint label={opt.title} placement="above">
+                          When enabled, Send message saves a PDF and fills{' '}
+                          <code className="rounded bg-gray-100 px-1 py-0.5 text-[11px] dark:bg-gray-700">
+                            {`{{${opt.variable}}}`}
+                          </code>{' '}
+                          with a short public link (no ads).
+                        </InfoHint>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={enabled}
+                        aria-label={
+                          enabled ? `${opt.title} enabled` : `${opt.title} disabled`
+                        }
+                        onClick={() =>
+                          setShareUrlAllowed((prev) => ({
+                            ...prev,
+                            [opt.key]: !enabled,
+                          }))
+                        }
+                        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
+                          enabled
+                            ? 'bg-primary-600'
+                            : 'bg-gray-300 dark:bg-gray-600'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                            enabled ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  )
+                })}
               </div>
             ) : null}
           </div>
@@ -386,8 +439,8 @@ function MessageTemplateModal({
                 plus: notePlus,
                 minus: noteMinus,
                 zero: noteZero,
-                ...(showShareUrlOption
-                  ? { includeShareUrl: shareUrlAllowed }
+                ...(shareUrlOptions.length > 0
+                  ? { shareUrlEnabled: { ...shareUrlAllowed } }
                   : {}),
               })
               onClose()
@@ -557,6 +610,8 @@ export default function SettingsPage() {
   const [transactionMessageIncludePdfUrl, setTransactionMessageIncludePdfUrl] = useState(
     DEFAULT_APP_SETTINGS.transactionMessageIncludePdfUrl
   )
+  const [transactionMessageIncludeLedgerUrl, setTransactionMessageIncludeLedgerUrl] =
+    useState(DEFAULT_APP_SETTINGS.transactionMessageIncludeLedgerUrl)
   const [messageEditor, setMessageEditor] = useState<'account' | 'transaction' | null>(null)
   const [cashSavingsCashTypeIds, setCashSavingsCashTypeIds] = useState<string[]>(
     () => DEFAULT_APP_SETTINGS.cashSavingsCashTypeIds
@@ -640,6 +695,7 @@ export default function SettingsPage() {
         setMessageNoteZero(settings.messageNoteZero)
         setAccountMessageIncludeLedgerUrl(settings.accountMessageIncludeLedgerUrl)
         setTransactionMessageIncludePdfUrl(settings.transactionMessageIncludePdfUrl)
+        setTransactionMessageIncludeLedgerUrl(settings.transactionMessageIncludeLedgerUrl)
         applyThemePreference(settings.theme)
 
         const pickSavedOrDefault = (
@@ -737,6 +793,7 @@ export default function SettingsPage() {
         messageNoteZero,
         accountMessageIncludeLedgerUrl,
         transactionMessageIncludePdfUrl,
+        transactionMessageIncludeLedgerUrl,
         cashSavingsCashTypeIds,
         cashSavingsAccountTypeIds,
         payableReceivableCashTypeIds,
@@ -755,6 +812,7 @@ export default function SettingsPage() {
       setMessageNoteZero(saved.messageNoteZero)
       setAccountMessageIncludeLedgerUrl(saved.accountMessageIncludeLedgerUrl)
       setTransactionMessageIncludePdfUrl(saved.transactionMessageIncludePdfUrl)
+      setTransactionMessageIncludeLedgerUrl(saved.transactionMessageIncludeLedgerUrl)
       setCashSavingsCashTypeIds(saved.cashSavingsCashTypeIds)
       setCashSavingsAccountTypeIds(saved.cashSavingsAccountTypeIds)
       setPayableReceivableCashTypeIds(saved.payableReceivableCashTypeIds)
@@ -1237,18 +1295,22 @@ export default function SettingsPage() {
             zero: messageNoteZero,
           }}
           variables={ACCOUNT_MESSAGE_VARS}
-          showShareUrlOption
-          includeShareUrl={accountMessageIncludeLedgerUrl}
-          shareUrlVariable="ledger_url"
-          shareUrlTitle="Ledger PDF link"
+          shareUrlOptions={[
+            {
+              key: 'ledger_url',
+              title: 'Ledger PDF link',
+              variable: 'ledger_url',
+              enabled: accountMessageIncludeLedgerUrl,
+            },
+          ]}
           onClose={() => setMessageEditor(null)}
           onSave={(next, notes) => {
             setAccountMessageTemplate(next)
             setMessageNotePlus(notes.plus)
             setMessageNoteMinus(notes.minus)
             setMessageNoteZero(notes.zero)
-            if (typeof notes.includeShareUrl === 'boolean') {
-              setAccountMessageIncludeLedgerUrl(notes.includeShareUrl)
+            if (typeof notes.shareUrlEnabled?.ledger_url === 'boolean') {
+              setAccountMessageIncludeLedgerUrl(notes.shareUrlEnabled.ledger_url)
             }
           }}
         />
@@ -1263,18 +1325,31 @@ export default function SettingsPage() {
             zero: messageNoteZero,
           }}
           variables={TRANSACTION_MESSAGE_VARS}
-          showShareUrlOption
-          includeShareUrl={transactionMessageIncludePdfUrl}
-          shareUrlVariable="pdf_url"
-          shareUrlTitle="Transaction PDF link"
+          shareUrlOptions={[
+            {
+              key: 'pdf_url',
+              title: 'Transaction PDF link',
+              variable: 'pdf_url',
+              enabled: transactionMessageIncludePdfUrl,
+            },
+            {
+              key: 'ledger_url',
+              title: 'Account ledger PDF link',
+              variable: 'ledger_url',
+              enabled: transactionMessageIncludeLedgerUrl,
+            },
+          ]}
           onClose={() => setMessageEditor(null)}
           onSave={(next, notes) => {
             setTransactionMessageTemplate(next)
             setMessageNotePlus(notes.plus)
             setMessageNoteMinus(notes.minus)
             setMessageNoteZero(notes.zero)
-            if (typeof notes.includeShareUrl === 'boolean') {
-              setTransactionMessageIncludePdfUrl(notes.includeShareUrl)
+            if (typeof notes.shareUrlEnabled?.pdf_url === 'boolean') {
+              setTransactionMessageIncludePdfUrl(notes.shareUrlEnabled.pdf_url)
+            }
+            if (typeof notes.shareUrlEnabled?.ledger_url === 'boolean') {
+              setTransactionMessageIncludeLedgerUrl(notes.shareUrlEnabled.ledger_url)
             }
           }}
         />

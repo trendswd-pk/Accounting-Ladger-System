@@ -205,6 +205,12 @@ function TransactionsPageInner() {
         getCachedAppSettings()?.transactionMessageIncludePdfUrl ??
         DEFAULT_APP_SETTINGS.transactionMessageIncludePdfUrl
     )
+  const [transactionMessageIncludeLedgerUrl, setTransactionMessageIncludeLedgerUrl] =
+    useState(
+      () =>
+        getCachedAppSettings()?.transactionMessageIncludeLedgerUrl ??
+        DEFAULT_APP_SETTINGS.transactionMessageIncludeLedgerUrl
+    )
   const [sendingMessage, setSendingMessage] = useState(false)
   const [defaultEntryMode, setDefaultEntryMode] = useState<FormMode>(
     () => getCachedAppSettings()?.defaultEntryMode ?? DEFAULT_APP_SETTINGS.defaultEntryMode
@@ -275,6 +281,7 @@ function TransactionsPageInner() {
       setMessageNoteMinus(s.messageNoteMinus)
       setMessageNoteZero(s.messageNoteZero)
       setTransactionMessageIncludePdfUrl(s.transactionMessageIncludePdfUrl)
+      setTransactionMessageIncludeLedgerUrl(s.transactionMessageIncludeLedgerUrl)
     })
   }, [loadRows, loadAccounts])
 
@@ -659,6 +666,10 @@ function TransactionsPageInner() {
         runningBalanceById.get(row.id) ?? signedTransactionAmount(row)
       const previousBalance = currentBalance - signedTransactionAmount(row)
 
+      const { shareUrlForAttachment, isShareableHttpUrl } = await import(
+        '@/lib/shortUrl'
+      )
+
       let pdfUrl = ''
       if (transactionMessageIncludePdfUrl) {
         try {
@@ -673,9 +684,6 @@ function TransactionsPageInner() {
             runningBalance: currentBalance,
           })
           setDetailDocCount((n) => Math.max(n, 1))
-          const { shareUrlForAttachment, isShareableHttpUrl } = await import(
-            '@/lib/shortUrl'
-          )
           const share = await shareUrlForAttachment(attachment)
           if (isShareableHttpUrl(share)) {
             pdfUrl = share
@@ -693,6 +701,38 @@ function TransactionsPageInner() {
         }
       }
 
+      let ledgerUrl = ''
+      if (transactionMessageIncludeLedgerUrl) {
+        if (!account) {
+          setListError('Account not found — cannot attach ledger PDF link.')
+        } else {
+          try {
+            const { saveAccountLedgerPdfToDocuments } = await import(
+              '@/lib/ledgerExport'
+            )
+            const attachment = await saveAccountLedgerPdfToDocuments(account, {
+              currency,
+              businessName,
+              logoUrl,
+            })
+            const share = await shareUrlForAttachment(attachment)
+            if (isShareableHttpUrl(share)) {
+              ledgerUrl = share
+            } else {
+              setListError(
+                'Ledger PDF saved, but share link could not be built. Check Allow URL in Settings.'
+              )
+            }
+          } catch (err) {
+            setListError(
+              err instanceof Error
+                ? err.message
+                : 'Could not save account ledger PDF for the message link.'
+            )
+          }
+        }
+      }
+
       let text = fillMessageTemplate(
         template,
         transactionMessageVars(row, {
@@ -707,6 +747,7 @@ function TransactionsPageInner() {
             zero: messageNoteZero,
           },
           pdfUrl,
+          ledgerUrl,
         })
       )
 
@@ -720,8 +761,19 @@ function TransactionsPageInner() {
         }
       }
 
+      if (ledgerUrl && transactionMessageIncludeLedgerUrl) {
+        if (/\{\{\s*ledger_url\s*\}\}/i.test(template)) {
+          if (!text.includes(ledgerUrl)) {
+            text = `${text.trim()}\n\nLedger: ${ledgerUrl}`
+          }
+        } else {
+          text = `${text.trim()}\n\nLedger: ${ledgerUrl}`
+        }
+      }
+
       text = text
         .replace(/^[ \t]*PDF:[ \t]*$/gim, '')
+        .replace(/^[ \t]*Ledger:[ \t]*$/gim, '')
         .replace(/\n{3,}/g, '\n\n')
         .trim()
 

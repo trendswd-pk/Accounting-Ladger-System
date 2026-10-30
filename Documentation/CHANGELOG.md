@@ -17,11 +17,16 @@ All notable changes to Accounting Ledger are documented here.
 - Transaction **Send message** now generates/saves a voucher PDF and fills **`{{pdf_url}}`** with a short public link (same Allow URL pattern as accounts).
 - Transaction message settings: **Allow URL / Do not send URL** toggle for PDF links, plus insertable `{{pdf_url}}` variable.
 - DB migration file for the transaction PDF-URL setting: `database/migrations/2026-10-30_transaction_message_pdf_url.sql` (run in Supabase SQL editor).
+- Transaction message can also attach the **account ledger PDF** via **`{{ledger_url}}`**, with its own Allow URL switch next to the transaction PDF toggle (enable either or both).
+- DB migration file for the transaction ledger-URL setting: `database/migrations/2026-10-30_transaction_message_ledger_url.sql` (run in Supabase SQL editor).
 
 ### Changed
 - Dashboard chart cards tighten for mobile (no horizontal overflow; wrapping legends; compact balance-mix ribbons).
+- Message template Allow URL control is a single row: heading + info tip on the left, enable/disable switch on the right.
+- Settings info tips no longer use a full-screen overlay (modal body stays scrollable while a tip is open).
 
 ### Fixed
+- Transaction Export PDF no longer duplicates the voucher when a previously saved voucher PDF sits in Documents; uploaded images (including WebP/GIF) rasterize into the PDF instead of showing “Could not render”.
 - Today Expense and Yesterday Expense dashboard cards now open Transactions filtered to **Expense accounts only** for that date (not every account’s entries).
 - Transaction save is much quicker: single DB round-trip on create/update, no full accounts reload after each entry, modal closes before file uploads, and the list no longer waits on a full-page loading state.
 - In-app navigation (dashboard cards, sidebar, etc.) is much snappier: middleware no longer waits on Supabase Auth `getUser()` for page clicks, Links prefetch again, and heavy PDF code loads only when exporting.

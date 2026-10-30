@@ -44,6 +44,8 @@ export type AppSettings = {
   accountMessageIncludeLedgerUrl: boolean
   /** When true, Transaction Send message generates a voucher PDF and fills {{pdf_url}}. */
   transactionMessageIncludePdfUrl: boolean
+  /** When true, Transaction Send message also generates account ledger PDF and fills {{ledger_url}}. */
+  transactionMessageIncludeLedgerUrl: boolean
   cashSavingsCashTypeIds: string[]
   cashSavingsAccountTypeIds: string[]
   /** Shared filter for Payable (−) and Receivable (+) pages/cards. */
@@ -66,6 +68,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   messageNoteZero: DEFAULT_MESSAGE_NOTE_ZERO,
   accountMessageIncludeLedgerUrl: true,
   transactionMessageIncludePdfUrl: true,
+  transactionMessageIncludeLedgerUrl: true,
   cashSavingsCashTypeIds: [],
   cashSavingsAccountTypeIds: [],
   payableReceivableCashTypeIds: [],
@@ -86,6 +89,7 @@ type DbRow = {
   message_note_zero?: string | null
   account_message_include_ledger_url?: boolean | null
   transaction_message_include_pdf_url?: boolean | null
+  transaction_message_include_ledger_url?: boolean | null
   cash_savings_cash_type_ids?: unknown
   cash_savings_account_type_ids?: unknown
   payable_receivable_cash_type_ids?: unknown
@@ -153,6 +157,8 @@ function withIdDefaults(settings: AppSettings): AppSettings {
     messageNoteZero: settings.messageNoteZero || DEFAULT_MESSAGE_NOTE_ZERO,
     accountMessageIncludeLedgerUrl: settings.accountMessageIncludeLedgerUrl !== false,
     transactionMessageIncludePdfUrl: settings.transactionMessageIncludePdfUrl !== false,
+    transactionMessageIncludeLedgerUrl:
+      settings.transactionMessageIncludeLedgerUrl !== false,
     cashSavingsCashTypeIds: settings.cashSavingsCashTypeIds ?? [],
     cashSavingsAccountTypeIds: settings.cashSavingsAccountTypeIds ?? [],
     payableReceivableCashTypeIds: settings.payableReceivableCashTypeIds ?? [],
@@ -182,6 +188,8 @@ export function mapAppSettingsRow(row: DbRow): AppSettings {
     messageNoteZero: normalizeMessageNote(row.message_note_zero, DEFAULT_MESSAGE_NOTE_ZERO),
     accountMessageIncludeLedgerUrl: row.account_message_include_ledger_url !== false,
     transactionMessageIncludePdfUrl: row.transaction_message_include_pdf_url !== false,
+    transactionMessageIncludeLedgerUrl:
+      row.transaction_message_include_ledger_url !== false,
     cashSavingsCashTypeIds: normalizeUuidIdList(row.cash_savings_cash_type_ids),
     cashSavingsAccountTypeIds: normalizeUuidIdList(row.cash_savings_account_type_ids),
     payableReceivableCashTypeIds: firstNonEmptyIdList(
@@ -294,6 +302,7 @@ export type AppSettingsPatch = Partial<
     | 'messageNoteZero'
     | 'accountMessageIncludeLedgerUrl'
     | 'transactionMessageIncludePdfUrl'
+    | 'transactionMessageIncludeLedgerUrl'
     | 'cashSavingsCashTypeIds'
     | 'cashSavingsAccountTypeIds'
     | 'payableReceivableCashTypeIds'

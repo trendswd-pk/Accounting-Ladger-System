@@ -108,6 +108,7 @@ CREATE TABLE IF NOT EXISTS public.app_settings (
     'Zero balance: everything is settled / all clear.',
   account_message_include_ledger_url BOOLEAN NOT NULL DEFAULT true,
   transaction_message_include_pdf_url BOOLEAN NOT NULL DEFAULT true,
+  transaction_message_include_ledger_url BOOLEAN NOT NULL DEFAULT true,
   cash_savings_cash_type_ids UUID[] NOT NULL DEFAULT '{}',
   cash_savings_account_type_ids UUID[] NOT NULL DEFAULT '{}',
   payable_receivable_cash_type_ids UUID[] NOT NULL DEFAULT '{}',
@@ -139,6 +140,8 @@ ALTER TABLE public.app_settings
   ADD COLUMN IF NOT EXISTS account_message_include_ledger_url BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE public.app_settings
   ADD COLUMN IF NOT EXISTS transaction_message_include_pdf_url BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE public.app_settings
+  ADD COLUMN IF NOT EXISTS transaction_message_include_ledger_url BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE public.app_settings
   ADD COLUMN IF NOT EXISTS cash_savings_cash_type_ids UUID[] NOT NULL DEFAULT '{}';
 ALTER TABLE public.app_settings
@@ -463,6 +466,7 @@ AS $$
         ),
         'account_message_include_ledger_url', COALESCE(s.account_message_include_ledger_url, true),
         'transaction_message_include_pdf_url', COALESCE(s.transaction_message_include_pdf_url, true),
+        'transaction_message_include_ledger_url', COALESCE(s.transaction_message_include_ledger_url, true),
         'cash_savings_cash_type_ids', COALESCE(to_jsonb(s.cash_savings_cash_type_ids), '[]'::jsonb),
         'cash_savings_account_type_ids', COALESCE(to_jsonb(s.cash_savings_account_type_ids), '[]'::jsonb),
         'payable_receivable_cash_type_ids', COALESCE(to_jsonb(s.payable_receivable_cash_type_ids), '[]'::jsonb),
@@ -487,6 +491,7 @@ AS $$
       'message_note_zero', 'Zero balance: everything is settled / all clear.',
       'account_message_include_ledger_url', true,
       'transaction_message_include_pdf_url', true,
+      'transaction_message_include_ledger_url', true,
       'cash_savings_cash_type_ids', '[]'::jsonb,
       'cash_savings_account_type_ids', '[]'::jsonb,
       'payable_receivable_cash_type_ids', '[]'::jsonb,

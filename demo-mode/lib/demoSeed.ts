@@ -251,6 +251,7 @@ export function buildNorthlineSeed(): {
     messageNoteZero: DEFAULT_MESSAGE_NOTE_ZERO,
     accountMessageIncludeLedgerUrl: true,
     transactionMessageIncludePdfUrl: true,
+    transactionMessageIncludeLedgerUrl: true,
     cashSavingsCashTypeIds: ['ct-cash', 'ct-savings'],
     cashSavingsAccountTypeIds: ['at-cash', 'at-savings'],
     payableReceivableCashTypeIds: ['ct-owned'],
