@@ -6,6 +6,11 @@ import {
   type TransactionRecord,
 } from '@/lib/transactions'
 import type { AccountRecord } from '@/lib/accounts'
+import {
+  accountAttachmentFolder,
+  uploadFileToR2,
+  type FileAttachment,
+} from '@/lib/uploads'
 
 export type LedgerExportFormat = 'pdf' | 'csv' | 'excel'
 
@@ -299,10 +304,11 @@ function drawLedgerPdfHeader(
   return y + 12
 }
 
-export async function exportAccountLedgerPdf(
+/** Build ledger PDF bytes without downloading (shared by export + Documents save). */
+export async function buildAccountLedgerPdfBlob(
   account: AccountRecord,
   opts: { currency: string; businessName: string; logoUrl?: string | null }
-): Promise<void> {
+): Promise<{ blob: Blob; filename: string }> {
   const [{ jsPDF }, autoTableMod] = await Promise.all([
     import('jspdf'),
     import('jspdf-autotable'),
@@ -446,8 +452,30 @@ export async function exportAccountLedgerPdf(
     })
   }
 
+  const filename = `ledger-${safeFilePart(account.name)}-${stamp()}.pdf`
   const blob = doc.output('blob')
-  downloadBlob(`ledger-${safeFilePart(account.name)}-${stamp()}.pdf`, blob)
+  return { blob, filename }
+}
+
+export async function exportAccountLedgerPdf(
+  account: AccountRecord,
+  opts: { currency: string; businessName: string; logoUrl?: string | null }
+): Promise<void> {
+  const { blob, filename } = await buildAccountLedgerPdfBlob(account, opts)
+  downloadBlob(filename, blob)
+}
+
+/** Generate the account ledger PDF and store it under that account’s Documents. */
+export async function saveAccountLedgerPdfToDocuments(
+  account: AccountRecord,
+  opts: { currency: string; businessName: string; logoUrl?: string | null }
+): Promise<FileAttachment> {
+  const { blob, filename } = await buildAccountLedgerPdfBlob(account, opts)
+  const file = new File([blob], filename, { type: 'application/pdf' })
+  return uploadFileToR2(file, {
+    folder: accountAttachmentFolder(account.id),
+    compress: { skip: true },
+  })
 }
 
 export async function exportAccountLedger(

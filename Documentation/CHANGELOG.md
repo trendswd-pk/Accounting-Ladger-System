@@ -9,6 +9,11 @@ All notable changes to Accounting Ledger are documented here.
 - Transactions table headers: click **Transaction Date**, **Type**, or **Balance** to sort ascending/descending.
 - Accounts detail popup (row click / Actions → Details) with **Details** and **Documents** tabs, matching the transaction preview.
 - Account and transaction detail footers use icon buttons (message, edit, close).
+- Account detail: **Save ledger PDF** icon generates the account ledger PDF and stores it in that account’s Documents tab.
+- Account **Send message** now generates/saves the ledger PDF and fills **`{{ledger_url}}`** with a shortened public link (or appends it for older templates).
+- Account message settings: **Allow URL / Do not send URL** toggle for ledger PDF links, plus insertable `{{ledger_url}}` variable.
+- DB migration file for the ledger-URL setting: `database/migrations/2026-10-30_account_message_ledger_url.sql` (run in Supabase SQL editor).
+- Ledger WhatsApp links use **ad-free** first-party URLs (`/l/f/{fileId}`, or `/l/{code}` if short_links migration is applied) instead of TinyURL ads. Links are always filled into the message when Allow URL is on.
 
 ### Changed
 - Dashboard chart cards tighten for mobile (no horizontal overflow; wrapping legends; compact balance-mix ribbons).

@@ -137,6 +137,23 @@ export function setStoredUploads(rows: FileAttachment[], userId?: string): void 
   writeJson(demoStorageKey(id, 'uploads'), rows)
 }
 
+export type DemoShortLink = {
+  code: string
+  targetUrl: string
+  createdAt: string
+}
+
+const SHORT_LINKS_KEY = `demo:${SLUG}:shortLinks`
+
+/** Global (browser) short-link map for ad-free /l/{code} redirects in Demo Mode. */
+export function getStoredShortLinks(): DemoShortLink[] {
+  return readJson<DemoShortLink[]>(SHORT_LINKS_KEY, [])
+}
+
+export function setStoredShortLinks(rows: DemoShortLink[]): void {
+  writeJson(SHORT_LINKS_KEY, rows)
+}
+
 /** Wipe all resources for the current (or given) user and clear the seeded flag. */
 export function clearDemoUserData(userId?: string): void {
   const id = requireUserId(userId)

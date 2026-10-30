@@ -249,6 +249,7 @@ export function buildNorthlineSeed(): {
     messageNotePlus: DEFAULT_MESSAGE_NOTE_PLUS,
     messageNoteMinus: DEFAULT_MESSAGE_NOTE_MINUS,
     messageNoteZero: DEFAULT_MESSAGE_NOTE_ZERO,
+    accountMessageIncludeLedgerUrl: true,
     cashSavingsCashTypeIds: ['ct-cash', 'ct-savings'],
     cashSavingsAccountTypeIds: ['at-cash', 'at-savings'],
     payableReceivableCashTypeIds: ['ct-owned'],

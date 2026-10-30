@@ -145,6 +145,10 @@ type MessageNoteDrafts = {
   zero: string
 }
 
+type MessageTemplateSavePayload = MessageNoteDrafts & {
+  includeLedgerUrl?: boolean
+}
+
 function MessageTemplateModal({
   open,
   title,
@@ -152,6 +156,8 @@ function MessageTemplateModal({
   value,
   notes,
   variables,
+  showLedgerUrlOption = false,
+  includeLedgerUrl = true,
   onClose,
   onSave,
 }: {
@@ -161,13 +167,17 @@ function MessageTemplateModal({
   value: string
   notes: MessageNoteDrafts
   variables: readonly { key: string; label: string }[]
+  /** Account templates only: allow/deny attaching shortened ledger PDF URL. */
+  showLedgerUrlOption?: boolean
+  includeLedgerUrl?: boolean
   onClose: () => void
-  onSave: (next: string, notes: MessageNoteDrafts) => void
+  onSave: (next: string, payload: MessageTemplateSavePayload) => void
 }) {
   const [draft, setDraft] = useState(value)
   const [notePlus, setNotePlus] = useState(notes.plus)
   const [noteMinus, setNoteMinus] = useState(notes.minus)
   const [noteZero, setNoteZero] = useState(notes.zero)
+  const [ledgerUrlAllowed, setLedgerUrlAllowed] = useState(includeLedgerUrl)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
   useEffect(() => {
@@ -176,7 +186,8 @@ function MessageTemplateModal({
     setNotePlus(notes.plus)
     setNoteMinus(notes.minus)
     setNoteZero(notes.zero)
-  }, [open, value, notes.plus, notes.minus, notes.zero])
+    setLedgerUrlAllowed(includeLedgerUrl)
+  }, [open, value, notes.plus, notes.minus, notes.zero, includeLedgerUrl])
 
   useEffect(() => {
     if (!open) return
@@ -316,6 +327,47 @@ function MessageTemplateModal({
                 placeholder="Shown when balance is zero"
               />
             </div>
+
+            {showLedgerUrlOption ? (
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-900/40">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  Ledger PDF link
+                </p>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  When allowed, Send message saves a ledger PDF and fills{' '}
+                  <code className="rounded bg-white px-1 py-0.5 text-[11px] dark:bg-gray-800">
+                    {'{{ledger_url}}'}
+                  </code>{' '}
+                  with a short public link.
+                </p>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    className={`flex-1 rounded-md px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                      ledgerUrlAllowed
+                        ? 'bg-primary-600 text-white'
+                        : 'border border-gray-300 bg-white text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200'
+                    }`}
+                    aria-pressed={ledgerUrlAllowed}
+                    onClick={() => setLedgerUrlAllowed(true)}
+                  >
+                    Allow URL
+                  </button>
+                  <button
+                    type="button"
+                    className={`flex-1 rounded-md px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                      !ledgerUrlAllowed
+                        ? 'bg-primary-600 text-white'
+                        : 'border border-gray-300 bg-white text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200'
+                    }`}
+                    aria-pressed={!ledgerUrlAllowed}
+                    onClick={() => setLedgerUrlAllowed(false)}
+                  >
+                    Do not send URL
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         </FormModalBody>
         <FormModalFooter>
@@ -326,7 +378,14 @@ function MessageTemplateModal({
             type="button"
             className={formModalPrimaryButtonClass}
             onClick={() => {
-              onSave(draft, { plus: notePlus, minus: noteMinus, zero: noteZero })
+              onSave(draft, {
+                plus: notePlus,
+                minus: noteMinus,
+                zero: noteZero,
+                ...(showLedgerUrlOption
+                  ? { includeLedgerUrl: ledgerUrlAllowed }
+                  : {}),
+              })
               onClose()
             }}
           >
@@ -488,6 +547,9 @@ export default function SettingsPage() {
     DEFAULT_APP_SETTINGS.messageNoteMinus
   )
   const [messageNoteZero, setMessageNoteZero] = useState(DEFAULT_APP_SETTINGS.messageNoteZero)
+  const [accountMessageIncludeLedgerUrl, setAccountMessageIncludeLedgerUrl] = useState(
+    DEFAULT_APP_SETTINGS.accountMessageIncludeLedgerUrl
+  )
   const [messageEditor, setMessageEditor] = useState<'account' | 'transaction' | null>(null)
   const [cashSavingsCashTypeIds, setCashSavingsCashTypeIds] = useState<string[]>(
     () => DEFAULT_APP_SETTINGS.cashSavingsCashTypeIds
@@ -569,6 +631,7 @@ export default function SettingsPage() {
         setMessageNotePlus(settings.messageNotePlus)
         setMessageNoteMinus(settings.messageNoteMinus)
         setMessageNoteZero(settings.messageNoteZero)
+        setAccountMessageIncludeLedgerUrl(settings.accountMessageIncludeLedgerUrl)
         applyThemePreference(settings.theme)
 
         const pickSavedOrDefault = (
@@ -664,6 +727,7 @@ export default function SettingsPage() {
         messageNotePlus,
         messageNoteMinus,
         messageNoteZero,
+        accountMessageIncludeLedgerUrl,
         cashSavingsCashTypeIds,
         cashSavingsAccountTypeIds,
         payableReceivableCashTypeIds,
@@ -680,6 +744,7 @@ export default function SettingsPage() {
       setMessageNotePlus(saved.messageNotePlus)
       setMessageNoteMinus(saved.messageNoteMinus)
       setMessageNoteZero(saved.messageNoteZero)
+      setAccountMessageIncludeLedgerUrl(saved.accountMessageIncludeLedgerUrl)
       setCashSavingsCashTypeIds(saved.cashSavingsCashTypeIds)
       setCashSavingsAccountTypeIds(saved.cashSavingsAccountTypeIds)
       setPayableReceivableCashTypeIds(saved.payableReceivableCashTypeIds)
@@ -1162,12 +1227,17 @@ export default function SettingsPage() {
             zero: messageNoteZero,
           }}
           variables={ACCOUNT_MESSAGE_VARS}
+          showLedgerUrlOption
+          includeLedgerUrl={accountMessageIncludeLedgerUrl}
           onClose={() => setMessageEditor(null)}
           onSave={(next, notes) => {
             setAccountMessageTemplate(next)
             setMessageNotePlus(notes.plus)
             setMessageNoteMinus(notes.minus)
             setMessageNoteZero(notes.zero)
+            if (typeof notes.includeLedgerUrl === 'boolean') {
+              setAccountMessageIncludeLedgerUrl(notes.includeLedgerUrl)
+            }
           }}
         />
         <MessageTemplateModal

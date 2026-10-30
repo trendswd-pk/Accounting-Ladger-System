@@ -7,6 +7,7 @@ export const ACCOUNT_MESSAGE_VARS = [
   { key: 'phone', label: 'Phone' },
   { key: 'balance', label: 'Balance' },
   { key: 'note', label: 'Note' },
+  { key: 'ledger_url', label: 'Ledger URL' },
   { key: 'account_type', label: 'Account type' },
   { key: 'cash_type', label: 'Cash type' },
   { key: 'business_name', label: 'Business' },
@@ -77,7 +78,9 @@ Account: {{name}}
 Phone: {{phone}}
 Current Balance: {{balance}}
 
-Note: {{note}}`
+Note: {{note}}
+
+Ledger: {{ledger_url}}`
 
 /** Default transaction WhatsApp/share template ({{note}} matches current balance). */
 export const DEFAULT_TRANSACTION_MESSAGE_TEMPLATE = `Transaction Details
@@ -118,6 +121,8 @@ export function accountMessageVars(
     businessName: string
     currency: string
     notes?: BalanceNoteTexts
+    /** Short public ledger PDF link (empty when disabled / unavailable). */
+    ledgerUrl?: string
   }
 ): Record<string, string> {
   return {
@@ -125,6 +130,7 @@ export function accountMessageVars(
     phone: account.phone,
     balance: formatMoney(account.balance, opts.currency),
     note: balanceNoteFor(account.balance, opts.notes),
+    ledger_url: String(opts.ledgerUrl ?? '').trim(),
     account_type: account.accountTypeName,
     cash_type: account.cashTypeName,
     business_name: opts.businessName,

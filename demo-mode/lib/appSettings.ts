@@ -42,6 +42,8 @@ export type AppSettings = {
   messageNoteMinus: string
   /** Custom {{note}} when balance is zero (settled). */
   messageNoteZero: string
+  /** When true, Account Send message generates a ledger PDF and fills {{ledger_url}}. */
+  accountMessageIncludeLedgerUrl: boolean
   cashSavingsCashTypeIds: string[]
   cashSavingsAccountTypeIds: string[]
   /** Shared filter for Payable (−) and Receivable (+) pages/cards. */
@@ -62,6 +64,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   messageNotePlus: DEFAULT_MESSAGE_NOTE_PLUS,
   messageNoteMinus: DEFAULT_MESSAGE_NOTE_MINUS,
   messageNoteZero: DEFAULT_MESSAGE_NOTE_ZERO,
+  accountMessageIncludeLedgerUrl: true,
   cashSavingsCashTypeIds: [],
   cashSavingsAccountTypeIds: [],
   payableReceivableCashTypeIds: [],
@@ -80,6 +83,7 @@ type DbRow = {
   message_note_plus?: string | null
   message_note_minus?: string | null
   message_note_zero?: string | null
+  account_message_include_ledger_url?: boolean | null
   cash_savings_cash_type_ids?: unknown
   cash_savings_account_type_ids?: unknown
   payable_receivable_cash_type_ids?: unknown
@@ -145,6 +149,7 @@ function withIdDefaults(settings: AppSettings): AppSettings {
     messageNotePlus: settings.messageNotePlus || DEFAULT_MESSAGE_NOTE_PLUS,
     messageNoteMinus: settings.messageNoteMinus || DEFAULT_MESSAGE_NOTE_MINUS,
     messageNoteZero: settings.messageNoteZero || DEFAULT_MESSAGE_NOTE_ZERO,
+    accountMessageIncludeLedgerUrl: settings.accountMessageIncludeLedgerUrl !== false,
     cashSavingsCashTypeIds: settings.cashSavingsCashTypeIds ?? [],
     cashSavingsAccountTypeIds: settings.cashSavingsAccountTypeIds ?? [],
     payableReceivableCashTypeIds: settings.payableReceivableCashTypeIds ?? [],
@@ -172,6 +177,7 @@ export function mapAppSettingsRow(row: DbRow): AppSettings {
     messageNotePlus: normalizeMessageNote(row.message_note_plus, DEFAULT_MESSAGE_NOTE_PLUS),
     messageNoteMinus: normalizeMessageNote(row.message_note_minus, DEFAULT_MESSAGE_NOTE_MINUS),
     messageNoteZero: normalizeMessageNote(row.message_note_zero, DEFAULT_MESSAGE_NOTE_ZERO),
+    accountMessageIncludeLedgerUrl: row.account_message_include_ledger_url !== false,
     cashSavingsCashTypeIds: normalizeUuidIdList(row.cash_savings_cash_type_ids),
     cashSavingsAccountTypeIds: normalizeUuidIdList(row.cash_savings_account_type_ids),
     payableReceivableCashTypeIds: firstNonEmptyIdList(
@@ -279,6 +285,7 @@ export type AppSettingsPatch = Partial<
     | 'messageNotePlus'
     | 'messageNoteMinus'
     | 'messageNoteZero'
+    | 'accountMessageIncludeLedgerUrl'
     | 'cashSavingsCashTypeIds'
     | 'cashSavingsAccountTypeIds'
     | 'payableReceivableCashTypeIds'

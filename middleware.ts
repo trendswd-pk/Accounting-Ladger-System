@@ -32,6 +32,8 @@ export async function middleware(request: NextRequest) {
   // Vercel Cron has no session cookie; /api/cron authenticates via CRON_SECRET itself.
   const isCron = pathname === '/api/cron'
   const isApi = pathname.startsWith('/api/')
+  // Ad-free short links shared on WhatsApp — must work without login.
+  const isPublicShortLink = pathname.startsWith('/l/')
   const isPublicAsset =
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
@@ -41,7 +43,7 @@ export async function middleware(request: NextRequest) {
     pathname === '/manifest.json' ||
     /\.(?:ico|png|jpg|jpeg|gif|webp|svg|webmanifest)$/i.test(pathname)
 
-  if (isPublicAsset || isCron) return supabaseResponse
+  if (isPublicAsset || isCron || isPublicShortLink) return supabaseResponse
 
   // Page navigations: read session from cookies only (no Auth network round-trip).
   // That was making every Link click wait 2–4s. APIs still verify with getUser below.

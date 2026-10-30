@@ -2,7 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Info, MessageCircle, Pencil, Phone, Plus, Search, X } from 'lucide-react'
+import {
+  FileText,
+  Info,
+  Loader2,
+  MessageCircle,
+  Pencil,
+  Phone,
+  Plus,
+  Search,
+  X,
+} from 'lucide-react'
 import ActionsDropdown from '@/components/ActionsDropdown'
 import {
   FormModalBody,
@@ -33,6 +43,7 @@ import {
 } from '@/lib/appSettings'
 import {
   exportAccountLedger,
+  saveAccountLedgerPdfToDocuments,
   type LedgerExportFormat,
 } from '@/lib/ledgerExport'
 import {
@@ -41,6 +52,7 @@ import {
   openWhatsAppMessage,
 } from '@/lib/messageTemplates'
 import { formatMoney } from '@/lib/money'
+import { isShareableHttpUrl, shareUrlForAttachment } from '@/lib/shortUrl'
 import {
   fetchSetupTypes,
   getCachedSetupTypes,
@@ -74,6 +86,9 @@ export default function AccountsPage() {
   const [detailRow, setDetailRow] = useState<AccountRecord | null>(null)
   const [detailTab, setDetailTab] = useState<'details' | 'documents'>('details')
   const [detailDocCount, setDetailDocCount] = useState(0)
+  const [docsNonce, setDocsNonce] = useState(0)
+  const [savingLedgerPdf, setSavingLedgerPdf] = useState(false)
+  const [sendingMessage, setSendingMessage] = useState(false)
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [accountTypeId, setAccountTypeId] = useState('')
@@ -100,6 +115,11 @@ export default function AccountsPage() {
   )
   const [messageNoteZero, setMessageNoteZero] = useState(
     () => getCachedAppSettings()?.messageNoteZero ?? DEFAULT_APP_SETTINGS.messageNoteZero
+  )
+  const [accountMessageIncludeLedgerUrl, setAccountMessageIncludeLedgerUrl] = useState(
+    () =>
+      getCachedAppSettings()?.accountMessageIncludeLedgerUrl ??
+      DEFAULT_APP_SETTINGS.accountMessageIncludeLedgerUrl
   )
   const [logoUrl, setLogoUrl] = useState<string | null>(
     () => getCachedAppSettings()?.logoUrl ?? DEFAULT_APP_SETTINGS.logoUrl
@@ -141,6 +161,7 @@ export default function AccountsPage() {
       setMessageNotePlus(s.messageNotePlus)
       setMessageNoteMinus(s.messageNoteMinus)
       setMessageNoteZero(s.messageNoteZero)
+      setAccountMessageIncludeLedgerUrl(s.accountMessageIncludeLedgerUrl)
     })
   }, [loadRows, loadLookups])
 
@@ -220,7 +241,30 @@ export default function AccountsPage() {
   const openDetail = (row: AccountRecord) => {
     setDetailTab('details')
     setDetailDocCount(0)
+    setSavingLedgerPdf(false)
+    setSendingMessage(false)
     setDetailRow(row)
+  }
+
+  const saveLedgerPdfToAccountDocs = async () => {
+    if (!detailRow || savingLedgerPdf || sendingMessage) return
+    setSavingLedgerPdf(true)
+    setListError(null)
+    try {
+      await saveAccountLedgerPdfToDocuments(detailRow, {
+        currency,
+        businessName,
+        logoUrl,
+      })
+      setDocsNonce((n) => n + 1)
+      setDetailTab('documents')
+    } catch (err) {
+      setListError(
+        err instanceof Error ? err.message : 'Could not save ledger PDF to documents.'
+      )
+    } finally {
+      setSavingLedgerPdf(false)
+    }
   }
 
   const openEdit = (row: AccountRecord) => {
@@ -307,25 +351,79 @@ export default function AccountsPage() {
     return 'text-gray-800 dark:text-gray-200'
   }
 
-  const sendAccountMessage = (row: AccountRecord) => {
+  const sendAccountMessage = async (row: AccountRecord) => {
     const template = accountMessageTemplate.trim()
     if (!template) {
       setListError('Set an Account message template in Settings first.')
       return
     }
-    const text = fillMessageTemplate(
-      template,
-      accountMessageVars(row, {
-        businessName,
-        currency,
-        notes: {
-          plus: messageNotePlus,
-          minus: messageNoteMinus,
-          zero: messageNoteZero,
-        },
-      })
-    )
-    openWhatsAppMessage(row.phone, text)
+    if (sendingMessage || savingLedgerPdf) return
+    setSendingMessage(true)
+    setListError(null)
+    try {
+      let ledgerUrl = ''
+      if (accountMessageIncludeLedgerUrl) {
+        try {
+          const attachment = await saveAccountLedgerPdfToDocuments(row, {
+            currency,
+            businessName,
+            logoUrl,
+          })
+          setDocsNonce((n) => n + 1)
+          const share = await shareUrlForAttachment(attachment)
+          if (isShareableHttpUrl(share)) {
+            ledgerUrl = share
+          } else {
+            setListError(
+              'Ledger PDF saved, but share link could not be built. Check Allow URL in Settings.'
+            )
+          }
+        } catch (err) {
+          setListError(
+            err instanceof Error
+              ? err.message
+              : 'Could not save ledger PDF for the message link.'
+          )
+        }
+      }
+
+      let text = fillMessageTemplate(
+        template,
+        accountMessageVars(row, {
+          businessName,
+          currency,
+          notes: {
+            plus: messageNotePlus,
+            minus: messageNoteMinus,
+            zero: messageNoteZero,
+          },
+          ledgerUrl,
+        })
+      )
+
+      // Always put a working link at the end when allowed (covers older templates
+      // and empty {{ledger_url}} placeholders).
+      if (ledgerUrl && accountMessageIncludeLedgerUrl) {
+        if (/\{\{\s*ledger_url\s*\}\}/i.test(template)) {
+          // Placeholder already filled above; if still blank somehow, append.
+          if (!text.includes(ledgerUrl)) {
+            text = `${text.trim()}\n\nLedger: ${ledgerUrl}`
+          }
+        } else {
+          text = `${text.trim()}\n\nLedger: ${ledgerUrl}`
+        }
+      }
+
+      // Drop empty "Ledger:" lines when URL was not available.
+      text = text
+        .replace(/^[ \t]*Ledger:[ \t]*$/gim, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim()
+
+      openWhatsAppMessage(row.phone, text)
+    } finally {
+      setSendingMessage(false)
+    }
   }
 
   const openExportModal = (row: AccountRecord) => {
@@ -374,7 +472,9 @@ export default function AccountsPage() {
         {
           key: 'send',
           label: 'Send message',
-          onClick: () => sendAccountMessage(row),
+          onClick: () => {
+            void sendAccountMessage(row)
+          },
         },
         {
           key: 'delete',
@@ -931,7 +1031,7 @@ export default function AccountsPage() {
               </div>
 
               <TransactionDocumentsPanel
-                key={detailRow.id}
+                key={`${detailRow.id}-${docsNonce}`}
                 accountId={detailRow.id}
                 active={detailTab === 'documents'}
                 onFilesChange={(items) => setDetailDocCount(items.length)}
@@ -940,12 +1040,31 @@ export default function AccountsPage() {
             <FormModalFooter className="justify-center sm:justify-end">
               <button
                 type="button"
-                onClick={() => sendAccountMessage(detailRow)}
+                onClick={() => void sendAccountMessage(detailRow)}
+                disabled={sendingMessage || savingLedgerPdf}
                 className={formModalSecondaryIconButtonClass}
-                aria-label="Send message"
-                title="Send message"
+                aria-label="Send message with ledger link"
+                title="Send message with ledger link"
               >
-                <MessageCircle className="h-5 w-5" aria-hidden />
+                {sendingMessage ? (
+                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                ) : (
+                  <MessageCircle className="h-5 w-5" aria-hidden />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => void saveLedgerPdfToAccountDocs()}
+                disabled={savingLedgerPdf || sendingMessage}
+                className={formModalSecondaryIconButtonClass}
+                aria-label="Save ledger PDF to documents"
+                title="Save ledger PDF to documents"
+              >
+                {savingLedgerPdf ? (
+                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                ) : (
+                  <FileText className="h-5 w-5" aria-hidden />
+                )}
               </button>
               {detailTab === 'details' ? (
                 <button

@@ -106,6 +106,7 @@ CREATE TABLE IF NOT EXISTS public.app_settings (
     'Minus (−) balance: payment payable — you will pay them.',
   message_note_zero TEXT NOT NULL DEFAULT
     'Zero balance: everything is settled / all clear.',
+  account_message_include_ledger_url BOOLEAN NOT NULL DEFAULT true,
   cash_savings_cash_type_ids UUID[] NOT NULL DEFAULT '{}',
   cash_savings_account_type_ids UUID[] NOT NULL DEFAULT '{}',
   payable_receivable_cash_type_ids UUID[] NOT NULL DEFAULT '{}',
@@ -133,6 +134,8 @@ ALTER TABLE public.app_settings
 ALTER TABLE public.app_settings
   ADD COLUMN IF NOT EXISTS message_note_zero TEXT NOT NULL DEFAULT
     'Zero balance: everything is settled / all clear.';
+ALTER TABLE public.app_settings
+  ADD COLUMN IF NOT EXISTS account_message_include_ledger_url BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE public.app_settings
   ADD COLUMN IF NOT EXISTS cash_savings_cash_type_ids UUID[] NOT NULL DEFAULT '{}';
 ALTER TABLE public.app_settings
@@ -193,7 +196,9 @@ Account: {{name}}
 Phone: {{phone}}
 Current Balance: {{balance}}
 
-Note: {{note}}$msg$
+Note: {{note}}
+
+Ledger: {{ledger_url}}$msg$
 WHERE id = 1
   AND (
     COALESCE(TRIM(account_message_template), '') = ''
@@ -367,6 +372,32 @@ GRANT ALL ON public.file_attachments TO anon;
 GRANT ALL ON public.file_attachments TO service_role;
 
 -- #############################################################################
+-- 6b) Short links (ad-free redirects for WhatsApp / share)
+-- #############################################################################
+
+CREATE TABLE IF NOT EXISTS public.short_links (
+  code TEXT PRIMARY KEY,
+  target_url TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_short_links_created_at
+  ON public.short_links (created_at DESC);
+
+ALTER TABLE public.short_links ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow anon read short_links" ON public.short_links;
+DROP POLICY IF EXISTS "Allow anon insert short_links" ON public.short_links;
+
+CREATE POLICY "Allow anon read short_links"
+  ON public.short_links FOR SELECT TO anon USING (true);
+CREATE POLICY "Allow anon insert short_links"
+  ON public.short_links FOR INSERT TO anon WITH CHECK (true);
+
+GRANT ALL ON public.short_links TO anon;
+GRANT ALL ON public.short_links TO service_role;
+
+-- #############################################################################
 -- 7) Seeds (only when empty)
 -- #############################################################################
 
@@ -427,6 +458,7 @@ AS $$
           s.message_note_zero,
           'Zero balance: everything is settled / all clear.'
         ),
+        'account_message_include_ledger_url', COALESCE(s.account_message_include_ledger_url, true),
         'cash_savings_cash_type_ids', COALESCE(to_jsonb(s.cash_savings_cash_type_ids), '[]'::jsonb),
         'cash_savings_account_type_ids', COALESCE(to_jsonb(s.cash_savings_account_type_ids), '[]'::jsonb),
         'payable_receivable_cash_type_ids', COALESCE(to_jsonb(s.payable_receivable_cash_type_ids), '[]'::jsonb),
@@ -449,6 +481,7 @@ AS $$
       'message_note_plus', 'Plus (+) balance: payment receivable — they will pay you.',
       'message_note_minus', 'Minus (−) balance: payment payable — you will pay them.',
       'message_note_zero', 'Zero balance: everything is settled / all clear.',
+      'account_message_include_ledger_url', true,
       'cash_savings_cash_type_ids', '[]'::jsonb,
       'cash_savings_account_type_ids', '[]'::jsonb,
       'payable_receivable_cash_type_ids', '[]'::jsonb,
