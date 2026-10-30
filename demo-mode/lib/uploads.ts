@@ -153,6 +153,11 @@ export function transactionAttachmentFolder(transactionId: string): string {
   return `transactions/${String(transactionId).trim()}`
 }
 
+/** Folder key used to group files under one account. */
+export function accountAttachmentFolder(accountId: string): string {
+  return `accounts/${String(accountId).trim()}`
+}
+
 const listCache = new Map<string, FileAttachment[]>()
 
 export function getCachedUploadedFiles(folder: string): FileAttachment[] | null {

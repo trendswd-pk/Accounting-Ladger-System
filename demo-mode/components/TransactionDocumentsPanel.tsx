@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { FileText, Trash2, Upload } from 'lucide-react'
 import {
+  accountAttachmentFolder,
   deleteUploadedFile,
   formatUploadSize,
   getCachedUploadedFiles,
@@ -17,23 +18,46 @@ const actionBtnClass =
   'inline-flex h-9 items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
 
 type TransactionDocumentsPanelProps = {
-  transactionId: string
+  /** Transaction attachments folder (transactions/{id}). */
+  transactionId?: string
+  /** Account attachments folder (accounts/{id}). */
+  accountId?: string
+  /** Explicit folder override. */
+  folder?: string
   /** Called whenever the file list changes (for tab badges, etc.). */
   onFilesChange?: (files: FileAttachment[]) => void
   /** When false, still loads/prefetches but stays visually hidden. */
   active?: boolean
+  /** Empty-state copy; defaults based on account vs transaction. */
+  emptyHint?: string
+}
+
+function resolveFolder(props: {
+  folder?: string
+  accountId?: string
+  transactionId?: string
+}): string {
+  if (props.folder?.trim()) return props.folder.trim()
+  if (props.accountId?.trim()) return accountAttachmentFolder(props.accountId)
+  if (props.transactionId?.trim()) {
+    return transactionAttachmentFolder(props.transactionId)
+  }
+  return ''
 }
 
 export default function TransactionDocumentsPanel({
   transactionId,
+  accountId,
+  folder: folderProp,
   onFilesChange,
   active = true,
+  emptyHint,
 }: TransactionDocumentsPanelProps) {
-  const folder = transactionAttachmentFolder(transactionId)
+  const folder = resolveFolder({ folder: folderProp, accountId, transactionId })
   const inputRef = useRef<HTMLInputElement | null>(null)
-  const cached = getCachedUploadedFiles(folder)
+  const cached = folder ? getCachedUploadedFiles(folder) : []
   const [files, setFiles] = useState<FileAttachment[]>(() => cached ?? [])
-  const [loading, setLoading] = useState(() => cached == null)
+  const [loading, setLoading] = useState(() => Boolean(folder) && cached == null)
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -41,14 +65,28 @@ export default function TransactionDocumentsPanel({
   const onFilesChangeRef = useRef(onFilesChange)
   onFilesChangeRef.current = onFilesChange
 
-  const publish = useCallback((next: FileAttachment[]) => {
-    setFiles(next)
-    setCachedUploadedFiles(folder, next)
-    onFilesChangeRef.current?.(next)
-  }, [folder])
+  const emptyCopy =
+    emptyHint ??
+    (accountId
+      ? 'No documents yet. Upload files linked to this account.'
+      : 'No documents yet. Upload files linked to this transaction.')
+
+  const publish = useCallback(
+    (next: FileAttachment[]) => {
+      setFiles(next)
+      if (folder) setCachedUploadedFiles(folder, next)
+      onFilesChangeRef.current?.(next)
+    },
+    [folder]
+  )
 
   const load = useCallback(
     async (opts?: { force?: boolean; silent?: boolean }) => {
+      if (!folder) {
+        publish([])
+        setLoading(false)
+        return
+      }
       setError(null)
       if (!opts?.silent && getCachedUploadedFiles(folder) == null) {
         setLoading(true)
@@ -69,6 +107,12 @@ export default function TransactionDocumentsPanel({
   )
 
   useEffect(() => {
+    if (!folder) {
+      setFiles([])
+      setLoading(false)
+      onFilesChangeRef.current?.([])
+      return
+    }
     const hit = getCachedUploadedFiles(folder)
     if (hit) {
       setFiles(hit)
@@ -83,7 +127,7 @@ export default function TransactionDocumentsPanel({
   }, [folder, load])
 
   const handleFiles = async (list: FileList | null) => {
-    if (!list || list.length === 0) return
+    if (!folder || !list || list.length === 0) return
     setUploading(true)
     setError(null)
     setProgress(0)
@@ -132,6 +176,8 @@ export default function TransactionDocumentsPanel({
     }
   }
 
+  if (!folder) return null
+
   return (
     <div className={`space-y-3 ${active ? '' : 'hidden'}`} aria-hidden={!active}>
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -175,7 +221,7 @@ export default function TransactionDocumentsPanel({
         <p className="text-sm text-gray-500 dark:text-gray-400">Loading files…</p>
       ) : files.length === 0 ? (
         <div className="rounded-lg border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500 dark:border-gray-600 dark:text-gray-400">
-          No documents yet. Upload files linked to this transaction.
+          {emptyCopy}
         </div>
       ) : (
         <ul className="divide-y divide-gray-200 overflow-hidden rounded-lg border border-gray-200 dark:divide-gray-700 dark:border-gray-700">

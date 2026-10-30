@@ -9,6 +9,8 @@ import {
   ArrowUpDown,
   Filter,
   Info,
+  MessageCircle,
+  Pencil,
   Plus,
   Search,
   X,
@@ -22,7 +24,9 @@ import {
   formModalOverlayClass,
   formModalPanelClass,
   formModalPrimaryButtonClass,
+  formModalPrimaryIconButtonClass,
   formModalSecondaryButtonClass,
+  formModalSecondaryIconButtonClass,
 } from '@/components/FormModal'
 import SearchableSelect from '@/components/SearchableSelect'
 import { TablePaginationNav } from '@/components/TablePaginationNav'
@@ -1651,9 +1655,11 @@ function TransactionsPageInner() {
               <button
                 type="button"
                 onClick={() => sendTransactionMessage(detailRow)}
-                className={`${formModalSecondaryButtonClass} flex-none`}
+                className={formModalSecondaryIconButtonClass}
+                aria-label="Send message"
+                title="Send message"
               >
-                Send message
+                <MessageCircle className="h-5 w-5" aria-hidden />
               </button>
               {detailTab === 'details' ? (
                 <button
@@ -1663,17 +1669,21 @@ function TransactionsPageInner() {
                     setDetailRow(null)
                     openEdit(row)
                   }}
-                  className={`${formModalPrimaryButtonClass} flex-none`}
+                  className={formModalPrimaryIconButtonClass}
+                  aria-label="Edit"
+                  title="Edit"
                 >
-                  Edit
+                  <Pencil className="h-5 w-5" aria-hidden />
                 </button>
               ) : null}
               <button
                 type="button"
                 onClick={() => setDetailRow(null)}
-                className={`${formModalSecondaryButtonClass} flex-none`}
+                className={formModalSecondaryIconButtonClass}
+                aria-label="Close"
+                title="Close"
               >
-                Close
+                <X className="h-5 w-5" aria-hidden />
               </button>
             </FormModalFooter>
           </div>

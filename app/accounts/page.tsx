@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Info, Phone, Plus, Search } from 'lucide-react'
+import { Info, MessageCircle, Pencil, Phone, Plus, Search, X } from 'lucide-react'
 import ActionsDropdown from '@/components/ActionsDropdown'
 import {
   FormModalBody,
@@ -12,9 +12,12 @@ import {
   formModalOverlayClass,
   formModalPanelClass,
   formModalPrimaryButtonClass,
+  formModalPrimaryIconButtonClass,
   formModalSecondaryButtonClass,
+  formModalSecondaryIconButtonClass,
 } from '@/components/FormModal'
 import { TablePaginationNav } from '@/components/TablePaginationNav'
+import TransactionDocumentsPanel from '@/components/TransactionDocumentsPanel'
 import {
   createAccount,
   deleteAccount,
@@ -68,6 +71,9 @@ export default function AccountsPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [detailRow, setDetailRow] = useState<AccountRecord | null>(null)
+  const [detailTab, setDetailTab] = useState<'details' | 'documents'>('details')
+  const [detailDocCount, setDetailDocCount] = useState(0)
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [accountTypeId, setAccountTypeId] = useState('')
@@ -211,6 +217,12 @@ export default function AccountsPage() {
     void loadLookups().catch(() => {})
   }
 
+  const openDetail = (row: AccountRecord) => {
+    setDetailTab('details')
+    setDetailDocCount(0)
+    setDetailRow(row)
+  }
+
   const openEdit = (row: AccountRecord) => {
     setFormError(null)
     setEditingId(row.id)
@@ -344,6 +356,11 @@ export default function AccountsPage() {
     <ActionsDropdown
       ariaLabel={`Actions for ${row.name}`}
       items={[
+        {
+          key: 'details',
+          label: 'Details',
+          onClick: () => openDetail(row),
+        },
         {
           key: 'edit',
           label: 'Edit',
@@ -493,19 +510,26 @@ export default function AccountsPage() {
             return (
               <article
                 key={row.id}
-                className="rounded-xl border border-gray-100 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
+                role="button"
+                tabIndex={0}
+                onClick={() => openDetail(row)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    openDetail(row)
+                  }
+                }}
+                className="cursor-pointer rounded-xl border border-gray-100 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
               >
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <Link
-                      href={`/transactions?accountId=${encodeURIComponent(row.id)}&from=${encodeURIComponent('/accounts')}`}
-                      className="block truncate text-base font-semibold text-primary-700 hover:underline dark:text-primary-300"
-                    >
+                    <p className="truncate text-base font-semibold text-primary-700 dark:text-primary-300">
                       {row.name}
-                    </Link>
+                    </p>
                     {row.phone ? (
                       <a
                         href={`tel:${phoneDigits}`}
+                        onClick={(e) => e.stopPropagation()}
                         className="mt-1 inline-flex items-center gap-1.5 text-sm text-primary-600 hover:underline dark:text-primary-400"
                       >
                         <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden />
@@ -515,7 +539,7 @@ export default function AccountsPage() {
                       <p className="mt-1 text-sm text-gray-400">—</p>
                     )}
                   </div>
-                  {actionsFor(row)}
+                  <div onClick={(e) => e.stopPropagation()}>{actionsFor(row)}</div>
                 </div>
                 <div className="flex items-end justify-between gap-3 text-sm">
                   <div className="min-w-0">
@@ -594,17 +618,24 @@ export default function AccountsPage() {
                 </tr>
               ) : (
                 pageRows.map((row, index) => (
-                  <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/40">
+                  <tr
+                    key={row.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openDetail(row)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        openDetail(row)
+                      }
+                    }}
+                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40"
+                  >
                     <td className="whitespace-nowrap px-4 py-3 text-sm tabular-nums text-gray-500 dark:text-gray-400">
                       {pageStartIndex + index + 1}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium">
-                      <Link
-                        href={`/transactions?accountId=${encodeURIComponent(row.id)}&from=${encodeURIComponent('/accounts')}`}
-                        className="text-primary-700 hover:underline dark:text-primary-300"
-                      >
-                        {row.name}
-                      </Link>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-primary-700 dark:text-primary-300">
+                      {row.name}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
                       {row.phone || '—'}
@@ -620,7 +651,12 @@ export default function AccountsPage() {
                     >
                       {formatBalance(row.balance)}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right">{actionsFor(row)}</td>
+                    <td
+                      className="whitespace-nowrap px-4 py-3 text-right"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {actionsFor(row)}
+                    </td>
                   </tr>
                 ))
               )}
@@ -759,6 +795,186 @@ export default function AccountsPage() {
           </div>
         </div>
       )}
+
+      {detailRow ? (
+        <div
+          className={formModalOverlayClass}
+          onClick={() => setDetailRow(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="account-detail-title"
+        >
+          <div
+            className={`${formModalPanelClass} max-w-lg`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <FormModalHeader
+              titleId="account-detail-title"
+              title={
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="truncate">{detailRow.name}</span>
+                  <span
+                    className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium tabular-nums ${
+                      detailRow.balance > 0
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/35 dark:text-green-300'
+                        : detailRow.balance < 0
+                          ? 'bg-red-100 text-red-800 dark:bg-red-900/35 dark:text-red-300'
+                          : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200'
+                    }`}
+                  >
+                    {formatBalance(detailRow.balance)}
+                  </span>
+                </span>
+              }
+              onClose={() => setDetailRow(null)}
+            />
+            <FormModalBody>
+              <div
+                className="mb-4 flex gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-900/60"
+                role="tablist"
+                aria-label="Account sections"
+              >
+                {(
+                  [
+                    { id: 'details' as const, label: 'Details' },
+                    {
+                      id: 'documents' as const,
+                      label:
+                        detailDocCount > 0
+                          ? `Documents (${detailDocCount})`
+                          : 'Documents',
+                    },
+                  ] as const
+                ).map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={detailTab === tab.id}
+                    className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                      detailTab === tab.id
+                        ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100'
+                        : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
+                    }`}
+                    onClick={() => setDetailTab(tab.id)}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className={detailTab === 'details' ? '' : 'hidden'}>
+                <dl className="space-y-3 text-sm">
+                  <div>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                      Account Name
+                    </dt>
+                    <dd className="mt-0.5 font-medium text-gray-900 dark:text-gray-100">
+                      <Link
+                        href={`/transactions?accountId=${encodeURIComponent(detailRow.id)}&from=${encodeURIComponent('/accounts')}`}
+                        className="text-primary-700 hover:underline dark:text-primary-300"
+                        onClick={() => setDetailRow(null)}
+                      >
+                        {detailRow.name}
+                      </Link>
+                    </dd>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        Phone
+                      </dt>
+                      <dd className="mt-0.5 text-gray-900 dark:text-gray-100">
+                        {detailRow.phone ? (
+                          <a
+                            href={`tel:${detailRow.phone.replace(/[^\d+]/g, '')}`}
+                            className="inline-flex items-center gap-1.5 text-primary-600 hover:underline dark:text-primary-400"
+                          >
+                            <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                            {detailRow.phone}
+                          </a>
+                        ) : (
+                          '—'
+                        )}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        Balance
+                      </dt>
+                      <dd
+                        className={`mt-0.5 tabular-nums font-medium ${balanceColorClass(detailRow.balance)}`}
+                      >
+                        {formatBalance(detailRow.balance)}
+                      </dd>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        Account Type
+                      </dt>
+                      <dd className="mt-0.5 text-gray-900 dark:text-gray-100">
+                        {detailRow.accountTypeName || '—'}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        Cash Type
+                      </dt>
+                      <dd className="mt-0.5 text-gray-900 dark:text-gray-100">
+                        {detailRow.cashTypeName || '—'}
+                      </dd>
+                    </div>
+                  </div>
+                </dl>
+              </div>
+
+              <TransactionDocumentsPanel
+                key={detailRow.id}
+                accountId={detailRow.id}
+                active={detailTab === 'documents'}
+                onFilesChange={(items) => setDetailDocCount(items.length)}
+              />
+            </FormModalBody>
+            <FormModalFooter className="justify-center sm:justify-end">
+              <button
+                type="button"
+                onClick={() => sendAccountMessage(detailRow)}
+                className={formModalSecondaryIconButtonClass}
+                aria-label="Send message"
+                title="Send message"
+              >
+                <MessageCircle className="h-5 w-5" aria-hidden />
+              </button>
+              {detailTab === 'details' ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const row = detailRow
+                    setDetailRow(null)
+                    openEdit(row)
+                  }}
+                  className={formModalPrimaryIconButtonClass}
+                  aria-label="Edit"
+                  title="Edit"
+                >
+                  <Pencil className="h-5 w-5" aria-hidden />
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => setDetailRow(null)}
+                className={formModalSecondaryIconButtonClass}
+                aria-label="Close"
+                title="Close"
+              >
+                <X className="h-5 w-5" aria-hidden />
+              </button>
+            </FormModalFooter>
+          </div>
+        </div>
+      ) : null}
 
       {exportAccount ? (
         <div

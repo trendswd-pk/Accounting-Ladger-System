@@ -33,6 +33,13 @@ export const formModalSecondaryButtonClass =
 export const formModalDangerButtonClass =
   'flex-1 sm:flex-none px-4 py-2.5 bg-red-500 text-white font-medium rounded-md hover:bg-red-400 focus:outline-none focus:ring-2 focus:ring-white/50'
 
+/** Square icon-only footer actions (detail popups). */
+export const formModalPrimaryIconButtonClass =
+  'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white text-primary-700 hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-white/50 disabled:opacity-50 disabled:cursor-not-allowed'
+
+export const formModalSecondaryIconButtonClass =
+  'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white/15 text-white hover:bg-white/25 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 disabled:opacity-50 disabled:cursor-not-allowed'
+
 type FormModalHeaderProps = {
   title: ReactNode
   titleId?: string

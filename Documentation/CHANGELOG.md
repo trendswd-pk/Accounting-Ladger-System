@@ -7,6 +7,8 @@ All notable changes to Accounting Ledger are documented here.
 ### Added
 - Balance mix ribbons show day-over-day up/down % vs yesterday, with category icons on the colored strip.
 - Transactions table headers: click **Transaction Date**, **Type**, or **Balance** to sort ascending/descending.
+- Accounts detail popup (row click / Actions → Details) with **Details** and **Documents** tabs, matching the transaction preview.
+- Account and transaction detail footers use icon buttons (message, edit, close).
 
 ### Changed
 - Dashboard chart cards tighten for mobile (no horizontal overflow; wrapping legends; compact balance-mix ribbons).
