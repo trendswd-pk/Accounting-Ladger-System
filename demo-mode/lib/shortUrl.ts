@@ -53,6 +53,15 @@ export async function shortenUrl(longUrl: string): Promise<string> {
   return `${origin}/l/${code}`
 }
 
+/**
+ * Fast share link (no extra shorten step): `{origin}/l/f/{attachmentId}`.
+ */
+export function shareUrlForAttachmentFast(attachment: {
+  id: string
+}): string {
+  return fileAttachmentShareUrl(attachment.id)
+}
+
 export async function shareUrlForAttachment(attachment: {
   id: string
   publicUrl: string

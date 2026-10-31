@@ -52,7 +52,7 @@ import {
   openWhatsAppMessage,
 } from '@/lib/messageTemplates'
 import { formatMoney } from '@/lib/money'
-import { isShareableHttpUrl, shareUrlForAttachment } from '@/lib/shortUrl'
+import { shareUrlForAttachmentFast } from '@/lib/shortUrl'
 import {
   fetchSetupTypes,
   getCachedSetupTypes,
@@ -360,6 +360,10 @@ export default function AccountsPage() {
     if (sendingMessage || savingLedgerPdf) return
     setSendingMessage(true)
     setListError(null)
+
+    const waTab =
+      typeof window !== 'undefined' ? window.open('about:blank', '_blank') : null
+
     try {
       let ledgerUrl = ''
       if (accountMessageIncludeLedgerUrl) {
@@ -370,8 +374,8 @@ export default function AccountsPage() {
             logoUrl,
           })
           setDocsNonce((n) => n + 1)
-          const share = await shareUrlForAttachment(attachment)
-          if (isShareableHttpUrl(share)) {
+          const share = shareUrlForAttachmentFast(attachment)
+          if (share) {
             ledgerUrl = share
           } else {
             setListError(
@@ -420,7 +424,12 @@ export default function AccountsPage() {
         .replace(/\n{3,}/g, '\n\n')
         .trim()
 
-      openWhatsAppMessage(row.phone, text)
+      openWhatsAppMessage(row.phone, text, waTab)
+    } catch (err) {
+      if (waTab && !waTab.closed) waTab.close()
+      setListError(
+        err instanceof Error ? err.message : 'Could not open WhatsApp message.'
+      )
     } finally {
       setSendingMessage(false)
     }

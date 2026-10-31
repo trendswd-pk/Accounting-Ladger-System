@@ -25,10 +25,34 @@ export function paginationPageBtnClass(active: boolean, size: 'md' | 'sm' = 'md'
   ].join(' ')
 }
 
-/** Page numbers with `-1` markers for ellipsis gaps. */
-export function buildPaginationPages(current: number, total: number): number[] {
+/**
+ * Page numbers with `-1` markers for ellipsis gaps.
+ * - `default`: first, last, and a window around the current page
+ * - `compact` (mobile): first + last, with current in the middle when needed → `1 … 5 … 329`
+ */
+export function buildPaginationPages(
+  current: number,
+  total: number,
+  mode: 'default' | 'compact' = 'default'
+): number[] {
   const t = Math.max(1, total)
   const c = Math.min(Math.max(1, current), t)
+  if (t <= 1) return [1]
+
+  if (mode === 'compact') {
+    if (t <= 3) return Array.from({ length: t }, (_, i) => i + 1)
+    const pages: number[] = [1]
+    if (c > 1 && c < t) {
+      if (c > 2) pages.push(-1)
+      pages.push(c)
+      if (c < t - 1) pages.push(-1)
+    } else {
+      pages.push(-1)
+    }
+    pages.push(t)
+    return pages
+  }
+
   return Array.from({ length: t }, (_, i) => i + 1)
     .filter((p) => p === 1 || p === t || (p >= c - 2 && p <= c + 2))
     .reduce<number[]>((acc, p, i, arr) => {
@@ -52,7 +76,8 @@ export function TablePaginationNav({
   onPageChange,
   size = 'md',
 }: TablePaginationNavProps) {
-  const pages = buildPaginationPages(page, totalPages)
+  // `sm` is the mobile pagination strip — keep first/last + ellipsis only.
+  const pages = buildPaginationPages(page, totalPages, size === 'sm' ? 'compact' : 'default')
   const navBtn = size === 'sm' ? paginationNavBtnClassSm : paginationNavBtnClass
   const icon = size === 'sm' ? paginationIconClassSm : paginationIconClass
   const ellipsis =

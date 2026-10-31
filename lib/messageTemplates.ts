@@ -198,14 +198,37 @@ export function transactionMessageVars(
   }
 }
 
-/** Opens WhatsApp with prefilled text (phone optional). */
-export function openWhatsAppMessage(phone: string | null | undefined, text: string): void {
+/** Build wa.me URL with prefilled text (phone optional). */
+export function buildWhatsAppUrl(
+  phone: string | null | undefined,
+  text: string
+): string {
+  const body = text.trim()
+  const digits = String(phone ?? '').replace(/[^\d]/g, '')
+  const q = body ? `?text=${encodeURIComponent(body)}` : ''
+  return digits ? `https://wa.me/${digits}${q}` : `https://wa.me/${q}`
+}
+
+/**
+ * Opens WhatsApp with prefilled text (phone optional).
+ * Pass `target` (e.g. a window opened immediately on click) so the tab
+ * is ready before slow PDF work finishes — avoids popup blockers + lag.
+ */
+export function openWhatsAppMessage(
+  phone: string | null | undefined,
+  text: string,
+  target?: Window | null
+): void {
   if (typeof window === 'undefined') return
   const body = text.trim()
-  if (!body) return
-  const digits = String(phone ?? '').replace(/[^\d]/g, '')
-  const url = digits
-    ? `https://wa.me/${digits}?text=${encodeURIComponent(body)}`
-    : `https://wa.me/?text=${encodeURIComponent(body)}`
+  if (!body) {
+    if (target && !target.closed) target.close()
+    return
+  }
+  const url = buildWhatsAppUrl(phone, body)
+  if (target && !target.closed) {
+    target.location.href = url
+    return
+  }
   window.open(url, '_blank', 'noopener,noreferrer')
 }

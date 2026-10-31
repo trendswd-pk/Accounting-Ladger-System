@@ -659,78 +659,74 @@ function TransactionsPageInner() {
     if (sendingMessage || exportingPdfId) return
     setSendingMessage(true)
     setListError(null)
+
+    const waTab =
+      typeof window !== 'undefined' ? window.open('about:blank', '_blank') : null
+
     try {
       const account = accounts.find((a) => a.id === row.accountId)
       const currentBalance =
         runningBalanceById.get(row.id) ?? signedTransactionAmount(row)
       const previousBalance = currentBalance - signedTransactionAmount(row)
 
-      const { shareUrlForAttachment, isShareableHttpUrl } = await import(
+      const { shareUrlForAttachmentFast, isShareableHttpUrl } = await import(
         '@/lib/shortUrl'
       )
 
-      let pdfUrl = ''
-      if (transactionMessageIncludePdfUrl) {
-        try {
-          const { saveTransactionPdfToDocuments } = await import(
-            '@/lib/transactionExport'
-          )
-          const attachment = await saveTransactionPdfToDocuments(row, {
-            currency,
-            businessName,
-            logoUrl,
-            account: account ?? null,
-            runningBalance: currentBalance,
-          })
-          setDetailDocCount((n) => Math.max(n, 1))
-          const share = await shareUrlForAttachment(attachment)
-          if (isShareableHttpUrl(share)) {
-            pdfUrl = share
-          } else {
-            setListError(
-              'Transaction PDF saved, but share link could not be built. Check Allow URL in Settings.'
-            )
-          }
-        } catch (err) {
-          setListError(
-            err instanceof Error
-              ? err.message
-              : 'Could not save transaction PDF for the message link.'
-          )
-        }
-      }
-
-      let ledgerUrl = ''
-      if (transactionMessageIncludeLedgerUrl) {
-        if (!account) {
-          setListError('Account not found — cannot attach ledger PDF link.')
-        } else {
-          try {
-            const { saveAccountLedgerPdfToDocuments } = await import(
-              '@/lib/ledgerExport'
-            )
-            const attachment = await saveAccountLedgerPdfToDocuments(account, {
-              currency,
-              businessName,
-              logoUrl,
-            })
-            const share = await shareUrlForAttachment(attachment)
-            if (isShareableHttpUrl(share)) {
-              ledgerUrl = share
-            } else {
-              setListError(
-                'Ledger PDF saved, but share link could not be built. Check Allow URL in Settings.'
+      const [pdfResult, ledgerResult] = await Promise.all([
+        transactionMessageIncludePdfUrl
+          ? (async () => {
+              const { saveTransactionPdfToDocuments } = await import(
+                '@/lib/transactionExport'
               )
-            }
-          } catch (err) {
-            setListError(
-              err instanceof Error
-                ? err.message
-                : 'Could not save account ledger PDF for the message link.'
-            )
-          }
-        }
-      }
+              const attachment = await saveTransactionPdfToDocuments(row, {
+                currency,
+                businessName,
+                logoUrl,
+                account: account ?? null,
+                runningBalance: currentBalance,
+              })
+              setDetailDocCount((n) => Math.max(n, 1))
+              return shareUrlForAttachmentFast(attachment)
+            })().catch((err: unknown) => {
+              setListError(
+                err instanceof Error
+                  ? err.message
+                  : 'Could not save transaction PDF for the message link.'
+              )
+              return ''
+            })
+          : Promise.resolve(''),
+        transactionMessageIncludeLedgerUrl
+          ? account
+            ? (async () => {
+                const { saveAccountLedgerPdfToDocuments } = await import(
+                  '@/lib/ledgerExport'
+                )
+                const attachment = await saveAccountLedgerPdfToDocuments(
+                  account,
+                  { currency, businessName, logoUrl }
+                )
+                return shareUrlForAttachmentFast(attachment)
+              })().catch((err: unknown) => {
+                setListError(
+                  err instanceof Error
+                    ? err.message
+                    : 'Could not save account ledger PDF for the message link.'
+                )
+                return ''
+              })
+            : Promise.resolve('').then(() => {
+                setListError(
+                  'Account not found — cannot attach ledger PDF link.'
+                )
+                return ''
+              })
+          : Promise.resolve(''),
+      ])
+
+      const pdfUrl = isShareableHttpUrl(pdfResult) ? pdfResult : ''
+      const ledgerUrl = isShareableHttpUrl(ledgerResult) ? ledgerResult : ''
 
       let text = fillMessageTemplate(
         template,
@@ -776,7 +772,12 @@ function TransactionsPageInner() {
         .replace(/\n{3,}/g, '\n\n')
         .trim()
 
-      openWhatsAppMessage(account?.phone, text)
+      openWhatsAppMessage(account?.phone, text, waTab)
+    } catch (err) {
+      if (waTab && !waTab.closed) waTab.close()
+      setListError(
+        err instanceof Error ? err.message : 'Could not open WhatsApp message.'
+      )
     } finally {
       setSendingMessage(false)
     }

@@ -118,7 +118,7 @@ function ChartCard({
           </Link>
         ) : null}
       </div>
-      <div className="min-h-0 min-w-0 w-full flex-1 overflow-x-hidden">
+      <div className="min-h-0 min-w-0 w-full flex-1 overflow-visible">
         {children}
       </div>
     </section>
@@ -157,6 +157,65 @@ function WrapLegend(props: {
         </li>
       ))}
     </ul>
+  )
+}
+
+/** Wrap long axis labels onto multiple lines (word-aware, hard-break if needed). */
+function wrapAxisLabel(text: string, maxCharsPerLine: number, maxLines = 3): string[] {
+  const raw = String(text ?? '').trim()
+  if (!raw) return ['']
+  const words = raw.split(/\s+/)
+  const lines: string[] = []
+  let current = ''
+  const pushHard = (word: string) => {
+    let rest = word
+    while (rest.length > maxCharsPerLine && lines.length < maxLines) {
+      lines.push(rest.slice(0, maxCharsPerLine))
+      rest = rest.slice(maxCharsPerLine)
+    }
+    return rest
+  }
+  for (const word of words) {
+    if (lines.length >= maxLines) break
+    const next = current ? `${current} ${word}` : word
+    if (next.length <= maxCharsPerLine) {
+      current = next
+      continue
+    }
+    if (current) {
+      lines.push(current)
+      current = ''
+      if (lines.length >= maxLines) break
+    }
+    if (word.length > maxCharsPerLine) {
+      current = pushHard(word)
+    } else {
+      current = word
+    }
+  }
+  if (current && lines.length < maxLines) lines.push(current)
+  return lines.length > 0 ? lines : ['']
+}
+
+/** Y-axis tick that wraps the full account name instead of truncating. */
+function WrappedYTick(props: {
+  x?: number
+  y?: number
+  payload?: { value?: string | number }
+}) {
+  const x = Number(props.x) || 0
+  const y = Number(props.y) || 0
+  const lines = wrapAxisLabel(String(props.payload?.value ?? ''), 13, 3)
+  const lineHeight = 11
+  const startY = y - ((lines.length - 1) * lineHeight) / 2 + 3
+  return (
+    <text x={x} y={startY} textAnchor="end" fill="#9ca3af" fontSize={10}>
+      {lines.map((line, i) => (
+        <tspan key={i} x={x} dy={i === 0 ? 0 : lineHeight}>
+          {line}
+        </tspan>
+      ))}
+    </text>
   )
 }
 
@@ -312,7 +371,7 @@ export default function DashboardCharts({
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart
                   data={monthlyExpenseData}
-                  margin={{ top: 4, right: 4, left: -8, bottom: 0 }}
+                  margin={{ top: 4, right: 6, left: 2, bottom: 4 }}
                 >
                   <CartesianGrid
                     strokeDasharray="3 3"
@@ -324,20 +383,25 @@ export default function DashboardCharts({
                     axisLine={false}
                     tickLine={false}
                     interval={0}
-                    height={28}
+                    height={32}
+                    tickMargin={6}
                   />
                   <YAxis
                     tick={{ fontSize: 10, fill: '#9ca3af' }}
                     axisLine={false}
                     tickLine={false}
-                    width={36}
+                    width={40}
+                    tickMargin={4}
                     tickFormatter={(v) =>
                       Math.abs(Number(v)) >= 1000
                         ? `${Math.round(Number(v) / 1000)}k`
                         : String(v)
                     }
                   />
-                  <Tooltip content={<ChartTooltip currency={currency} />} />
+                  <Tooltip
+                    content={<ChartTooltip currency={currency} />}
+                    cursor={{ fill: 'rgba(148, 163, 184, 0.12)' }}
+                  />
                   <Legend
                     verticalAlign="bottom"
                     content={<WrapLegend />}
@@ -390,7 +454,7 @@ export default function DashboardCharts({
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart
                   data={dailyExpenseData}
-                  margin={{ top: 4, right: 4, left: -8, bottom: 0 }}
+                  margin={{ top: 4, right: 6, left: 2, bottom: 4 }}
                 >
                   <defs>
                     <linearGradient id="expenseArea" x1="0" y1="0" x2="0" y2="1">
@@ -408,20 +472,25 @@ export default function DashboardCharts({
                     axisLine={false}
                     tickLine={false}
                     interval="preserveStartEnd"
-                    height={28}
+                    height={32}
+                    tickMargin={6}
                   />
                   <YAxis
                     tick={{ fontSize: 10, fill: '#9ca3af' }}
                     axisLine={false}
                     tickLine={false}
-                    width={36}
+                    width={40}
+                    tickMargin={4}
                     tickFormatter={(v) =>
                       Math.abs(Number(v)) >= 1000
                         ? `${Math.round(Number(v) / 1000)}k`
                         : String(v)
                     }
                   />
-                  <Tooltip content={<ChartTooltip currency={currency} />} />
+                  <Tooltip
+                    content={<ChartTooltip currency={currency} />}
+                    cursor={{ fill: 'rgba(148, 163, 184, 0.12)' }}
+                  />
                   <Legend
                     verticalAlign="bottom"
                     content={<WrapLegend />}
@@ -473,7 +542,7 @@ export default function DashboardCharts({
                 <BarChart
                   data={topExpenseAccounts}
                   layout="vertical"
-                  margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
+                  margin={{ top: 4, right: 10, left: 4, bottom: 4 }}
                 >
                   <CartesianGrid
                     strokeDasharray="3 3"
@@ -485,6 +554,7 @@ export default function DashboardCharts({
                     tick={{ fontSize: 10, fill: '#9ca3af' }}
                     axisLine={false}
                     tickLine={false}
+                    tickMargin={4}
                     tickFormatter={(v) =>
                       Math.abs(Number(v)) >= 1000
                         ? `${Math.round(Number(v) / 1000)}k`
@@ -494,16 +564,17 @@ export default function DashboardCharts({
                   <YAxis
                     type="category"
                     dataKey="name"
-                    width={72}
-                    tick={{ fontSize: 10, fill: '#9ca3af' }}
+                    width={110}
+                    tick={<WrappedYTick />}
                     axisLine={false}
                     tickLine={false}
-                    tickFormatter={(v) => {
-                      const s = String(v)
-                      return s.length > 10 ? `${s.slice(0, 9)}…` : s
-                    }}
+                    tickMargin={6}
+                    interval={0}
                   />
-                  <Tooltip content={<ChartTooltip currency={currency} />} />
+                  <Tooltip
+                    content={<ChartTooltip currency={currency} />}
+                    cursor={{ fill: 'rgba(148, 163, 184, 0.12)' }}
+                  />
                   <Bar
                     dataKey="total"
                     name="Expense"
@@ -511,7 +582,7 @@ export default function DashboardCharts({
                     radius={[0, 6, 6, 0]}
                     maxBarSize={22}
                     isAnimationActive={false}
-                    cursor="pointer"
+                    className="cursor-pointer"
                     onClick={(data) => {
                       const point = data as {
                         payload?: { id?: string }

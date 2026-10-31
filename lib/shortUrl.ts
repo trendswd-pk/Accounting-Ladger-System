@@ -53,6 +53,16 @@ export async function shortenUrl(longUrl: string): Promise<string> {
 }
 
 /**
+ * Fast share link (no network): `{origin}/l/f/{attachmentId}`.
+ * Prefer this on Send message so WhatsApp can open without waiting on /api/shorten.
+ */
+export function shareUrlForAttachmentFast(attachment: {
+  id: string
+}): string {
+  return fileAttachmentShareUrl(attachment.id)
+}
+
+/**
  * Best share link for a ledger PDF attachment:
  * prefer /l/{code} when short_links works, else /l/f/{attachmentId}.
  */

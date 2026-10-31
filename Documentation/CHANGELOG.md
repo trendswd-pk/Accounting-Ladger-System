@@ -2,6 +2,22 @@
 
 All notable changes to Accounting Ledger are documented here.
 
+## [1.0.2] — 2026-10-31
+
+### Added
+- Dashboard header: **Transactions** button next to **Add** for quick navigation to the Transactions page (icon on mobile).
+
+### Changed
+- (none)
+
+### Fixed
+- Dashboard chart axis labels on mobile no longer clip (removed negative chart margins; wider Y-axis for Top expense accounts).
+- Dashboard chart hover no longer flashes a solid white box behind the bars (tooltip cursor is a light translucent highlight).
+- Top expense accounts chart shows full account names with wrapped Y-axis labels (no ellipsis cut-off).
+- Mobile back-to-top button sits higher so it no longer covers table pagination controls.
+- Mobile table pagination is compact: first and last page with `…` between (current page shown when in the middle).
+- Send message opens a WhatsApp tab immediately on click (no stuck wait / double-taps); PDF links build in parallel and skip the extra shortener round-trip.
+
 ## [1.0.1] — 2026-10-30
 
 ### Added
