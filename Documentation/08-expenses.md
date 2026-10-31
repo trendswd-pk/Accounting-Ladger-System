@@ -1,6 +1,6 @@
 # Expenses
 
-**Version:** 1.0.0  
+**Version:** 1.0.3  
 **Route:** `/expenses`  
 **Who can access:** Signed-in users.
 

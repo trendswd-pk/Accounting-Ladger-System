@@ -1,6 +1,6 @@
 # Login
 
-**Version:** 1.0.0  
+**Version:** 1.0.3  
 **Route:** `/login`  
 **Who can access:** Anyone visiting Demo Mode (signed-out users). Production uses credentials provided by your administrator.
 

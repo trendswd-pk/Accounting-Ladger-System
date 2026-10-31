@@ -1,6 +1,6 @@
 # Dashboard
 
-**Version:** 1.0.0  
+**Version:** 1.0.3  
 **Route:** `/`  
 **Who can access:** Signed-in users (Admin, Editor, Viewer in Demo Mode).
 
@@ -12,15 +12,15 @@
 
 ## What this page does
 
-Gives a single overview of your books: key balances, expense snapshots, balance mix, and monthly expense charts. You can also open **Add Transaction** without leaving the dashboard.
+Gives a single overview of your books: key balances, expense snapshots, balance mix with day-over-day change, and monthly expense charts. You can open **Transactions** or **Add Transaction** without leaving the dashboard.
 
 ## Layout at a glance
 
 - Page title **Dashboard** with an info tip (**About Dashboard**)
-- **Add** button (desktop) or **Add Transaction** icon (mobile)
+- Header actions: **Transactions** (opens the journal) and **Add** (desktop) / icon buttons on mobile
 - KPI cards: **Cash in Pocket**, **Cash & Savings**, **Payable**, **Receivable**, **Investment**, **Expenses**, **Today Expense**, **Yesterday Expense**
-- **Balance Mix** ribbons
-- **Monthly expenses** chart (last 6 months) with a **View** link where available
+- **Balance Mix** ribbons with category icons and vs-yesterday %
+- **Monthly expenses** chart (last 6 months) and **Top expense accounts** with wrapped account names
 - Demo banner: **Demo Mode — data is stored in this browser only.**
 
 ## Steps
@@ -30,7 +30,12 @@ Gives a single overview of your books: key balances, expense snapshots, balance 
 1. After [login](./01-login.md), you land on **Dashboard**.
 2. Read the KPI cards. Positive amounts appear in green; negative amounts in red where applicable.
 3. Select a linked card (for example **Cash & Savings**, **Payable**, **Receivable**, **Investment**, **Expenses**) to open that page.
-4. Select **Today Expense** or **Yesterday Expense** to open [Transactions](./03-transactions.md) filtered to that date.
+4. Select **Today Expense** or **Yesterday Expense** to open [Transactions](./03-transactions.md) filtered to **Expense accounts only** for that date.
+
+### Jump to the journal
+
+1. Select **Transactions** in the page header (icon-only on small screens).
+2. You open the full [Transactions](./03-transactions.md) journal.
 
 ### Add a transaction from the dashboard
 
@@ -50,6 +55,11 @@ Gives a single overview of your books: key balances, expense snapshots, balance 
 7. Select **Add** to save, or **Cancel** to close without saving.
 8. The dashboard refreshes so KPIs and charts reflect the new entry.
 
+### Read Balance Mix
+
+1. Each ribbon shows a category total with an icon on the colored strip.
+2. The day-over-day % compares today’s displayed amount with yesterday (up, down, or no change).
+
 ### Use the info tip
 
 1. Select the info icon next to **Dashboard**.
@@ -66,8 +76,8 @@ Gives a single overview of your books: key balances, expense snapshots, balance 
 | Receivable | Matching receivable accounts with positive balance |
 | Investment | Accounts typed as Invest / Investment |
 | Expenses | Expense-type account balances |
-| Today Expense | Spend posted for today |
-| Yesterday Expense | Spend posted for yesterday |
+| Today Expense | Spend posted for today (opens expense-only journal for today) |
+| Yesterday Expense | Spend posted for yesterday (opens expense-only journal for yesterday) |
 
 ## Add Transaction modal fields
 
@@ -88,6 +98,7 @@ Gives a single overview of your books: key balances, expense snapshots, balance 
 - Transfer with the same From and To account: **From and To accounts must be different.**
 - No accounts yet: the form notes that accounts must be added under **Accounts** first.
 - Charts may load slightly after the KPI cards; wait a moment if the chart area still shows a placeholder.
+- On mobile, chart axis labels wrap and the hover highlight stays translucent (no solid white flash).
 
 ## Related links
 

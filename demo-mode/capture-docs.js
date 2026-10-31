@@ -104,10 +104,12 @@ async function closeModal(page) {
   await page.waitForTimeout(250)
 }
 
-async function loginFlow(page) {
+async function loginFlow(page, { captureLogin = true } = {}) {
   await page.goto(`${BASE}/login`)
   await waitReady(page)
-  await shot(page, 'login', '/login', 'Demo Mode login with account cards', 'before submit')
+  if (captureLogin) {
+    await shot(page, 'login', '/login', 'Demo Mode login with account cards', 'before submit')
+  }
 
   // Prefer account card click (fills + signs in)
   const adminCard = page.locator('button').filter({ hasText: /Admin/i }).first()
@@ -164,6 +166,95 @@ async function captureDesktop(browser) {
   await waitReady(page)
   if (await tryOpenAddModal(page)) {
     await shot(page, 'transactions-add-modal', '/transactions', 'Add transaction modal', 'Cancel after shot')
+    await closeModal(page)
+  }
+
+  await context.close()
+}
+
+/** Extra shots for 1.0.1+ UI — numbered after the stable 01–22 set */
+async function captureExtras(browser) {
+  const context = await browser.newContext({ viewport: DESKTOP })
+  const page = await context.newPage()
+  await loginFlow(page, { captureLogin: false })
+
+  // Account Details popup (Details + Documents)
+  await page.goto(`${BASE}/accounts`)
+  await waitReady(page)
+  const accountActions = page.getByRole('button', { name: /Actions for/i }).first()
+  if ((await accountActions.count()) > 0) {
+    await accountActions.click()
+    await page.waitForTimeout(200)
+    const detailsItem = page
+      .getByRole('menuitem', { name: /^Details$/i })
+      .or(
+        page
+          .locator('[role="menu"] button, [role="menuitem"], button')
+          .filter({ hasText: /^Details$/i })
+      )
+      .first()
+    if ((await detailsItem.count()) > 0) {
+      await detailsItem.click()
+    } else {
+      await page.getByText(/^Details$/i).first().click().catch(() => {})
+    }
+    await page.waitForTimeout(500)
+    await shot(page, 'accounts-detail', '/accounts', 'Account Details popup', 'Details tab')
+    await closeModal(page)
+  }
+
+  async function openMessageTemplateAndRevealUrlToggles(editButton) {
+    await editButton.scrollIntoViewIfNeeded().catch(() => {})
+    await editButton.click()
+    await page.waitForTimeout(400)
+    // Scroll modal body so Allow URL switches are visible in the shot
+    const switchBtn = page.getByRole('switch').first()
+    if ((await switchBtn.count()) > 0) {
+      await switchBtn.scrollIntoViewIfNeeded().catch(() => {})
+      await page.waitForTimeout(200)
+    } else {
+      await page
+        .locator('#messageTemplateDraft')
+        .evaluate((el) => {
+          const body = el.closest('[class*="overflow"], [class*="ModalBody"], form, div')
+          if (body) body.scrollTop = body.scrollHeight
+        })
+        .catch(() => {})
+      await page.waitForTimeout(200)
+    }
+  }
+
+  // Transaction message template (Allow URL toggles)
+  await page.goto(`${BASE}/settings`)
+  await waitReady(page)
+  const editTxnMsg = page
+    .getByRole('button', { name: /Edit transaction|Transaction message/i })
+    .first()
+  if ((await editTxnMsg.count()) > 0) {
+    await openMessageTemplateAndRevealUrlToggles(editTxnMsg)
+    await shot(
+      page,
+      'settings-transaction-message',
+      '/settings',
+      'Transaction message template',
+      'Allow URL toggles + variables'
+    )
+    await closeModal(page)
+  }
+
+  // Account message template (Ledger PDF link toggle)
+  const editAccMsg = page
+    .getByRole('button', { name: /Edit account|Account message/i })
+    .first()
+  if ((await editAccMsg.count()) > 0) {
+    await openMessageTemplateAndRevealUrlToggles(editAccMsg)
+    await shot(
+      page,
+      'settings-account-message',
+      '/settings',
+      'Account message template',
+      'Ledger PDF Allow URL'
+    )
     await closeModal(page)
   }
 
@@ -237,6 +328,7 @@ async function main() {
   try {
     await captureDesktop(browser)
     await captureMobile(browser)
+    await captureExtras(browser)
   } finally {
     await browser.close()
   }

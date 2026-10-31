@@ -46,18 +46,13 @@ export default function ProfilePage() {
     e.preventDefault()
     setMessage(null)
     const name = fullName.trim()
-    const nextEmail = email.trim()
     if (!name) {
       setMessage({ type: 'error', text: 'Name is required.' })
       return
     }
-    if (!nextEmail) {
-      setMessage({ type: 'error', text: 'Email is required.' })
-      return
-    }
     setSavingProfile(true)
     try {
-      const updated = updateDemoProfile({ fullName: name, email: nextEmail })
+      const updated = updateDemoProfile({ fullName: name })
       setUser(updated)
       setFullName(updated.fullName)
       setEmail(updated.email)
@@ -171,8 +166,8 @@ export default function ProfilePage() {
           <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
             <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Account</h2>
             <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-              Your display name and login email for this demo account
-              {user ? ` (${user.role})` : ''}.
+              Your display name for this demo account
+              {user ? ` (${user.role})` : ''}. Login email is view-only.
             </p>
           </div>
           <div className="space-y-4 px-4 py-4">
@@ -198,10 +193,11 @@ export default function ProfilePage() {
                 id="profile-email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className={inputClass}
+                readOnly
+                className={`${inputClass} cursor-default bg-gray-50 text-gray-600 dark:bg-gray-800 dark:text-gray-300`}
                 placeholder="you@example.com"
                 autoComplete="email"
+                aria-readonly="true"
               />
             </div>
           </div>

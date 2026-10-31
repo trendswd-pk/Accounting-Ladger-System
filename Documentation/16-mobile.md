@@ -1,6 +1,6 @@
 # Mobile
 
-**Version:** 1.0.0  
+**Version:** 1.0.3  
 **Routes:** `/`, `/transactions`, `/settings` (and the shared navigation shell)  
 **Who can access:** Signed-in users on phone-sized viewports.
 
@@ -16,7 +16,7 @@
 
 ## What this page does
 
-Accounting Ledger is responsive. On phones, the sidebar becomes an off-canvas drawer, lists use compact cards where helpful, and primary actions stay reachable. This guide covers the mobile subset captured for documentation.
+Accounting Ledger is responsive. On phones, the sidebar becomes an off-canvas drawer, lists use compact cards where helpful, and primary actions stay reachable. Charts wrap labels cleanly, pagination stays compact, and the back-to-top control sits above page controls.
 
 ## Layout at a glance
 
@@ -24,6 +24,7 @@ Accounting Ledger is responsive. On phones, the sidebar becomes an off-canvas dr
 - Demo banner when running Demo Mode
 - Off-canvas nav with the same items as desktop: Dashboard, Transactions, Accounts, Cash & Savings, Payable, Receivable, Expenses (with Daily / Monthly), Investment, Settings
 - Theme toggle and **Reset demo data** / sign-out options in the drawer footer where available
+- Dashboard header: **Transactions** and **Add** as icon buttons
 
 ## Steps
 
@@ -36,20 +37,24 @@ Accounting Ledger is responsive. On phones, the sidebar becomes an off-canvas dr
 ### Use the mobile dashboard
 
 1. After login, the [Dashboard](./02-dashboard.md) shows KPI cards in a compact grid.
-2. Tap **Add Transaction** (plus) to post without leaving the home screen.
+2. Tap **Transactions** (icon) to open the journal, or **Add** (plus) to post without leaving home.
 3. Tap linked KPI cards to open detail pages.
+4. Balance Mix ribbons and charts use wrapped labels; chart hover uses a light highlight (no solid white box).
 
 ### Work transactions on mobile
 
 1. Open **Transactions**.
 2. Use search and filters; tap **Add** to create an entry.
-3. Row menus remain available for edit and delete.
+3. Sort **Transaction Date**, **Type**, or **Balance** when those headers are available.
+4. Pagination is compact: first and last page with `…` between (current page when in the middle).
+5. Scroll-to-top sits higher so it does not cover pagination.
 
 ### Adjust settings on mobile
 
 1. Open **Settings** from the drawer.
 2. Edit fields and tap **Save** — same labels as desktop General settings.
-3. Use **Profile** in the Settings submenu for sign-out.
+3. Under **Send messages**, edit account / transaction templates (Allow URL toggles included).
+4. Use **Profile** in the Settings submenu — email is view-only; edit the display name and sign out as needed.
 
 ### Re-login on mobile (optional)
 

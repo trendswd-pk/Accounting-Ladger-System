@@ -2,13 +2,26 @@
 
 All notable changes to Accounting Ledger are documented here.
 
+## [1.0.3] — 2026-10-31
+
+### Added
+- Documentation screenshots for Account Details popup and Account / Transaction message templates (Allow URL toggles).
+- Playwright `playwright` devDependency in Demo Mode for `npm run screenshots`.
+
+### Changed
+- Full client guide refresh for 1.0.1–1.0.2 features (dashboard Transactions button, sorting, Send message PDF/ledger URLs, profile email view-only, mobile pagination / charts).
+- Re-captured all documentation screenshots (25 PNGs) against current Demo Mode UI.
+- Documentation home and getting-started point to the live demo URL.
+
 ## [1.0.2] — 2026-10-31
 
 ### Added
 - Dashboard header: **Transactions** button next to **Add** for quick navigation to the Transactions page (icon on mobile).
 
 ### Changed
-- (none)
+- Profile email is view-only (not editable); only the display name can be saved from Profile.
+- Profile guide updated so Email is documented as view-only.
+- Root README live demo link matches `demo-mode/demo.json`.
 
 ### Fixed
 - Dashboard chart axis labels on mobile no longer clip (removed negative chart margins; wider Y-axis for Top expense accounts).

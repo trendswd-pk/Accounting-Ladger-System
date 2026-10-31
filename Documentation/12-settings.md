@@ -1,16 +1,20 @@
 # Settings (General)
 
-**Version:** 1.0.0  
+**Version:** 1.0.3  
 **Route:** `/settings`  
 **Who can access:** Signed-in users. Branding and type filters are typically managed by Admin in Demo Mode.
 
-## Screenshot
+## Screenshots
 
 ![Settings General](./images/13-settings.png)
 
+![Transaction message template](./images/24-settings-transaction-message.png)
+
+![Account message template](./images/25-settings-account-message.png)
+
 ## What this page does
 
-Business branding, default currency, theme, default transaction entry mode, which types feed Cash & Savings and Payable/Receivable views, and CSV import/export for accounts and transactions. Message templates and related options may appear further down the page when scrolled.
+Business branding, default currency, theme, default transaction entry mode, which types feed Cash & Savings and Payable/Receivable views, CSV import/export for accounts and transactions, and **Send messages** templates for WhatsApp (with optional PDF / ledger URL toggles).
 
 ## Layout at a glance
 
@@ -20,6 +24,7 @@ Business branding, default currency, theme, default transaction entry mode, whic
 - Filter groups: **Cash & Savings**, **Payable & Receivable** (each with **Account Type** and **Cash Type**)
 - **Account import & export**: **Template**, **Export**, **Import CSV**
 - Similar controls for transaction import/export when present
+- **Send messages**: **Edit account** and **Edit transaction** template buttons
 
 ## Steps
 
@@ -63,6 +68,17 @@ Business branding, default currency, theme, default transaction entry mode, whic
 2. Watch progress while import/export runs.
 3. Duplicate names are skipped on import; types match by name or code.
 
+### Edit message templates
+
+1. Under **Send messages**, select **Edit account** or **Edit transaction**.
+2. Insert variables with the chips above the editor (for example `{{name}}`, `{{balance}}`, `{{pdf_url}}`, `{{ledger_url}}`).
+3. Optionally set **Plus (+)**, **Minus (−)**, and **Zero** balance notes used by `{{note}}` (help on the info icon).
+4. Use each **Allow URL** row (heading + tip on the left, switch on the right):
+   - Account template: **Ledger PDF link** → fills `{{ledger_url}}`
+   - Transaction template: **Transaction PDF link** → `{{pdf_url}}`, and optionally **Ledger PDF link** → `{{ledger_url}}`
+5. Select **Save** in the modal — the template writes immediately (no need to also click the page **Save**).
+6. Info tips do not block scrolling; click outside a tip or scroll to dismiss it.
+
 ## Key fields
 
 | Setting | Purpose |
@@ -74,17 +90,21 @@ Business branding, default currency, theme, default transaction entry mode, whic
 | Default transaction entry mode | Prefills Add Transaction |
 | Cash & Savings types | Which accounts appear on Cash & Savings |
 | Payable & Receivable types | Which accounts appear on Payable / Receivable |
+| Send messages | WhatsApp templates + Allow URL for PDF / ledger links |
 
 ## Errors & edge cases
 
-- Unsaved edits are lost if you navigate away without **Save**.
+- Unsaved page edits are lost if you navigate away without **Save** (message templates save inside their own modal).
 - Import progress shows percent complete; wait until finished before leaving the page.
 - Demo Mode stores settings in this browser only.
 - Sidebar also offers quick **Light mode** / **Dark mode** and **Reset demo data** for the current demo account.
+- Public share links are first-party (`/l/f/{fileId}` or `/l/{code}`) — no third-party ad shorteners.
 
 ## Related links
 
 - [Profile](./13-settings-profile.md)
 - [Account Type](./14-settings-account-type.md)
 - [Cash Type](./15-settings-cash-type.md)
+- [Accounts](./04-accounts.md)
+- [Transactions](./03-transactions.md)
 - [Cash & Savings](./05-cash-savings.md)

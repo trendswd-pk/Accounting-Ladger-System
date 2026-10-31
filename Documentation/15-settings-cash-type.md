@@ -1,6 +1,6 @@
 # Cash Type
 
-**Version:** 1.0.0  
+**Version:** 1.0.3  
 **Route:** `/settings/cash-type`  
 **Who can access:** Signed-in users with permission to manage setup types (Admin in Demo Mode).
 

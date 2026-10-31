@@ -61,35 +61,23 @@ export default function ProfilePage() {
     e.preventDefault()
     setMessage(null)
     const name = fullName.trim()
-    const nextEmail = email.trim()
     if (!name) {
       setMessage({ type: 'error', text: 'Name is required.' })
-      return
-    }
-    if (!nextEmail) {
-      setMessage({ type: 'error', text: 'Email is required.' })
       return
     }
     setSavingProfile(true)
     try {
       const supabase = createClient()
       const { data, error } = await supabase.auth.updateUser({
-        email: nextEmail,
         data: { full_name: name, name },
       })
       if (error) throw error
       if (data.user) {
         setUser(data.user)
         setFullName(displayNameFromUser(data.user))
-        setEmail(data.user.email ?? nextEmail)
+        setEmail(data.user.email ?? email)
       }
-      const emailChanged = nextEmail.toLowerCase() !== (user?.email ?? '').toLowerCase()
-      setMessage({
-        type: 'success',
-        text: emailChanged
-          ? 'Profile saved. Check your inbox to confirm the new email if required.'
-          : 'Profile saved.',
-      })
+      setMessage({ type: 'success', text: 'Profile saved.' })
     } catch (err) {
       setMessage({
         type: 'error',
@@ -174,7 +162,7 @@ export default function ProfilePage() {
                   role="dialog"
                   className="absolute left-0 top-full z-50 mt-1.5 w-64 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs leading-relaxed text-gray-700 shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
                 >
-                  Update your display name, email, or password. Sign out ends this session.
+                  Update your display name or password. Email is view-only. Sign out ends this session.
                 </div>
               </>
             ) : null}
@@ -199,7 +187,7 @@ export default function ProfilePage() {
           <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
             <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Account</h2>
             <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-              Your display name and login email for this account.
+              Your display name for this account. Login email is shown below and cannot be changed here.
             </p>
           </div>
           <div className="space-y-4 px-4 py-4">
@@ -225,10 +213,11 @@ export default function ProfilePage() {
                 id="profile-email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className={inputClass}
+                readOnly
+                className={`${inputClass} cursor-default bg-gray-50 text-gray-600 dark:bg-gray-800 dark:text-gray-300`}
                 placeholder="you@example.com"
                 autoComplete="email"
+                aria-readonly="true"
               />
             </div>
           </div>

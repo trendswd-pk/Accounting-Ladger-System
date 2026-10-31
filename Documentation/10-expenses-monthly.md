@@ -1,6 +1,6 @@
 # Monthly Expense
 
-**Version:** 1.0.0  
+**Version:** 1.0.3  
 **Route:** `/expenses/monthly`  
 **Who can access:** Signed-in users.
 

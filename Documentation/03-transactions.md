@@ -1,6 +1,6 @@
 # Transactions
 
-**Version:** 1.0.0  
+**Version:** 1.0.3  
 **Route:** `/transactions`  
 **Who can access:** Signed-in users. Editors and Admins can add and edit; Viewers primarily browse.
 
@@ -12,7 +12,7 @@
 
 ## What this page does
 
-The journal of every debit, credit, and transfer. Search and filter entries, open an account’s ledger, add or edit transactions, attach documents, and use row actions such as edit or delete.
+The journal of every debit, credit, and transfer. Search and filter entries, sort key columns, open a transaction preview (Details / Documents), add or edit transactions, attach documents, export a voucher PDF, and send a WhatsApp message with optional PDF / ledger links.
 
 ## Layout at a glance
 
@@ -21,16 +21,23 @@ The journal of every debit, credit, and transfer. Search and filter entries, ope
 - Filter control (funnel) for date range, type, and related filters
 - **Add** button
 - Table columns: **SR.**, **TRANSACTION DATE**, **ACCOUNT NAME**, **NARRATION**, **TYPE**, **BALANCE**, **RUNNING BALANCE**, **ACTION**
+- Sortable headers: **Transaction Date**, **Type**, and **Balance** (click to toggle ascending / descending)
+- Compact pagination on mobile (first … current … last)
 - Optional back link when opened from another page with a return path
 
 ## Steps
 
 ### Browse the journal
 
-1. Open **Transactions** from the sidebar (or from a dashboard / account link).
-2. Review rows newest-first by transaction date.
+1. Open **Transactions** from the sidebar, the dashboard **Transactions** button, or an account / KPI link.
+2. Review rows newest-first by transaction date (or your active sort).
 3. **TYPE** shows **Credit** (green) or **Debit** (red).
 4. **BALANCE** shows signed amounts; **RUNNING BALANCE** shows the cumulative position for context.
+
+### Sort columns
+
+1. Select **TRANSACTION DATE**, **TYPE**, or **BALANCE** in the table header.
+2. Click again to reverse the sort direction.
 
 ### Search
 
@@ -51,12 +58,25 @@ The journal of every debit, credit, and transfer. Search and filter entries, ope
 3. Fill **Transaction Date**, account fields, **Narration**, type (Credit/Debit for normal), and **Balance**.
 4. Optionally attach files.
 5. Select **Add** (or **Save** when editing), or **Cancel**.
+6. The modal closes quickly; uploads finish in the background when attachments are present.
+
+### Open transaction preview
+
+1. Select a row (or **Details** from the row menu).
+2. Use the **Details** and **Documents** tabs. Documents shows a file count badge when attachments exist.
+3. Footer icon buttons: **Send message**, **Edit**, and **Close**.
+
+### Send message / export PDF
+
+1. From the row menu or preview footer, choose **Send message** (opens WhatsApp promptly while PDFs build).
+2. When Allow URL is on in Settings, the message fills **`{{pdf_url}}`** (voucher) and/or **`{{ledger_url}}`** (account ledger) with short public links.
+3. **Export PDF** builds a voucher plus uploaded images (including WebP/GIF) without duplicating a previously saved voucher file already in Documents.
 
 ### Row actions
 
 1. Open the **ACTION** menu (⋯) on a row.
-2. Typical options include **Edit** and **Delete** (confirm in **Delete** dialogs).
-3. Other actions may include messaging or PDF export when available for that row.
+2. Typical options include **Details**, **Edit**, **Delete**, **Send message**, and PDF export when available.
+3. Confirm deletes in the **Delete** dialog.
 
 ### Open an account ledger
 
@@ -69,11 +89,11 @@ The journal of every debit, credit, and transfer. Search and filter entries, ope
 | Column | Description |
 |--------|-------------|
 | SR. | Row number on the current page |
-| TRANSACTION DATE | Display date (DD-MM-YYYY) |
+| TRANSACTION DATE | Display date (DD-MM-YYYY); sortable |
 | ACCOUNT NAME | Linked account |
 | NARRATION | Description |
-| TYPE | Credit or Debit badge |
-| BALANCE | Signed amount in the default currency |
+| TYPE | Credit or Debit badge; sortable |
+| BALANCE | Signed amount in the default currency; sortable |
 | RUNNING BALANCE | Cumulative balance context |
 | ACTION | Row menu |
 
@@ -82,10 +102,11 @@ The journal of every debit, credit, and transfer. Search and filter entries, ope
 - Validation in the modal mirrors the dashboard form (required date, narration, amount, accounts).
 - Delete asks for confirmation before removing an entry.
 - Empty search or filters: a calm empty state explains that nothing matches.
-- Date filters from **Today Expense** / **Yesterday Expense** on the dashboard pre-fill the journal range.
+- Date filters from **Today Expense** / **Yesterday Expense** on the dashboard pre-fill the journal for **expense accounts only**.
+- On mobile, the back-to-top control sits above pagination so it does not cover page controls.
 
 ## Related links
 
 - [Dashboard](./02-dashboard.md)
 - [Accounts](./04-accounts.md)
-- [Settings](./12-settings.md) (default entry mode)
+- [Settings](./12-settings.md) (message templates and Allow URL)

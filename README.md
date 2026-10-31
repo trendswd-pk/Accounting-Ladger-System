@@ -10,10 +10,11 @@ Accounting Ledger is a web app for keeping professional ledgers without spreadsh
 
 ## Features
 
-- **Accounts & transactions** — ledgers with credit / debit / transfer entries, filters, search, and attachments
-- **Dashboard** — balance cards, balance mix, daily and monthly expense charts
+- **Accounts & transactions** — ledgers with credit / debit / transfer entries, sort, filters, search, attachments, and Details / Documents previews
+- **Dashboard** — balance cards, balance mix with day-over-day %, expense charts, and quick **Transactions** / **Add** actions
 - **Cash & Savings / Payable / Receivable** — filtered balance views driven by your type settings
 - **Expenses & investment** — dedicated lists plus daily and monthly expense grids
+- **WhatsApp messages** — editable templates with optional voucher / ledger PDF links (`{{pdf_url}}`, `{{ledger_url}}`)
 - **Settings** — branding, currency, theme, message templates, account types, and cash types
 - **Exports** — ledger and transaction PDF / CSV
 - **PWA** — installable on phone home screens
@@ -46,7 +47,7 @@ Accounting Ledger is a web app for keeping professional ledgers without spreadsh
   ```bash
   cd demo-mode && npm install && npm run dev
   ```
-- **Live demo:** deploy pending — URL will be set in `demo-mode/demo.json` → `live_demo_url` when published (separate Vercel project; Root Directory `demo-mode`).
+- **Live demo:** [accounting-ladger-system-coral.vercel.app](https://accounting-ladger-system-coral.vercel.app) (separate Vercel project; Root Directory `demo-mode`; URL also in `demo-mode/demo.json` → `live_demo_url`).
 - Demo logins appear as **account cards** on the Demo Mode login screen (Admin, Editor, Viewer).
 
 ## Documentation

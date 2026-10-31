@@ -6,13 +6,13 @@ Accounting Ledger helps small businesses keep professional books: journals, acco
 
 | | |
 |---|---|
-| **Version** | 1.0.2 |
-| **Released** | 2026-10-30 |
-| **Live demo** | Deploy pending — available on the project page when published |
+| **Version** | 1.0.3 |
+| **Released** | 2026-10-31 |
+| **Live demo** | [accounting-ladger-system-coral.vercel.app](https://accounting-ladger-system-coral.vercel.app) |
 
 ## How to open the demo
 
-1. Open the live demo from the Trends WD project page when it is deployed, or run Demo Mode locally (see `demo-mode/README.md` in the repository).
+1. Open the [live demo](https://accounting-ladger-system-coral.vercel.app), or run Demo Mode locally (see `demo-mode/README.md` in the repository).
 2. On the Demo Mode login screen, choose an **account card** (Admin, Editor, or Viewer). Demo logins appear as account cards — email is shown on each card.
 3. Explore with Northline Advisory sample data stored in your browser only.
 

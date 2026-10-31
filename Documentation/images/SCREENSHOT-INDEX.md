@@ -1,9 +1,9 @@
 # Screenshot index
 
-- Captured: 2026-10-29T13:01:31.397Z
+- Captured: 2026-10-31T07:11:24.801Z
 - Base URL: http://localhost:3001
 - User: admin@admin.com
-- PNG count: 22
+- PNG count: 25
 
 | # | file | route | what | notes |
 |---|------|-------|------|-------|
@@ -29,3 +29,6 @@
 | 20 | `20-mobile-nav.png` | `/` | Mobile navigation open | — |
 | 21 | `21-mobile-transactions.png` | `/transactions` | Mobile transactions | — |
 | 22 | `22-mobile-settings.png` | `/settings` | Mobile settings | — |
+| 23 | `23-accounts-detail.png` | `/accounts` | Account Details popup | Details tab |
+| 24 | `24-settings-transaction-message.png` | `/settings` | Transaction message template | Allow URL toggles + variables |
+| 25 | `25-settings-account-message.png` | `/settings` | Account message template | Ledger PDF Allow URL |

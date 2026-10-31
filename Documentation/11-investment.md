@@ -1,6 +1,6 @@
 # Investment
 
-**Version:** 1.0.0  
+**Version:** 1.0.3  
 **Route:** `/investment`  
 **Who can access:** Signed-in users.
 
