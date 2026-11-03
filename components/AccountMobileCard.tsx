@@ -143,21 +143,18 @@ export default function AccountMobileCard({
 
         <div className="mt-3 flex items-center justify-between gap-3 border-t border-brand-ink/10 pt-2.5 text-[12px] font-medium text-brand-ink">
           <p
-            className={`flex min-w-0 items-center gap-1 ${trendClass}`}
+            className={`inline-flex min-w-0 items-center gap-1 truncate font-semibold tabular-nums ${trendClass}`}
             title={trendTitle}
             aria-label={trendTitle}
           >
-            <span className="opacity-70 text-brand-ink">Today :</span>
             {trend === 'up' ? (
-              <ArrowUp className="h-3.5 w-3.5 shrink-0" strokeWidth={2.4} aria-hidden />
+              <ArrowUp className="h-3 w-3 shrink-0" strokeWidth={2.5} aria-hidden />
             ) : trend === 'down' ? (
-              <ArrowDown className="h-3.5 w-3.5 shrink-0" strokeWidth={2.4} aria-hidden />
+              <ArrowDown className="h-3 w-3 shrink-0" strokeWidth={2.5} aria-hidden />
             ) : (
-              <Minus className="h-3.5 w-3.5 shrink-0" strokeWidth={2.4} aria-hidden />
+              <Minus className="h-3 w-3 shrink-0" strokeWidth={2.5} aria-hidden />
             )}
-            <span className="font-semibold tabular-nums">
-              {formatDayDeltaPct(dayDeltaPct)}
-            </span>
+            <span>Today {formatDayDeltaPct(dayDeltaPct)}</span>
           </p>
           <p className={`min-w-0 shrink-0 text-right ${balanceTone}`}>
             <span className="opacity-70 text-brand-ink">Balance :</span>{' '}

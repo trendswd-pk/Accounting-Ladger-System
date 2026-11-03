@@ -1,8 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Info } from 'lucide-react'
+import { Filter, Info, X } from 'lucide-react'
+import ExpensePeriodMobileCard from '@/components/ExpensePeriodMobileCard'
+import ExpenseTotalMobileBar from '@/components/ExpenseTotalMobileBar'
 import {
   FormModalBody,
   FormModalFooter,
@@ -46,6 +48,15 @@ const MONTH_NAMES = [
 ] as const
 
 const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
+const WEEKDAY_FULL = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+] as const
 
 function daysInMonth(year: number, monthIndex: number): number {
   return new Date(year, monthIndex + 1, 0).getDate()
@@ -81,6 +92,8 @@ export default function DailyExpensePage() {
   )
   const [listError, setListError] = useState<string | null>(null)
   const [infoOpen, setInfoOpen] = useState(false)
+  const [filterOpen, setFilterOpen] = useState(false)
+  const filterAsideRef = useRef<HTMLElement>(null)
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
   const [currency, setCurrency] = useState(
     () => getCachedAppSettings()?.currency ?? DEFAULT_APP_SETTINGS.currency
@@ -182,11 +195,15 @@ export default function DailyExpensePage() {
     balance > 0
       ? 'text-red-700 dark:text-red-400'
       : balance < 0
-        ? 'text-green-700 dark:text-green-400'
+        ? 'text-primary-700 dark:text-primary-400'
         : 'text-gray-800 dark:text-gray-200'
+
+  const cardAmountTone = (balance: number) =>
+    balance > 0 ? 'text-red-700' : balance < 0 ? 'text-primary-800' : 'text-brand-ink'
 
   const isCurrentMonth = year === currentYear && monthIndex === currentMonthIndex
   const monthName = MONTH_NAMES[monthIndex]
+  const periodFilterActive = !isCurrentMonth
   const selectedWeekday =
     selectedDay != null
       ? WEEKDAY_NAMES[new Date(year, monthIndex, selectedDay).getDay()]
@@ -195,10 +212,35 @@ export default function DailyExpensePage() {
   const openDay = (day: number) => setSelectedDay(day)
   const closeDay = () => setSelectedDay(null)
 
+  const resetPeriodFilter = () => {
+    setYear(currentYear)
+    setMonthIndex(currentMonthIndex)
+    setSelectedDay(null)
+  }
+
+  useEffect(() => {
+    if (!filterOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFilterOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevOverflow
+    }
+  }, [filterOpen])
+
+  useLayoutEffect(() => {
+    const el = filterAsideRef.current
+    if (el) el.inert = !filterOpen
+  }, [filterOpen])
+
   return (
     <div className="p-4 lg:p-8">
       <div className="mb-4 space-y-3 lg:mb-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
             <h1 className="truncate text-2xl font-bold text-gray-800 dark:text-gray-100 lg:text-3xl">
               Daily Expense
@@ -238,37 +280,25 @@ export default function DailyExpensePage() {
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2">
-            <select
-              value={monthIndex}
-              onChange={(e) => {
-                setMonthIndex(Number(e.target.value))
-                setSelectedDay(null)
-              }}
-              className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-              aria-label="Select month"
+          <div className="flex h-10 shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setFilterOpen(true)}
+              className={`relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                periodFilterActive
+                  ? 'border-primary-600 bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300'
+                  : 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700'
+              }`}
+              aria-label="Open period filters"
+              aria-expanded={filterOpen}
             >
-              {MONTH_NAMES.map((name, index) => (
-                <option key={name} value={index}>
-                  {name}
-                </option>
-              ))}
-            </select>
-            <select
-              value={year}
-              onChange={(e) => {
-                setYear(Number(e.target.value))
-                setSelectedDay(null)
-              }}
-              className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm font-semibold tabular-nums text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-              aria-label="Select year"
-            >
-              {availableYears.map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))}
-            </select>
+              <Filter className="h-4 w-4" aria-hidden />
+              {periodFilterActive ? (
+                <span className="absolute -right-1.5 -top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary-600 px-1 text-[10px] font-semibold leading-none text-white">
+                  1
+                </span>
+              ) : null}
+            </button>
           </div>
         </div>
       </div>
@@ -279,15 +309,132 @@ export default function DailyExpensePage() {
         </div>
       ) : null}
 
-      {/* Mobile cards */}
-      <div className="space-y-2 lg:hidden">
+      {periodFilterActive ? (
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-sm text-primary-900 dark:border-primary-800 dark:bg-primary-900/30 dark:text-primary-100">
+          <span className="min-w-0 flex-1 font-medium">
+            {monthName} {year}
+          </span>
+          <button
+            type="button"
+            onClick={resetPeriodFilter}
+            className="inline-flex items-center gap-1 rounded-md bg-white/80 px-2 py-0.5 text-xs font-medium text-primary-800 hover:bg-white dark:bg-gray-800 dark:text-primary-200 dark:hover:bg-gray-700"
+          >
+            <X className="h-3.5 w-3.5" aria-hidden />
+            This month
+          </button>
+        </div>
+      ) : null}
+
+      {/* Right filter drawer — month / year */}
+      <div
+        className={`fixed inset-0 z-50 bg-black/50 transition-opacity duration-200 ${
+          filterOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
+        }`}
+        onClick={() => setFilterOpen(false)}
+        aria-hidden={!filterOpen}
+      />
+      <aside
+        ref={filterAsideRef}
+        className={`fixed inset-y-0 right-0 z-50 flex w-80 max-w-[85vw] transform flex-col border-l border-gray-200 bg-white shadow-xl transition-transform duration-200 ease-out dark:border-gray-700 dark:bg-gray-800 ${
+          filterOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+        aria-label="Daily expense period filters"
+        aria-hidden={!filterOpen}
+      >
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-200 px-4 py-4 dark:border-gray-700">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Filters</h2>
+          <button
+            type="button"
+            onClick={() => setFilterOpen(false)}
+            className="rounded-md p-1.5 text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-300 dark:hover:bg-gray-700"
+            aria-label="Close filters"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4">
+          <div>
+            <label
+              htmlFor="daily-filter-month"
+              className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
+              Month
+            </label>
+            <select
+              id="daily-filter-month"
+              value={monthIndex}
+              onChange={(e) => {
+                setMonthIndex(Number(e.target.value))
+                setSelectedDay(null)
+              }}
+              className="h-10 w-full rounded-md border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+              aria-label="Select month"
+            >
+              {MONTH_NAMES.map((name, index) => (
+                <option key={name} value={index}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label
+              htmlFor="daily-filter-year"
+              className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
+              Year
+            </label>
+            <select
+              id="daily-filter-year"
+              value={year}
+              onChange={(e) => {
+                setYear(Number(e.target.value))
+                setSelectedDay(null)
+              }}
+              className="h-10 w-full rounded-md border border-gray-300 bg-white px-3 text-sm font-semibold tabular-nums text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+              aria-label="Select year"
+            >
+              {availableYears.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="flex shrink-0 gap-2 border-t border-gray-200 px-4 py-3 dark:border-gray-700">
+          <button
+            type="button"
+            onClick={resetPeriodFilter}
+            className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+          >
+            This month
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterOpen(false)}
+            className="flex-1 rounded-md bg-primary-600 px-3 py-2 text-sm font-medium text-white hover:bg-primary-700"
+          >
+            Done
+          </button>
+        </div>
+      </aside>
+
+      {/* Mobile cards — brand-sky curved cards (Transactions / Accounts language) */}
+      <div className="space-y-3.5 lg:hidden">
         {!ready ? (
           Array.from({ length: 5 }, (_, i) => (
             <div
               key={i}
-              className="animate-pulse rounded-xl border border-gray-200 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
+              className="animate-pulse overflow-hidden rounded-[1.75rem] bg-brand-sky/80 p-4"
             >
-              <div className="h-5 w-28 rounded bg-gray-200 dark:bg-gray-600" />
+              <div className="mb-3 h-4 w-20 rounded bg-white/40" />
+              <div className="mb-2 h-5 w-2/3 rounded bg-brand-ink/20" />
+              <div className="mb-3 h-3 w-1/2 rounded bg-brand-ink/15" />
+              <div className="flex gap-2">
+                <div className="h-6 w-16 rounded-full bg-white/50" />
+                <div className="h-6 w-28 rounded-full bg-white/30" />
+              </div>
             </div>
           ))
         ) : (
@@ -295,47 +442,34 @@ export default function DailyExpensePage() {
             {Array.from({ length: dayCount }, (_, i) => {
               const day = i + 1
               const total = dailyTotals[i]
-              const weekday = WEEKDAY_NAMES[new Date(year, monthIndex, day).getDay()]
+              const weekdayShort = WEEKDAY_NAMES[new Date(year, monthIndex, day).getDay()]
+              const weekdayFull = WEEKDAY_FULL[new Date(year, monthIndex, day).getDay()]
               const isToday = isCurrentMonth && day === todayDay
               return (
-                <button
+                <ExpensePeriodMobileCard
                   key={day}
-                  type="button"
-                  onClick={() => openDay(day)}
-                  className={`flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left shadow-md transition-colors ${
-                    isToday
-                      ? 'border-primary-300 bg-primary-50 dark:border-primary-700 dark:bg-primary-900/30'
-                      : 'border-gray-200 bg-white hover:border-primary-200 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-primary-700'
-                  }`}
-                >
-                  <div className="min-w-0">
-                    <p className="font-medium text-gray-900 dark:text-gray-100">
-                      {pad2(day)} {monthName} · {weekday}
-                    </p>
-                    {isToday ? (
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-primary-600 dark:text-primary-400">
-                        Today
-                      </p>
-                    ) : null}
-                  </div>
-                  <p
-                    className={`shrink-0 text-sm font-semibold tabular-nums ${balanceColorClass(total)}`}
-                  >
-                    {formatBalance(total)}
-                  </p>
-                </button>
+                  headerLabel={weekdayFull}
+                  headerRight={`${pad2(day)} ${monthName} ${year}`}
+                  title={`${pad2(day)} ${monthName}`}
+                  subtitle={`${weekdayShort} · ${year}`}
+                  amountLabel="Expense"
+                  formatBalance={formatBalance}
+                  amount={total}
+                  amountToneClass={cardAmountTone(total)}
+                  highlighted={isToday}
+                  footerLeftLabel=""
+                  footerLeftValue={isToday ? 'Current day' : undefined}
+                  footerLeftHighlighted={isToday}
+                  onOpen={() => openDay(day)}
+                />
               )
             })}
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 shadow-md dark:border-gray-700 dark:bg-gray-900/40">
-              <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-                Total Month Expenses
-              </span>
-              <span
-                className={`text-sm font-semibold tabular-nums ${balanceColorClass(monthTotal)}`}
-              >
-                {formatBalance(monthTotal)}
-              </span>
-            </div>
+            <ExpenseTotalMobileBar
+              label="Month Expenses"
+              amount={monthTotal}
+              formatBalance={formatBalance}
+              amountToneClass={cardAmountTone(monthTotal)}
+            />
           </>
         )}
       </div>

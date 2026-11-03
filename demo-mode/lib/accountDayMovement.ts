@@ -56,3 +56,23 @@ export function formatDayDeltaPct(pct: number): string {
   if (pct < 0) return `-${body}%`
   return '0%'
 }
+
+/**
+ * Change of `current` vs `previous` (e.g. this month's spend vs last month).
+ * Same edge rules as account day movement when previous is zero.
+ */
+export function periodChange(
+  current: number,
+  previous: number
+): { delta: number; deltaPct: number } {
+  const delta = current - previous
+  const deltaPct =
+    previous === 0
+      ? delta === 0
+        ? 0
+        : delta > 0
+          ? 100
+          : -100
+      : (delta / Math.abs(previous)) * 100
+  return { delta, deltaPct }
+}

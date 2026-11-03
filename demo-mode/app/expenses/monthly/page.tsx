@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Info } from 'lucide-react'
+import ExpensePeriodMobileCard from '@/components/ExpensePeriodMobileCard'
+import ExpenseTotalMobileBar from '@/components/ExpenseTotalMobileBar'
 import {
   FormModalBody,
   FormModalFooter,
@@ -23,6 +25,7 @@ import {
   watchAppSettings,
 } from '@/lib/appSettings'
 import { formatMoney } from '@/lib/money'
+import { formatDayDeltaPct, periodChange } from '@/lib/accountDayMovement'
 import {
   expenseSpendAmount,
   fetchTransactions,
@@ -130,6 +133,18 @@ export default function MonthlyExpensePage() {
     return totals
   }, [transactions, expenseAccountIds, year])
 
+  /** December of previous year - baseline for January vs last month. */
+  const prevDecemberTotal = useMemo(() => {
+    const prefix = `${year - 1}-12-`
+    let total = 0
+    for (const tx of transactions) {
+      if (!expenseAccountIds.has(tx.accountId)) continue
+      if (!tx.transactionDate.slice(0, 10).startsWith(prefix)) continue
+      total += expenseSpendAmount(tx)
+    }
+    return total
+  }, [transactions, expenseAccountIds, year])
+
   const yearTotal = useMemo(
     () => monthlyTotals.reduce((sum, n) => sum + n, 0),
     [monthlyTotals]
@@ -168,8 +183,11 @@ export default function MonthlyExpensePage() {
     balance > 0
       ? 'text-red-700 dark:text-red-400'
       : balance < 0
-        ? 'text-green-700 dark:text-green-400'
+        ? 'text-primary-700 dark:text-primary-400'
         : 'text-gray-800 dark:text-gray-200'
+
+  const cardAmountTone = (balance: number) =>
+    balance > 0 ? 'text-red-700' : balance < 0 ? 'text-primary-800' : 'text-brand-ink'
 
   const isCurrentYear = year === now.getFullYear()
   const currentMonthIndex = now.getMonth()
@@ -243,15 +261,21 @@ export default function MonthlyExpensePage() {
         </div>
       ) : null}
 
-      {/* Mobile cards */}
-      <div className="space-y-2 lg:hidden">
+      {/* Mobile cards - brand-sky curved cards (Transactions / Accounts language) */}
+      <div className="space-y-3.5 lg:hidden">
         {!ready ? (
           Array.from({ length: 4 }, (_, i) => (
             <div
               key={i}
-              className="animate-pulse rounded-xl border border-gray-200 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
+              className="animate-pulse overflow-hidden rounded-[1.75rem] bg-brand-sky/80 p-4"
             >
-              <div className="h-5 w-28 rounded bg-gray-200 dark:bg-gray-600" />
+              <div className="mb-3 h-4 w-20 rounded bg-white/40" />
+              <div className="mb-2 h-5 w-2/3 rounded bg-brand-ink/20" />
+              <div className="mb-3 h-3 w-1/2 rounded bg-brand-ink/15" />
+              <div className="flex gap-2">
+                <div className="h-6 w-16 rounded-full bg-white/50" />
+                <div className="h-6 w-28 rounded-full bg-white/30" />
+              </div>
             </div>
           ))
         ) : (
@@ -259,39 +283,49 @@ export default function MonthlyExpensePage() {
             {MONTH_NAMES.map((name, index) => {
               const total = monthlyTotals[index]
               const isCurrent = isCurrentYear && index === currentMonthIndex
+              // Current/future months that are still empty stay at auto-zero -
+              // don't show a false -100% vs last month.
+              const skipTrend =
+                year > now.getFullYear() ||
+                (isCurrentYear && index > currentMonthIndex) ||
+                (isCurrentYear && index === currentMonthIndex && total === 0)
+              const prevTotal =
+                index === 0 ? prevDecemberTotal : monthlyTotals[index - 1]
+              const { delta, deltaPct } = periodChange(total, prevTotal)
+              const prevMonthName =
+                index === 0 ? `December ${year - 1}` : MONTH_NAMES[index - 1]
+              const trendTitle =
+                delta === 0
+                  ? `No change vs ${prevMonthName}`
+                  : `${formatBalance(Math.abs(delta))} ${
+                      delta > 0 ? 'more' : 'less'
+                    } than ${prevMonthName} (${formatDayDeltaPct(deltaPct)})`
               return (
-                <button
+                <ExpensePeriodMobileCard
                   key={name}
-                  type="button"
-                  onClick={() => openMonth(index)}
-                  className={`flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left shadow-md transition-colors ${
-                    isCurrent
-                      ? 'border-primary-300 bg-primary-50 dark:border-primary-700 dark:bg-primary-900/30'
-                      : 'border-gray-200 bg-white hover:border-primary-200 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-primary-700'
-                  }`}
-                >
-                  <div className="min-w-0">
-                    <p className="font-medium text-gray-900 dark:text-gray-100">{name}</p>
-                    {isCurrent ? (
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-primary-600 dark:text-primary-400">
-                        Current month
-                      </p>
-                    ) : null}
-                  </div>
-                  <p className={`shrink-0 text-sm font-semibold tabular-nums ${balanceColorClass(total)}`}>
-                    {formatBalance(total)}
-                  </p>
-                </button>
+                  headerLabel="Expense"
+                  headerMeta={name.slice(0, 3)}
+                  headerRight={String(year)}
+                  title={name}
+                  subtitle={`${year}`}
+                  amountLabel="Expense"
+                  formatBalance={formatBalance}
+                  amount={total}
+                  amountToneClass={cardAmountTone(total)}
+                  highlighted={isCurrent}
+                  footerTrendDelta={skipTrend ? undefined : delta}
+                  footerTrendPct={skipTrend ? undefined : deltaPct}
+                  footerTrendTitle={skipTrend ? undefined : trendTitle}
+                  onOpen={() => openMonth(index)}
+                />
               )
             })}
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 shadow-md dark:border-gray-700 dark:bg-gray-900/40">
-              <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-                Total Year Expenses
-              </span>
-              <span className={`text-sm font-semibold tabular-nums ${balanceColorClass(yearTotal)}`}>
-                {formatBalance(yearTotal)}
-              </span>
-            </div>
+            <ExpenseTotalMobileBar
+              label="Year Expenses"
+              amount={yearTotal}
+              formatBalance={formatBalance}
+              amountToneClass={cardAmountTone(yearTotal)}
+            />
           </>
         )}
       </div>
@@ -317,7 +351,7 @@ export default function MonthlyExpensePage() {
               {!ready ? (
                 <tr>
                   <td colSpan={3} className="px-4 py-8 text-center text-sm text-gray-500">
-                    Loading…
+                    Loading...
                   </td>
                 </tr>
               ) : (
