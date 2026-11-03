@@ -34,6 +34,12 @@ export async function middleware(request: NextRequest) {
   const isApi = pathname.startsWith('/api/')
   // Ad-free short links shared on WhatsApp — must work without login.
   const isPublicShortLink = pathname.startsWith('/l/')
+  // OG/Twitter image routes must be crawlable without a session.
+  const isLinkPreviewImage =
+    pathname === '/opengraph-image' ||
+    pathname.startsWith('/opengraph-image/') ||
+    pathname === '/twitter-image' ||
+    pathname.startsWith('/twitter-image/')
   const isPublicAsset =
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
@@ -41,6 +47,7 @@ export async function middleware(request: NextRequest) {
     pathname === '/sw.js' ||
     pathname === '/manifest.webmanifest' ||
     pathname === '/manifest.json' ||
+    isLinkPreviewImage ||
     /\.(?:ico|png|jpg|jpeg|gif|webp|svg|webmanifest)$/i.test(pathname)
 
   if (isPublicAsset || isCron || isPublicShortLink) return supabaseResponse

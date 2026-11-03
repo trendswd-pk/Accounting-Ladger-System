@@ -65,7 +65,7 @@ export default function ScrollToTopButton({ scrollRef, pathname }: ScrollToTopBu
       onClick={scrollToTop}
       aria-label="Back to top"
       title="Back to top"
-      className={`fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-white text-primary-600 shadow-lg ring-1 ring-gray-200 transition-all duration-200 hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:bg-gray-800 dark:text-primary-400 dark:ring-gray-600 dark:hover:bg-gray-700 dark:focus:ring-offset-gray-900 lg:bottom-5 lg:right-5 ${
+      className={`fixed bottom-[calc(8.75rem+env(safe-area-inset-bottom,0px))] right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-white text-primary-600 shadow-lg ring-1 ring-gray-200 transition-all duration-200 hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:bg-gray-800 dark:text-primary-400 dark:ring-gray-600 dark:hover:bg-gray-700 dark:focus:ring-offset-gray-900 lg:bottom-5 lg:right-5 ${
         visible
           ? 'translate-y-0 opacity-100 pointer-events-auto'
           : 'translate-y-3 opacity-0 pointer-events-none'

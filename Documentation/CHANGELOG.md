@@ -5,6 +5,7 @@ All notable changes to Accounting Ledger are documented here.
 ## [1.1.0] — 2026-11-03
 
 ### Added
+- Link previews (Open Graph + Twitter large image) with brand OG card; set `NEXT_PUBLIC_APP_URL` for the correct absolute URL in production.
 - Shared capsule search + circular primary button (`SoftSearchField`) on Accounts, balance lists, and Transactions — mobile and desktop.
 - Mobile bottom tab bar fixed full-width at the screen bottom (safe-area aware): icon-only Home, Account, Transactions, Expenses, Menu with soft active chip; brand greens; Menu opens the full sidebar. Desktop unchanged.
 
@@ -29,6 +30,10 @@ All notable changes to Accounting Ledger are documented here.
 - Transfer entries save both debit and credit legs in **one** request (no sequential double-save wait).
 
 ### Fixed
+- Mobile “Back to top” sits above the list pagination bar and bottom tab bar (no longer overlaps pagination).
+- Service worker no longer rejects failed fetches (dev console “Failed to fetch” / FetchEvent errors); SW registration is skipped in development so HMR is not intercepted.
+- Open Graph / Twitter image routes are public (not blocked by auth middleware) so link previews can load.
+- PWA meta includes `mobile-web-app-capable` (Chromium deprecation of apple-only capable tag); `html` suppresses extension-injected hydration noise.
 - Account search combobox (transaction forms): ArrowUp / ArrowDown move the highlight and Enter selects on desktop keyboard.
 - Account mobile cards: flat day % no longer shows a dash icon — only up/down arrows when the balance moves.
 - Account mobile cards no longer crash on Expenses / balance lists (`Minus is not defined`); Today % icons are imported from `lucide-react`.

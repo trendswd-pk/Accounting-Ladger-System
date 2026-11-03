@@ -6,6 +6,7 @@
 See the full [Changelog](./CHANGELOG.md).
 
 ## This release includes
+- Open Graph / Twitter link previews with brand share card
 - Mobile bottom tab bar (full-width, safe-area): Home, Account, Transactions, Expenses, Menu
 - Green brand color scheme (Caribbean / Bangladesh / Rich Black) for light + dark; scheme sheet in Documentation/images
 - Balance Mix day-over-day % correctly reflects receivable/payable recoveries that clear accounts to zero
