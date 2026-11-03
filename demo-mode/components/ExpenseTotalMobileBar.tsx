@@ -22,8 +22,8 @@ export default function ExpenseTotalMobileBar({
   const amountText = formatBalance(amount)
 
   return (
-    <div className="relative overflow-hidden rounded-[1.65rem] bg-brand-sky text-left shadow-[0_8px_24px_rgba(11,27,51,0.18)]">
-      <div className="relative h-9 w-full">
+    <div className="relative overflow-hidden rounded-[1.65rem] bg-brand-sky text-left shadow-[0_8px_24px_rgba(11,27,51,0.18)] ring-1 ring-white/35">
+      <div className="relative h-9 w-full shadow-[inset_0_1px_0_0_rgba(255,255,255,0.28)]">
         <svg
           className="absolute inset-0 h-full w-full"
           viewBox="0 0 360 36"

@@ -10,6 +10,7 @@ All notable changes to Accounting Ledger are documented here.
 - Mobile bottom tab bar fixed full-width at the screen bottom (safe-area aware): icon-only Home, Account, Transactions, Expenses, Menu with soft active chip; brand greens; Menu opens the full sidebar. Desktop unchanged.
 
 ### Changed
+- Brand-sky mobile cards (Accounts, Transactions, Expenses): soft white ring + ink-header highlight so the dark tab stays visible on dark backgrounds.
 - Expense period mobile cards: current month/day shows a **Current** pill beside the title.
 - Expense period mobile cards show the amount only (no “Expense :” label prefix).
 - Monthly Expense mobile cards show month-over-month spend % (vs prior month) with up/down icons; higher spend is red, lower is green. Empty current/future months omit the % so they do not show a false −100%.
