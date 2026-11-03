@@ -233,12 +233,12 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
       />
       <aside
         ref={asideRef}
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] transform flex-col bg-white shadow-xl transition-transform duration-200 ease-out dark:bg-gray-800 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] transform flex-col border-r border-gray-200 bg-white shadow-xl transition-transform duration-200 ease-out dark:border-gray-700 dark:bg-gray-800 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
         aria-label="Main navigation"
       >
-        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 px-4 py-4 dark:border-gray-700">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-800">
           <Link
             href="/"
             onClick={onClose}
@@ -368,7 +368,7 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
           </ul>
         </nav>
 
-        <div className="shrink-0 space-y-1 border-t border-gray-100 p-3 dark:border-gray-700">
+        <div className="shrink-0 space-y-1 border-t border-gray-200 p-3 dark:border-gray-700">
           <div className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
             Demo Mode
           </div>

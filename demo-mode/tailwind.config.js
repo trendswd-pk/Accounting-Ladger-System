@@ -14,8 +14,8 @@ module.exports = {
          * See `.cursor/rules/color-scheme.mdc` + `Documentation/images/color-scheme.png`.
          */
         primary: {
-          50: '#F1F7F6',
-          100: '#D8EDE6',
+          50: '#E3F5EF',
+          100: '#C8EBDF',
           200: '#AACBC4',
           300: '#2FA98C',
           400: '#2CC295',
@@ -43,9 +43,9 @@ module.exports = {
         },
         gray: {
           50: '#F1F7F6',
-          100: '#E4EEEC',
-          200: '#C5D9D4',
-          300: '#AACBC4',
+          100: '#E2ECE9',
+          200: '#C5D4D0',
+          300: '#9BB0AB',
           400: '#707D7D',
           500: '#5C6A6A',
           600: '#4A5757',

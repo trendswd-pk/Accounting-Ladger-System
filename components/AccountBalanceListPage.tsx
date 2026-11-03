@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Info, Phone, Search } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Info, Search } from 'lucide-react'
+import AccountMobileCard from '@/components/AccountMobileCard'
 import { TablePaginationNav } from '@/components/TablePaginationNav'
 import {
   fetchAccounts,
@@ -37,6 +39,7 @@ export default function AccountBalanceListPage({
   filterAccounts,
   searchAriaLabel = 'Search accounts',
 }: AccountBalanceListPageProps) {
+  const router = useRouter()
   const cached = getCachedAccounts()
   const [allAccounts, setAllAccounts] = useState<AccountRecord[]>(() => cached ?? [])
   const [ready, setReady] = useState(() => cached != null)
@@ -133,7 +136,7 @@ export default function AccountBalanceListPage({
 
   const paginationBar =
     totalItems > DEFAULT_TABLE_PAGE_SIZE ? (
-      <div className="mt-4 flex flex-nowrap items-center justify-between gap-2 rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-md dark:border-gray-700 dark:bg-gray-800 lg:mt-0 lg:rounded-none lg:border-0 lg:border-t lg:border-gray-200 lg:bg-transparent lg:px-4 lg:shadow-none dark:lg:border-gray-700 lg:dark:bg-transparent">
+      <div className="mt-4 flex flex-nowrap items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 shadow-md dark:border-gray-700 dark:bg-gray-800 lg:mt-0 lg:rounded-none lg:border-0 lg:border-t lg:border-gray-200 lg:bg-transparent lg:px-4 lg:shadow-none dark:lg:border-gray-700 lg:dark:bg-transparent">
         <select
           value={listPageSize}
           onChange={(e) => {
@@ -238,81 +241,50 @@ export default function AccountBalanceListPage({
         </div>
       ) : null}
 
-      <div className="space-y-3 lg:hidden">
+      <div className="space-y-3.5 lg:hidden">
         {!ready ? (
           Array.from({ length: 3 }, (_, i) => (
             <div
               key={i}
-              className="animate-pulse rounded-xl border border-gray-100 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
+              className="animate-pulse overflow-hidden rounded-[1.75rem] bg-brand-sky/80 p-4"
             >
-              <div className="mb-3 h-5 w-36 rounded bg-gray-200 dark:bg-gray-600" />
-              <div className="space-y-2">
-                <div className="h-4 w-full rounded bg-gray-100 dark:bg-gray-700/50" />
-                <div className="h-4 w-2/3 rounded bg-gray-100 dark:bg-gray-700/50" />
+              <div className="mb-3 h-4 w-20 rounded bg-white/40" />
+              <div className="mb-2 h-5 w-2/3 rounded bg-brand-ink/20" />
+              <div className="mb-3 h-3 w-1/2 rounded bg-brand-ink/15" />
+              <div className="flex gap-2">
+                <div className="h-6 w-16 rounded-full bg-white/50" />
+                <div className="h-6 w-28 rounded-full bg-white/30" />
               </div>
             </div>
           ))
         ) : rows.length === 0 ? (
-          <div className="rounded-xl border border-gray-100 bg-white px-4 py-8 text-center text-sm text-gray-500 shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+          <div className="rounded-[1.75rem] border border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-500 shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
             {emptyHint}
           </div>
         ) : filteredRows.length === 0 ? (
-          <div className="rounded-xl border border-gray-100 bg-white px-4 py-8 text-center text-sm text-gray-500 shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+          <div className="rounded-[1.75rem] border border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-500 shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
             No accounts match your search.
           </div>
         ) : (
-          pageRows.map((row) => {
-            const phoneDigits = row.phone.replace(/[^\d+]/g, '')
-            return (
-              <article
-                key={row.id}
-                className="rounded-xl border border-gray-100 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
-              >
-                <div className="mb-3 min-w-0">
-                  <Link
-                    href={accountHref(row.id)}
-                    className="block truncate text-base font-semibold text-primary-700 hover:underline dark:text-primary-300"
-                  >
-                    {row.name}
-                  </Link>
-                  {row.phone ? (
-                    <a
-                      href={`tel:${phoneDigits}`}
-                      className="mt-1 inline-flex items-center gap-1.5 text-sm text-primary-600 hover:underline dark:text-primary-400"
-                    >
-                      <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                      {row.phone}
-                    </a>
-                  ) : (
-                    <p className="mt-1 text-sm text-gray-400">—</p>
-                  )}
-                </div>
-                <div className="flex items-end justify-between gap-3 text-sm">
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                      Type
-                    </p>
-                    <p className="mt-0.5 truncate text-gray-800 dark:text-gray-200">
-                      {row.accountTypeName}
-                      {row.accountTypeName && row.cashTypeName ? ' · ' : ''}
-                      {row.cashTypeName}
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                      Balance
-                    </p>
-                    <p className={`mt-0.5 tabular-nums font-medium ${balanceColorClass(row.balance)}`}>
-                      {formatBalance(row.balance)}
-                    </p>
-                  </div>
-                </div>
-              </article>
-            )
-          })
+          pageRows.map((row, index) => (
+            <AccountMobileCard
+              key={row.id}
+              row={{
+                id: row.id,
+                serialNumber: pageStartIndex + index + 1,
+                name: row.name,
+                phone: row.phone,
+                accountTypeName: row.accountTypeName,
+                cashTypeName: row.cashTypeName,
+                balance: row.balance,
+              }}
+              formatBalance={formatBalance}
+              onOpen={() => router.push(accountHref(row.id))}
+            />
+          ))
         )}
         {ready && filteredRows.length > 0 ? (
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 shadow-md dark:border-gray-700 dark:bg-gray-900/40">
+          <div className="flex items-center justify-between gap-3 rounded-[1.65rem] border border-gray-200 bg-white px-4 py-3 shadow-md dark:border-gray-700 dark:bg-gray-800">
             <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Total</span>
             <span className={`text-sm font-semibold tabular-nums ${balanceColorClass(totalBalance)}`}>
               {formatBalance(totalBalance)}
@@ -347,7 +319,7 @@ export default function AccountBalanceListPage({
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {!ready ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">

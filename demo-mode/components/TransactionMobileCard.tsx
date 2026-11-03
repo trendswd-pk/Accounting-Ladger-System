@@ -95,14 +95,14 @@ export default function TransactionMobileCard({
       </div>
 
       <div className="relative px-4 pb-3.5 pt-1.5">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 items-center justify-between gap-2">
+          <div className="min-w-0 flex-1 overflow-hidden">
             <h2 className="truncate text-[1.125rem] font-bold leading-snug tracking-tight text-brand-ink">
               {row.accountName}
             </h2>
           </div>
           {actions ? (
-            <div className="mt-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+            <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
               {actions}
             </div>
           ) : null}

@@ -285,7 +285,7 @@ export default function DailyExpensePage() {
           Array.from({ length: 5 }, (_, i) => (
             <div
               key={i}
-              className="animate-pulse rounded-xl border border-gray-100 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
+              className="animate-pulse rounded-xl border border-gray-200 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
             >
               <div className="h-5 w-28 rounded bg-gray-200 dark:bg-gray-600" />
             </div>
@@ -305,7 +305,7 @@ export default function DailyExpensePage() {
                   className={`flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left shadow-md transition-colors ${
                     isToday
                       ? 'border-primary-300 bg-primary-50 dark:border-primary-700 dark:bg-primary-900/30'
-                      : 'border-gray-100 bg-white hover:border-primary-200 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-primary-700'
+                      : 'border-gray-200 bg-white hover:border-primary-200 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-primary-700'
                   }`}
                 >
                   <div className="min-w-0">
@@ -357,7 +357,7 @@ export default function DailyExpensePage() {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {!ready ? (
                 <tr>
                   <td colSpan={3} className="px-4 py-8 text-center text-sm text-gray-500">
@@ -451,7 +451,7 @@ export default function DailyExpensePage() {
                   No expense account activity this day.
                 </p>
               ) : (
-                <ul className="divide-y divide-gray-100 dark:divide-gray-700">
+                <ul className="divide-y divide-gray-200 dark:divide-gray-700">
                   {dayAccountRows.map((row) => (
                     <li
                       key={row.id}

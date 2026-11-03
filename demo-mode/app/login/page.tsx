@@ -76,10 +76,10 @@ function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-100 to-slate-200 px-4 py-10 dark:from-gray-950 dark:to-gray-900">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-gray-50 to-gray-100 px-4 py-10 dark:from-gray-950 dark:to-gray-900">
       <div className="w-full max-w-lg">
-        <div className="mb-4 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-center dark:border-sky-800/60 dark:bg-sky-950/40">
-          <p className="text-sm font-medium text-sky-800 dark:text-sky-200">
+        <div className="mb-4 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 text-center dark:border-primary-800/60 dark:bg-primary-950/40">
+          <p className="text-sm font-medium text-primary-800 dark:text-primary-200">
             Demo Mode — offline sample data, no production backend
           </p>
         </div>

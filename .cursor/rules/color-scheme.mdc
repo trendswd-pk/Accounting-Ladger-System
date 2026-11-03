@@ -22,8 +22,8 @@ When the user shares a **sample / screenshot / reference UI**, rebuild layout an
 
 | Token | Name | Hex | Use |
 |-------|------|-----|-----|
-| `primary-50` | Anti-Flash White | `#F1F7F6` | Soft washes, light chip bg |
-| `primary-100` | — | `#D8EDE6` | Hover wash / tint panels |
+| `primary-50` | Soft mint wash | `#E3F5EF` | Soft washes, selected chips (must differ from `gray-50`) |
+| `primary-100` | — | `#C8EBDF` | Hover wash / tint panels |
 | `primary-200` | Pistachio | `#AACBC4` | Soft borders, secondary chips |
 | `primary-300` | Mint | `#2FA98C` | Soft accents |
 | `primary-400` | Mountain Meadow | `#2CC295` | Icons, secondary accent, **branded card body** (`brand-sky`) |
@@ -53,8 +53,10 @@ When the user shares a **sample / screenshot / reference UI**, rebuild layout an
 
 | Context | Light | Dark |
 |---------|-------|------|
-| App background | `bg-gray-50` (`#F1F7F6`) | `dark:bg-gray-950` or `dark:bg-gray-900` (`#020F11` / `#032221`) |
-| Card / panel | `bg-white` or `bg-gray-50` + `border-gray-200` | `dark:bg-gray-800` (`#06302B`) + `dark:border-gray-700` |
+| App background | `bg-gray-50` (`#F1F7F6`) | `dark:bg-gray-950` (`#020F11`) |
+| Card / panel | `bg-white` + **`border-gray-200`** (not `gray-100` — too faint on light) | `dark:bg-gray-800` (`#06302B`) + `dark:border-gray-700` |
+| Header / drawers | `bg-white` + `border-b` / `border-r` / `border-l` **`border-gray-200`** | `dark:bg-gray-800` + `dark:border-gray-700` |
+| Table / list dividers | `divide-gray-200` (not `gray-100`) | `dark:divide-gray-700` |
 | Modal brand bar | `from-primary-700 to-primary-600` | same |
 | Overlay | `bg-black/50` | same |
 | Branded list cards | `bg-brand-sky` + `brand-ink` tab | **keep meadow + ink** (do not gray-wash) |
@@ -79,7 +81,7 @@ When the user shares a **sample / screenshot / reference UI**, rebuild layout an
 | Credit / positive | `text-primary-700` or `text-green-800`, badge `bg-primary-100 text-primary-800` | `dark:text-primary-400` / caribbean |
 | Debit / negative | `text-red-700`, badge `bg-red-100 text-red-800` | `dark:text-red-400` |
 | Danger actions | red (`formModalDangerButtonClass`) | same |
-| Demo banner | amber / yellow (unchanged) | same |
+| Demo banner | `border-primary-200 bg-primary-50 text-primary-800` | `dark:border-primary-800/60 dark:bg-primary-950/40` |
 
 Prefer **brand greens for credit** when touching money UI so credit matches the palette; keep **red for debit** (do not use brand green for losses).
 

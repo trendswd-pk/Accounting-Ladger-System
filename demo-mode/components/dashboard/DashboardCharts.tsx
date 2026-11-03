@@ -90,14 +90,21 @@ function ChartCard({
   subtitle,
   href,
   children,
+  allowOverflow = false,
 }: {
   title: string
   subtitle?: string
   href?: string
   children: React.ReactNode
+  /** Balance-mix ribbons need visible drop-shadows past the card edge. */
+  allowOverflow?: boolean
 }) {
   return (
-    <section className="flex min-h-0 min-w-0 w-full flex-col overflow-hidden rounded-xl border border-gray-100 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-5">
+    <section
+      className={`flex min-h-0 min-w-0 w-full flex-col rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-5 ${
+        allowOverflow ? 'overflow-visible' : 'overflow-hidden'
+      }`}
+    >
       <div className="mb-2 flex items-start justify-between gap-2 sm:mb-3">
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
@@ -338,11 +345,11 @@ export default function DashboardCharts({
 
   if (!ready) {
     return (
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      <div className="mt-6 grid min-w-0 gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         {Array.from({ length: 4 }, (_, i) => (
           <div
             key={i}
-            className="h-64 animate-pulse rounded-xl border border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800"
+            className="h-64 min-w-0 animate-pulse rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
           />
         ))}
       </div>
@@ -355,6 +362,7 @@ export default function DashboardCharts({
         <ChartCard
           title="Balance mix"
           subtitle="Pocket · Savings · Receivable · Payable · vs yesterday"
+          allowOverflow
         >
           <BalanceMixRibbons items={mixData} currency={currency} total={mixTotal} />
         </ChartCard>

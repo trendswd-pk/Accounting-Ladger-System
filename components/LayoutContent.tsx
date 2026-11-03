@@ -90,9 +90,9 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   }
 
   return (
-    <div className="flex h-screen flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-screen flex-col bg-gray-50 dark:bg-gray-950">
       <Sidebar open={navOpen} onClose={() => setNavOpen(false)} />
-      <header className="flex shrink-0 items-center gap-3 bg-white px-4 py-3 shadow-sm dark:bg-gray-800">
+      <header className="flex shrink-0 items-center gap-3 border-b border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-800">
         <button
           type="button"
           onClick={() => setNavOpen(true)}

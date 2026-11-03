@@ -13,6 +13,7 @@ import {
   Search,
   X,
 } from 'lucide-react'
+import AccountMobileCard from '@/components/AccountMobileCard'
 import ActionsDropdown from '@/components/ActionsDropdown'
 import {
   FormModalBody,
@@ -202,7 +203,7 @@ export default function AccountsPage() {
 
   const paginationBar =
     totalItems > DEFAULT_TABLE_PAGE_SIZE ? (
-      <div className="mt-4 flex flex-nowrap items-center justify-between gap-2 rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-md dark:border-gray-700 dark:bg-gray-800 lg:mt-0 lg:rounded-none lg:border-0 lg:border-t lg:border-gray-200 lg:bg-transparent lg:px-4 lg:shadow-none dark:lg:border-gray-700 lg:dark:bg-transparent">
+      <div className="mt-4 flex flex-nowrap items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 shadow-md dark:border-gray-700 dark:bg-gray-800 lg:mt-0 lg:rounded-none lg:border-0 lg:border-t lg:border-gray-200 lg:bg-transparent lg:px-4 lg:shadow-none dark:lg:border-gray-700 lg:dark:bg-transparent">
         <select
           value={listPageSize}
           onChange={(e) => {
@@ -459,9 +460,19 @@ export default function AccountsPage() {
     }
   }
 
-  const actionsFor = (row: AccountRecord) => (
+  const actionsFor = (
+    row: AccountRecord,
+    opts?: {
+      buttonClassName?: string
+      iconClassName?: string
+      variant?: 'menu' | 'inline'
+    }
+  ) => (
     <ActionsDropdown
       ariaLabel={`Actions for ${row.name}`}
+      buttonClassName={opts?.buttonClassName}
+      iconClassName={opts?.iconClassName}
+      variant={opts?.variant}
       items={[
         {
           key: 'details',
@@ -494,6 +505,14 @@ export default function AccountsPage() {
       ]}
     />
   )
+
+  const mobileCardActions = (row: AccountRecord) =>
+    actionsFor(row, {
+      variant: 'inline',
+      buttonClassName:
+        'inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/55 p-1.5 text-brand-ink shadow-sm transition-colors hover:bg-white/90 focus:outline-none',
+      iconClassName: 'h-5 w-5 text-brand-ink',
+    })
 
   return (
     <div className="p-4 lg:p-8">
@@ -536,8 +555,8 @@ export default function AccountsPage() {
               ) : null}
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <div className="relative hidden w-56 lg:block lg:w-64">
+          <div className="flex h-10 shrink-0 items-center gap-2">
+            <div className="relative hidden h-10 w-56 lg:block lg:w-64">
               <Search
                 className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
                 aria-hidden
@@ -548,21 +567,21 @@ export default function AccountsPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search accounts…"
                 aria-label="Search accounts"
-                className="w-full rounded-md border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                className="h-10 w-full rounded-md border border-gray-300 bg-white pl-9 pr-3 text-sm leading-none text-gray-900 placeholder:text-gray-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
               />
             </div>
             <button
               type="button"
               onClick={openAdd}
-              className="rounded-md bg-primary-600 p-2.5 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 lg:hidden"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 lg:hidden"
               aria-label="Add Account"
             >
-              <Plus className="h-5 w-5" />
+              <Plus className="h-4 w-4" aria-hidden />
             </button>
             <button
               type="button"
               onClick={openAdd}
-              className="hidden rounded-md bg-primary-600 px-4 py-2 font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 lg:inline-flex"
+              className="hidden h-10 items-center rounded-md bg-primary-600 px-4 text-sm font-medium leading-none text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 lg:inline-flex"
             >
               Add
             </button>
@@ -590,89 +609,49 @@ export default function AccountsPage() {
         </div>
       ) : null}
 
-      {/* Mobile cards */}
-      <div className={`space-y-3 lg:hidden ${loading ? 'opacity-70' : ''}`}>
+      {/* Mobile cards — curved fintech-style (same language as Transactions) */}
+      <div className={`space-y-3.5 lg:hidden ${loading ? 'opacity-70' : ''}`}>
         {!ready ? (
           Array.from({ length: 3 }, (_, i) => (
             <div
               key={i}
-              className="animate-pulse rounded-xl border border-gray-100 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
+              className="animate-pulse overflow-hidden rounded-[1.75rem] bg-brand-sky/80 p-4"
             >
-              <div className="mb-3 h-5 w-36 rounded bg-gray-200 dark:bg-gray-600" />
-              <div className="space-y-2">
-                <div className="h-4 w-full rounded bg-gray-100 dark:bg-gray-700/50" />
-                <div className="h-4 w-2/3 rounded bg-gray-100 dark:bg-gray-700/50" />
+              <div className="mb-3 h-4 w-20 rounded bg-white/40" />
+              <div className="mb-2 h-5 w-2/3 rounded bg-brand-ink/20" />
+              <div className="mb-3 h-3 w-1/2 rounded bg-brand-ink/15" />
+              <div className="flex gap-2">
+                <div className="h-6 w-16 rounded-full bg-white/50" />
+                <div className="h-6 w-28 rounded-full bg-white/30" />
               </div>
             </div>
           ))
         ) : rows.length === 0 ? (
-          <div className="rounded-xl border border-gray-100 bg-white px-4 py-8 text-center text-sm text-gray-500 shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+          <div className="rounded-[1.75rem] border border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-500 shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
             No accounts yet. Tap + to add one.
           </div>
         ) : filteredRows.length === 0 ? (
-          <div className="rounded-xl border border-gray-100 bg-white px-4 py-8 text-center text-sm text-gray-500 shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+          <div className="rounded-[1.75rem] border border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-500 shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
             No accounts match your search.
           </div>
         ) : (
-          pageRows.map((row) => {
-            const phoneDigits = row.phone.replace(/[^\d+]/g, '')
-            return (
-              <article
-                key={row.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => openDetail(row)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    openDetail(row)
-                  }
-                }}
-                className="cursor-pointer rounded-xl border border-gray-100 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
-              >
-                <div className="mb-3 flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-base font-semibold text-primary-700 dark:text-primary-300">
-                      {row.name}
-                    </p>
-                    {row.phone ? (
-                      <a
-                        href={`tel:${phoneDigits}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="mt-1 inline-flex items-center gap-1.5 text-sm text-primary-600 hover:underline dark:text-primary-400"
-                      >
-                        <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                        {row.phone}
-                      </a>
-                    ) : (
-                      <p className="mt-1 text-sm text-gray-400">—</p>
-                    )}
-                  </div>
-                  <div onClick={(e) => e.stopPropagation()}>{actionsFor(row)}</div>
-                </div>
-                <div className="flex items-end justify-between gap-3 text-sm">
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                      Type
-                    </p>
-                    <p className="mt-0.5 truncate text-gray-800 dark:text-gray-200">
-                      {row.accountTypeName}
-                      {row.accountTypeName && row.cashTypeName ? ' · ' : ''}
-                      {row.cashTypeName}
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                      Balance
-                    </p>
-                    <p className={`mt-0.5 tabular-nums font-medium ${balanceColorClass(row.balance)}`}>
-                      {formatBalance(row.balance)}
-                    </p>
-                  </div>
-                </div>
-              </article>
-            )
-          })
+          pageRows.map((row, index) => (
+            <AccountMobileCard
+              key={row.id}
+              row={{
+                id: row.id,
+                serialNumber: pageStartIndex + index + 1,
+                name: row.name,
+                phone: row.phone,
+                accountTypeName: row.accountTypeName,
+                cashTypeName: row.cashTypeName,
+                balance: row.balance,
+              }}
+              formatBalance={formatBalance}
+              actions={mobileCardActions(row)}
+              onOpen={() => openDetail(row)}
+            />
+          ))
         )}
         <div className="lg:hidden">{paginationBar}</div>
       </div>
@@ -706,7 +685,7 @@ export default function AccountsPage() {
                 </th>
               </tr>
             </thead>
-            <tbody className={`divide-y divide-gray-100 dark:divide-gray-700 ${loading ? 'opacity-70' : ''}`}>
+            <tbody className={`divide-y divide-gray-200 dark:divide-gray-700 ${loading ? 'opacity-70' : ''}`}>
               {!ready ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500">

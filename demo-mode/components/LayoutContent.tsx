@@ -76,21 +76,21 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
 
   if (!authReady) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-950">
         <p className="text-sm text-gray-500 dark:text-gray-400">Loading demo…</p>
       </div>
     )
   }
 
   return (
-    <div className="flex h-screen flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-screen flex-col bg-gray-50 dark:bg-gray-950">
       <div className="shrink-0 border-b border-amber-200/80 bg-amber-50 px-3 py-1.5 text-center dark:border-amber-800/50 dark:bg-amber-950/40">
         <p className="text-xs font-medium text-amber-800 dark:text-amber-200">
           Demo Mode — data is stored in this browser only
         </p>
       </div>
       <Sidebar open={navOpen} onClose={() => setNavOpen(false)} />
-      <header className="flex shrink-0 items-center gap-3 bg-white px-4 py-3 shadow-sm dark:bg-gray-800">
+      <header className="flex shrink-0 items-center gap-3 border-b border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-800">
         <button
           type="button"
           onClick={() => setNavOpen(true)}

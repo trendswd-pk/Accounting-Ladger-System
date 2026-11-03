@@ -463,7 +463,7 @@ function TransactionsPageInner() {
 
   const paginationBar =
     totalItems > DEFAULT_TABLE_PAGE_SIZE ? (
-      <div className="mt-4 flex flex-nowrap items-center justify-between gap-2 rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-md dark:border-gray-700 dark:bg-gray-800 lg:mt-0 lg:rounded-none lg:border-0 lg:border-t lg:border-gray-200 lg:bg-transparent lg:px-4 lg:shadow-none dark:lg:border-gray-700 lg:dark:bg-transparent">
+      <div className="mt-4 flex flex-nowrap items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 shadow-md dark:border-gray-700 dark:bg-gray-800 lg:mt-0 lg:rounded-none lg:border-0 lg:border-t lg:border-gray-200 lg:bg-transparent lg:px-4 lg:shadow-none dark:lg:border-gray-700 lg:dark:bg-transparent">
         <select
           value={listPageSize}
           onChange={(e) => {
@@ -799,12 +799,17 @@ function TransactionsPageInner() {
 
   const actionsFor = (
     row: TransactionRecord,
-    opts?: { buttonClassName?: string; iconClassName?: string }
+    opts?: {
+      buttonClassName?: string
+      iconClassName?: string
+      variant?: 'menu' | 'inline'
+    }
   ) => (
     <ActionsDropdown
       ariaLabel={`Actions for entry ${row.entryNumber}`}
       buttonClassName={opts?.buttonClassName}
       iconClassName={opts?.iconClassName}
+      variant={opts?.variant}
       items={[
         { key: 'edit', label: 'Edit', onClick: () => openEdit(row) },
         {
@@ -833,8 +838,9 @@ function TransactionsPageInner() {
 
   const mobileCardActions = (row: TransactionRecord) =>
     actionsFor(row, {
+      variant: 'inline',
       buttonClassName:
-        'inline-flex items-center justify-center rounded-full bg-white/55 p-1.5 text-brand-ink shadow-sm transition-colors hover:bg-white/90 focus:outline-none',
+        'inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/55 p-1.5 text-brand-ink shadow-sm transition-colors hover:bg-white/90 focus:outline-none',
       iconClassName: 'h-5 w-5 text-brand-ink',
     })
 
@@ -1003,13 +1009,13 @@ function TransactionsPageInner() {
       />
       <aside
         ref={filterAsideRef}
-        className={`fixed inset-y-0 right-0 z-50 flex w-80 max-w-[85vw] transform flex-col bg-white shadow-xl transition-transform duration-200 ease-out dark:bg-gray-800 ${
+        className={`fixed inset-y-0 right-0 z-50 flex w-80 max-w-[85vw] transform flex-col border-l border-gray-200 bg-white shadow-xl transition-transform duration-200 ease-out dark:border-gray-700 dark:bg-gray-800 ${
           filterOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
         aria-label="Transaction filters"
         aria-hidden={!filterOpen}
       >
-        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 px-4 py-4 dark:border-gray-700">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-200 px-4 py-4 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Filters</h2>
           <button
             type="button"
@@ -1102,7 +1108,7 @@ function TransactionsPageInner() {
             </div>
           </div>
         </div>
-        <div className="flex shrink-0 gap-2 border-t border-gray-100 px-4 py-3 dark:border-gray-700">
+        <div className="flex shrink-0 gap-2 border-t border-gray-200 px-4 py-3 dark:border-gray-700">
           <button
             type="button"
             onClick={clearAllFilters}
@@ -1129,8 +1135,8 @@ function TransactionsPageInner() {
               className="animate-pulse overflow-hidden rounded-[1.75rem] bg-brand-sky/80 p-4"
             >
               <div className="mb-3 h-4 w-20 rounded bg-white/40" />
-              <div className="mb-2 h-5 w-2/3 rounded bg-slate-900/20" />
-              <div className="mb-3 h-3 w-1/2 rounded bg-slate-900/15" />
+              <div className="mb-2 h-5 w-2/3 rounded bg-brand-ink/20" />
+              <div className="mb-3 h-3 w-1/2 rounded bg-brand-ink/15" />
               <div className="flex gap-2">
                 <div className="h-6 w-16 rounded-full bg-white/50" />
                 <div className="h-6 w-28 rounded-full bg-white/30" />
@@ -1138,11 +1144,11 @@ function TransactionsPageInner() {
             </div>
           ))
         ) : rows.length === 0 ? (
-          <div className="rounded-[1.75rem] border border-gray-100 bg-white px-4 py-8 text-center text-sm text-gray-500 shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+          <div className="rounded-[1.75rem] border border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-500 shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
             No transactions yet. Tap + to add one.
           </div>
         ) : filteredRows.length === 0 ? (
-          <div className="rounded-[1.75rem] border border-gray-100 bg-white px-4 py-8 text-center text-sm text-gray-500 shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+          <div className="rounded-[1.75rem] border border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-500 shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
             No transactions match your search.
           </div>
         ) : (
@@ -1259,7 +1265,7 @@ function TransactionsPageInner() {
               </tr>
             </thead>
             <tbody
-              className={`divide-y divide-gray-100 dark:divide-gray-700 ${loading ? 'opacity-70' : ''}`}
+              className={`divide-y divide-gray-200 dark:divide-gray-700 ${loading ? 'opacity-70' : ''}`}
             >
               {!ready ? (
                 <tr>
@@ -1826,12 +1832,12 @@ function TransactionsPageFallback() {
         {Array.from({ length: 3 }, (_, i) => (
           <div
             key={i}
-            className="h-28 animate-pulse rounded-xl border border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800"
+            className="h-28 animate-pulse rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
           />
         ))}
       </div>
-      <div className="hidden overflow-hidden rounded-xl border border-gray-100 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800 lg:block">
-        <div className="h-12 border-b border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-700/40" />
+      <div className="hidden overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800 lg:block">
+        <div className="h-12 border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-700/40" />
         {Array.from({ length: 6 }, (_, i) => (
           <div
             key={i}

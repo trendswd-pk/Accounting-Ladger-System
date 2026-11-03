@@ -286,7 +286,7 @@ export default function SetupTypeCrudPage({
           Array.from({ length: 3 }, (_, i) => (
             <div
               key={i}
-              className="animate-pulse rounded-xl border border-gray-100 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
+              className="animate-pulse rounded-xl border border-gray-200 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
             >
               <div className="mb-3 h-5 w-28 rounded bg-gray-200 dark:bg-gray-600" />
               <div className="space-y-2">
@@ -296,7 +296,7 @@ export default function SetupTypeCrudPage({
             </div>
           ))
         ) : rows.length === 0 ? (
-          <div className="rounded-xl border border-gray-100 bg-white px-4 py-8 text-center text-sm text-gray-500 shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+          <div className="rounded-xl border border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-500 shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
             {emptyHint}
           </div>
         ) : (
@@ -312,7 +312,7 @@ export default function SetupTypeCrudPage({
                   openAccountsPopup(row)
                 }
               }}
-              className="cursor-pointer rounded-xl border border-gray-100 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
+              className="cursor-pointer rounded-xl border border-gray-200 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
             >
               <div className="mb-3 flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
@@ -379,7 +379,7 @@ export default function SetupTypeCrudPage({
                 </th>
               </tr>
             </thead>
-            <tbody className={`divide-y divide-gray-100 dark:divide-gray-700 ${loading ? 'opacity-70' : ''}`}>
+            <tbody className={`divide-y divide-gray-200 dark:divide-gray-700 ${loading ? 'opacity-70' : ''}`}>
               {!ready ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">
@@ -645,7 +645,7 @@ export default function SetupTypeCrudPage({
                             </th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                           {linkedAccounts.map((acc, index) => (
                             <tr key={acc.id}>
                               <td className="whitespace-nowrap px-3 py-2 text-sm tabular-nums text-gray-500 dark:text-gray-400">

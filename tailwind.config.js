@@ -14,8 +14,9 @@ module.exports = {
          * See `.cursor/rules/color-scheme.mdc` + `Documentation/images/color-scheme.png`.
          */
         primary: {
-          50: '#F1F7F6', // Anti-Flash White
-          100: '#D8EDE6',
+          // Keep 50/100 distinct from gray-50 so light tinted panels stay visible
+          50: '#E3F5EF',
+          100: '#C8EBDF',
           200: '#AACBC4', // Pistachio
           300: '#2FA98C', // Mint
           400: '#2CC295', // Mountain Meadow
@@ -43,11 +44,11 @@ module.exports = {
         },
         /** Green-tinted neutrals so gray-* utilities match the brand */
         gray: {
-          50: '#F1F7F6',
-          100: '#E4EEEC',
-          200: '#C5D9D4',
-          300: '#AACBC4',
-          400: '#707D7D',
+          50: '#F1F7F6', // page canvas (Anti-Flash)
+          100: '#E2ECE9', // soft fills (must differ from white)
+          200: '#C5D4D0', // **default light borders** (visible on white cards)
+          300: '#9BB0AB',
+          400: '#707D7D', // Stone
           500: '#5C6A6A',
           600: '#4A5757',
           700: '#2A3F3C',
