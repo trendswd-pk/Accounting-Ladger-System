@@ -5,6 +5,7 @@ All notable changes to Accounting Ledger are documented here.
 ## [1.1.0] — 2026-11-03
 
 ### Added
+- Account phone field: country-code selector (default Pakistan +92); numbers save in international format. WhatsApp / `tel:` links normalize local `03…` / `305…` numbers to `+92…`.
 - Link previews (Open Graph + Twitter large image) with brand OG card; set `NEXT_PUBLIC_APP_URL` for the correct absolute URL in production.
 - Shared capsule search + circular primary button (`SoftSearchField`) on Accounts, balance lists, and Transactions — mobile and desktop.
 - Mobile bottom tab bar fixed full-width at the screen bottom (safe-area aware): icon-only Home, Account, Transactions, Expenses, Menu with soft active chip; brand greens; Menu opens the full sidebar. Desktop unchanged.

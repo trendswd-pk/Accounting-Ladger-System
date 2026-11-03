@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, Phone, Wallet } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { formatDayDeltaPct } from '@/lib/accountDayMovement'
 import { formatMoney } from '@/lib/money'
+import { toWhatsAppDigits } from '@/lib/phone'
 
 export type AccountMobileCardRow = {
   id: string
@@ -41,7 +42,8 @@ export default function AccountMobileCard({
   const typeLabel = row.accountTypeName.trim() || 'Account'
   const cashLabel = row.cashTypeName.trim() || '—'
   const phone = row.phone.trim()
-  const phoneDigits = phone.replace(/[^\d+]/g, '')
+  const waDigits = toWhatsAppDigits(phone)
+  const phoneDigits = waDigits ? `+${waDigits}` : ''
   const balanceLabel = formatBalance(row.balance)
   const balanceTone =
     row.balance > 0

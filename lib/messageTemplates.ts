@@ -1,5 +1,6 @@
 import type { AccountRecord } from '@/lib/accounts'
 import { formatMoney } from '@/lib/money'
+import { toWhatsAppDigits } from '@/lib/phone'
 import type { TransactionRecord } from '@/lib/transactions'
 
 export const ACCOUNT_MESSAGE_VARS = [
@@ -204,7 +205,8 @@ export function buildWhatsAppUrl(
   text: string
 ): string {
   const body = text.trim()
-  const digits = String(phone ?? '').replace(/[^\d]/g, '')
+  // E.164 / local PK numbers → country+number digits (default +92)
+  const digits = toWhatsAppDigits(phone)
   const q = body ? `?text=${encodeURIComponent(body)}` : ''
   return digits ? `https://wa.me/${digits}${q}` : `https://wa.me/${q}`
 }

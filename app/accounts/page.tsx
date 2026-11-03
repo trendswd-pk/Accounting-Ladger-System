@@ -14,7 +14,9 @@ import {
 } from 'lucide-react'
 import AccountMobileCard from '@/components/AccountMobileCard'
 import ActionsDropdown from '@/components/ActionsDropdown'
+import PhoneInput from '@/components/PhoneInput'
 import SoftSearchField from '@/components/SoftSearchField'
+import { toWhatsAppDigits } from '@/lib/phone'
 import {
   FormModalBody,
   FormModalFooter,
@@ -826,14 +828,17 @@ export default function AccountsPage() {
                   >
                     Phone Number
                   </label>
-                  <input
+                  <PhoneInput
                     id="acc-phone"
-                    type="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className={inputClass}
-                    placeholder="e.g. 0300 1234567"
+                    onChange={setPhone}
+                    inputClassName={inputClass}
+                    placeholder="e.g. 3059778976"
                   />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Pick country code (default Pakistan +92). Saved as international format for
+                    WhatsApp.
+                  </p>
                 </div>
                 <div>
                   <label
@@ -1002,7 +1007,7 @@ export default function AccountsPage() {
                       <dd className="mt-0.5 text-gray-900 dark:text-gray-100">
                         {detailRow.phone ? (
                           <a
-                            href={`tel:${detailRow.phone.replace(/[^\d+]/g, '')}`}
+                            href={`tel:+${toWhatsAppDigits(detailRow.phone)}`}
                             className="inline-flex items-center gap-1.5 text-primary-600 hover:underline dark:text-primary-400"
                           >
                             <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden />
