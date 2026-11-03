@@ -16,7 +16,7 @@ All notable changes to Accounting Ledger are documented here.
 - Expense total mobile bar: dark header shows period label on the right (Month / Year Expenses); body title is **Total**.
 - Accounts list pages (Accounts + Payable / Receivable / Cash / Investment / Expenses balance lists) use the same curved `brand-sky` / `brand-ink` mobile cards and toolbar sizing as Transactions.
 - Mobile account / transaction cards: tapping **⋮** expands action **icons** inline on the title row (Details, Edit, Export/PDF, Send, Delete); desktop tables keep the menu with icons.
-- Account mobile cards: curved header shows cash type (left) and phone (right); footer shows **Today** day-over-day % (same basis as Balance Mix) + balance.
+- Account mobile cards: curved header shows cash type (left) and phone (right); footer shows day-over-day % only (same basis as Balance Mix) + balance.
 - Daily Expense: month/year controls move into a right filter drawer (Transactions-style filter icon on the title row).
 - Daily / Monthly Expense mobile lists use the same curved `brand-sky` / `brand-ink` cards as Transactions and Accounts; month/year totals use a matching branded total bar.
 - Balance Mix pills match the reference layout (circular icon cap + rounded body) with a **single** brand green scheme (`primary-600`→`primary-400` badge, `primary-50` body); caps use Wallet / Banknote / TrendingUp / TrendingDown.
@@ -30,6 +30,7 @@ All notable changes to Accounting Ledger are documented here.
 
 ### Fixed
 - Account search combobox (transaction forms): ArrowUp / ArrowDown move the highlight and Enter selects on desktop keyboard.
+- Account mobile cards: flat day % no longer shows a dash icon — only up/down arrows when the balance moves.
 - Account mobile cards no longer crash on Expenses / balance lists (`Minus is not defined`); Today % icons are imported from `lucide-react`.
 - Balance Mix day-over-day % now includes receivable/payable accounts that were cleared to zero today (e.g. payment recovery). Previously those accounts left the Receivable/Payable lists and their change was ignored, so the ribbon could stay at `0%`.
 - Mobile nav no longer warns about `aria-hidden` on a focused link when the drawer closes; focus returns to the menu button and the panel uses `inert` instead.

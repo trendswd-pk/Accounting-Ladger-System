@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowDown, ArrowUp, Minus, Phone, Wallet } from 'lucide-react'
+import { ArrowDown, ArrowUp, Phone, Wallet } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { formatDayDeltaPct } from '@/lib/accountDayMovement'
 import { formatMoney } from '@/lib/money'
@@ -151,10 +151,8 @@ export default function AccountMobileCard({
               <ArrowUp className="h-3 w-3 shrink-0" strokeWidth={2.5} aria-hidden />
             ) : trend === 'down' ? (
               <ArrowDown className="h-3 w-3 shrink-0" strokeWidth={2.5} aria-hidden />
-            ) : (
-              <Minus className="h-3 w-3 shrink-0" strokeWidth={2.5} aria-hidden />
-            )}
-            <span>Today {formatDayDeltaPct(dayDeltaPct)}</span>
+            ) : null}
+            <span>{formatDayDeltaPct(dayDeltaPct)}</span>
           </p>
           <p className={`min-w-0 shrink-0 text-right ${balanceTone}`}>
             <span className="opacity-70 text-brand-ink">Balance :</span>{' '}
