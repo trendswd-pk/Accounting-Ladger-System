@@ -778,12 +778,11 @@ export default function AccountsPage() {
       {modalOpen && (
         <div
           className={formModalOverlayClass}
-          onClick={closeModal}
           role="dialog"
           aria-modal="true"
           aria-labelledby="account-modal-title"
         >
-          <div className={`${formModalPanelClass} max-w-md`} onClick={(e) => e.stopPropagation()}>
+          <div className={`${formModalPanelClass} max-w-md`}>
             <FormModalHeader
               titleId="account-modal-title"
               title={editingId ? 'Edit Account' : 'Add Account'}
@@ -885,20 +884,20 @@ export default function AccountsPage() {
             </FormModalBody>
             <FormModalFooter>
               <button
-                type="submit"
-                form="account-form"
-                disabled={submitting}
-                className={formModalPrimaryButtonClass}
-              >
-                {submitting ? 'Saving…' : editingId ? 'Save' : 'Add'}
-              </button>
-              <button
                 type="button"
                 onClick={closeModal}
                 disabled={submitting}
                 className={formModalSecondaryButtonClass}
               >
                 Cancel
+              </button>
+              <button
+                type="submit"
+                form="account-form"
+                disabled={submitting}
+                className={formModalPrimaryButtonClass}
+              >
+                {submitting ? 'Saving…' : editingId ? 'Save' : 'Add'}
               </button>
             </FormModalFooter>
           </div>
@@ -1184,19 +1183,19 @@ export default function AccountsPage() {
             <FormModalFooter>
               <button
                 type="button"
-                onClick={() => void handleExportLedger()}
-                disabled={exporting}
-                className={formModalPrimaryButtonClass}
-              >
-                {exporting ? 'Exporting…' : 'Download'}
-              </button>
-              <button
-                type="button"
                 onClick={() => setExportAccount(null)}
                 disabled={exporting}
                 className={formModalSecondaryButtonClass}
               >
                 Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleExportLedger()}
+                disabled={exporting}
+                className={formModalPrimaryButtonClass}
+              >
+                {exporting ? 'Exporting…' : 'Download'}
               </button>
             </FormModalFooter>
           </div>

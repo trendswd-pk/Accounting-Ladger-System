@@ -52,6 +52,7 @@ import { formatMoney } from '@/lib/money'
 import { exportTransactionPdf } from '@/lib/transactionExport'
 import {
   createTransaction,
+  createTransfer,
   deleteTransaction,
   fetchTransactions,
   getCachedTransactions,
@@ -592,23 +593,16 @@ function TransactionsPageInner() {
         setRows((prev) => prev.map((r) => (r.id === item.id ? item : r)))
         uploadIds.push(item.id)
       } else if (isTransfer) {
-        const debitItem = await createTransaction({
+        const { debit, credit } = await createTransfer({
           transactionDate,
-          accountId: fromAccountId,
+          fromAccountId,
+          toAccountId,
           narration: narrationTrim,
-          entryType: 'debit',
           balance: amount,
         })
-        const creditItem = await createTransaction({
-          transactionDate,
-          accountId: toAccountId,
-          narration: narrationTrim,
-          entryType: 'credit',
-          balance: amount,
-        })
-        setRows((prev) => [creditItem, debitItem, ...prev])
+        setRows((prev) => [credit, debit, ...prev])
         setPage(1)
-        uploadIds.push(debitItem.id, creditItem.id)
+        uploadIds.push(debit.id, credit.id)
       } else {
         const item = await createTransaction({
           transactionDate,
@@ -1401,12 +1395,11 @@ function TransactionsPageInner() {
       {modalOpen && (
         <div
           className={formModalOverlayClass}
-          onClick={closeModal}
           role="dialog"
           aria-modal="true"
           aria-labelledby="transaction-modal-title"
         >
-          <div className={`${formModalPanelClass} max-w-md`} onClick={(e) => e.stopPropagation()}>
+          <div className={`${formModalPanelClass} max-w-md`}>
             <FormModalHeader
               titleId="transaction-modal-title"
               title={editingId ? 'Edit Transaction' : 'Add Transaction'}
@@ -1638,20 +1631,20 @@ function TransactionsPageInner() {
             </FormModalBody>
             <FormModalFooter>
               <button
-                type="submit"
-                form="transaction-form"
-                disabled={submitting}
-                className={formModalPrimaryButtonClass}
-              >
-                {submitting ? 'Saving…' : editingId ? 'Save' : 'Add'}
-              </button>
-              <button
                 type="button"
                 onClick={closeModal}
                 disabled={submitting}
                 className={formModalSecondaryButtonClass}
               >
                 Cancel
+              </button>
+              <button
+                type="submit"
+                form="transaction-form"
+                disabled={submitting}
+                className={formModalPrimaryButtonClass}
+              >
+                {submitting ? 'Saving…' : editingId ? 'Save' : 'Add'}
               </button>
             </FormModalFooter>
           </div>

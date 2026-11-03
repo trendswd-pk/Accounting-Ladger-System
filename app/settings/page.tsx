@@ -283,17 +283,12 @@ function MessageTemplateModal({
   }
 
   return (
-    <div
-      className={formModalOverlayClass}
-      onClick={onClose}
-      role="presentation"
-    >
+    <div className={formModalOverlayClass} role="presentation">
       <div
         className={`${formModalPanelClass} sm:max-w-lg`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="message-template-title"
-        onClick={(e) => e.stopPropagation()}
       >
         <FormModalHeader
           title={

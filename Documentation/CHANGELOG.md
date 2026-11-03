@@ -2,6 +2,16 @@
 
 All notable changes to Accounting Ledger are documented here.
 
+## [1.0.4] — 2026-11-03
+
+### Changed
+- Form modal footers put **Cancel** on the left and the primary action (**Add** / **Save** / **Download**) on the right, right-aligned on desktop.
+- Entry form modals (Add Transaction, Accounts, types, message templates) no longer close when clicking the dimmed backdrop — use **Cancel** or **X** so typed fields are not lost.
+- Transfer entries save both debit and credit legs in **one** request (no sequential double-save wait).
+
+### Fixed
+- Balance Mix day-over-day % now includes receivable/payable accounts that were cleared to zero today (e.g. payment recovery). Previously those accounts left the Receivable/Payable lists and their change was ignored, so the ribbon could stay at `0%`.
+
 ## [1.0.3] — 2026-10-31
 
 ### Added

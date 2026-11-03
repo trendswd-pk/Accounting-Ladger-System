@@ -35,6 +35,7 @@ import {
   isInvestAccount,
   isPayableAccount,
   isReceivableAccount,
+  matchesPayableReceivableType,
 } from '@/lib/accountFilters'
 import {
   DEFAULT_APP_SETTINGS,
@@ -303,19 +304,35 @@ export default function DashboardHome() {
     }
     const sumNet = (list: AccountRecord[]) =>
       list.reduce((s, a) => s + (byAccount.get(a.id) ?? 0), 0)
+
+    // Rebuild yesterday’s payable/receivable totals from type-matched accounts
+    // (ignore today’s sign). Accounts cleared to zero leave today’s lists, so
+    // summing nets only on current receivable/payable rows would miss recoveries.
+    let recvYesterday = 0
+    let payYesterday = 0
+    for (const a of accounts) {
+      if (!matchesPayableReceivableType(a, payableReceivableFilter)) continue
+      const balToday = Number(a.balance) || 0
+      const balYest = balToday - (byAccount.get(a.id) ?? 0)
+      if (balYest > 0) recvYesterday += balYest
+      else if (balYest < 0) payYesterday += balYest
+    }
+
     return {
       pocket: sumNet(pocketAccounts),
       cash: sumNet(cashSavingsAccounts),
-      recv: sumNet(receivableAccounts),
-      pay: sumNet(payableAccounts),
+      recv: receivableBalance - recvYesterday,
+      pay: loanBalance - payYesterday,
     }
   }, [
     transactions,
     todayIso,
+    accounts,
+    payableReceivableFilter,
     pocketAccounts,
     cashSavingsAccounts,
-    receivableAccounts,
-    payableAccounts,
+    receivableBalance,
+    loanBalance,
   ])
 
   const todayExpense = summary?.todayExpense ?? 0

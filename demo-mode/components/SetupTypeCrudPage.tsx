@@ -433,12 +433,11 @@ export default function SetupTypeCrudPage({
       {modalOpen && (
         <div
           className={formModalOverlayClass}
-          onClick={closeModal}
           role="dialog"
           aria-modal="true"
           aria-labelledby="setup-type-modal-title"
         >
-          <div className={`${formModalPanelClass} max-w-md`} onClick={(e) => e.stopPropagation()}>
+          <div className={`${formModalPanelClass} max-w-md`}>
             <FormModalHeader
               titleId="setup-type-modal-title"
               title={editingId ? `Edit ${singularLabel}` : `Add ${singularLabel}`}
@@ -528,20 +527,20 @@ export default function SetupTypeCrudPage({
             </FormModalBody>
             <FormModalFooter>
               <button
-                type="submit"
-                form="setup-type-form"
-                disabled={submitting}
-                className={formModalPrimaryButtonClass}
-              >
-                {submitting ? 'Saving…' : editingId ? 'Save' : 'Add'}
-              </button>
-              <button
                 type="button"
                 onClick={closeModal}
                 disabled={submitting}
                 className={formModalSecondaryButtonClass}
               >
                 Cancel
+              </button>
+              <button
+                type="submit"
+                form="setup-type-form"
+                disabled={submitting}
+                className={formModalPrimaryButtonClass}
+              >
+                {submitting ? 'Saving…' : editingId ? 'Save' : 'Add'}
               </button>
             </FormModalFooter>
           </div>

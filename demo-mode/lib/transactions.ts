@@ -132,10 +132,7 @@ export type TransactionInput = {
   balance: number
 }
 
-export async function createTransaction(
-  input: TransactionInput
-): Promise<TransactionRecord> {
-  requireDemoUser()
+function buildTransactionRecord(input: TransactionInput): TransactionRecord {
   const transactionDate = String(input.transactionDate ?? '').trim().slice(0, 10)
   const accountId = String(input.accountId ?? '').trim()
   const narration = String(input.narration ?? '').trim()
@@ -147,7 +144,7 @@ export async function createTransaction(
   if (!narration) throw new Error('Narration is required.')
   if (!Number.isFinite(balance)) throw new Error('Balance must be a number.')
 
-  const item: TransactionRecord = {
+  return {
     id: newId('tx'),
     entryNumber: nextEntryNumber(),
     transactionDate,
@@ -158,10 +155,61 @@ export async function createTransaction(
     balance,
     createdAt: new Date().toISOString(),
   }
+}
+
+export async function createTransaction(
+  input: TransactionInput
+): Promise<TransactionRecord> {
+  requireDemoUser()
+  const item = buildTransactionRecord(input)
   setStoredTransactions([...getStoredTransactions(), item])
   if (cache) cache = [item, ...cache]
   adjustCachedAccountBalance(item.accountId, signedTransactionAmount(item))
   return item
+}
+
+/** Create multiple journal lines in one store write (used by Transfer). */
+export async function createTransactions(
+  inputs: TransactionInput[]
+): Promise<TransactionRecord[]> {
+  requireDemoUser()
+  if (inputs.length === 0) return []
+  const items = inputs.map((input) => buildTransactionRecord(input))
+  setStoredTransactions([...getStoredTransactions(), ...items])
+  if (cache) cache = [...[...items].reverse(), ...cache]
+  for (const item of items) {
+    adjustCachedAccountBalance(item.accountId, signedTransactionAmount(item))
+  }
+  return items
+}
+
+/** Debit fromAccount + credit toAccount in one write. */
+export async function createTransfer(input: {
+  transactionDate: string
+  fromAccountId: string
+  toAccountId: string
+  narration: string
+  balance: number
+}): Promise<{ debit: TransactionRecord; credit: TransactionRecord }> {
+  const amount = Math.abs(input.balance)
+  const shared = {
+    transactionDate: input.transactionDate,
+    narration: input.narration,
+    balance: amount,
+  }
+  const items = await createTransactions([
+    {
+      ...shared,
+      accountId: input.fromAccountId,
+      entryType: 'debit',
+    },
+    {
+      ...shared,
+      accountId: input.toAccountId,
+      entryType: 'credit',
+    },
+  ])
+  return { debit: items[0]!, credit: items[1]! }
 }
 
 export async function updateTransaction(

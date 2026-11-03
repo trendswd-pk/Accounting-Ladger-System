@@ -109,6 +109,16 @@ export type TransactionInput = {
   balance: number
 }
 
+function applyCreatedToCache(items: TransactionRecord[]) {
+  if (items.length === 0) return
+  // Only prepend when we already have a full list cached; otherwise leave
+  // cache null so the next fetchTransactions() loads the complete set.
+  if (cache) cache = [...items, ...cache]
+  for (const item of items) {
+    adjustCachedAccountBalance(item.accountId, signedTransactionAmount(item))
+  }
+}
+
 export async function createTransaction(input: TransactionInput): Promise<TransactionRecord> {
   const res = await fetch(ENDPOINT, {
     method: 'POST',
@@ -118,12 +128,64 @@ export async function createTransaction(input: TransactionInput): Promise<Transa
   const data = await res.json()
   if (!res.ok) throw new Error(data.error || 'Failed to create transaction')
   const item = data.item as TransactionRecord
-  // Only prepend when we already have a full list cached; otherwise leave
-  // cache null so the next fetchTransactions() loads the complete set.
-  if (cache) cache = [item, ...cache]
-  // Soft balance update — do not wipe accounts cache (full reload is slow).
-  adjustCachedAccountBalance(item.accountId, signedTransactionAmount(item))
+  applyCreatedToCache([item])
   return item
+}
+
+/** Create multiple journal lines in one request (used by Transfer). */
+export async function createTransactions(
+  inputs: TransactionInput[]
+): Promise<TransactionRecord[]> {
+  if (inputs.length === 0) return []
+  if (inputs.length === 1) {
+    return [await createTransaction(inputs[0]!)]
+  }
+  const res = await fetch(ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items: inputs }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || 'Failed to create transactions')
+  const items = (data.items as TransactionRecord[]) ?? []
+  if (items.length === 0) throw new Error('Failed to create transactions')
+  applyCreatedToCache(items)
+  return items
+}
+
+/** Debit fromAccount + credit toAccount in a single API round-trip. */
+export async function createTransfer(input: {
+  transactionDate: string
+  fromAccountId: string
+  toAccountId: string
+  narration: string
+  balance: number
+}): Promise<{ debit: TransactionRecord; credit: TransactionRecord }> {
+  const amount = Math.abs(input.balance)
+  const shared = {
+    transactionDate: input.transactionDate,
+    narration: input.narration,
+    balance: amount,
+  }
+  const items = await createTransactions([
+    {
+      ...shared,
+      accountId: input.fromAccountId,
+      entryType: 'debit',
+    },
+    {
+      ...shared,
+      accountId: input.toAccountId,
+      entryType: 'credit',
+    },
+  ])
+  const debit =
+    items.find((r) => r.entryType === 'debit' && r.accountId === input.fromAccountId) ??
+    items[0]!
+  const credit =
+    items.find((r) => r.entryType === 'credit' && r.accountId === input.toAccountId) ??
+    items[1]!
+  return { debit, credit }
 }
 
 export async function updateTransaction(

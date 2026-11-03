@@ -124,6 +124,23 @@ export function isLegacyReceivableAccount(account: AccountRecord): boolean {
 }
 
 /**
+ * Payable/Receivable type match only (no balance sign).
+ * Used for day-over-day mix deltas so accounts that cleared to zero
+ * today still contribute to yesterday’s category total.
+ */
+export function matchesPayableReceivableType(
+  account: AccountRecord,
+  filter: AccountTypeCashTypeFilter = {}
+): boolean {
+  const cashTypeIds = filter.cashTypeIds ?? []
+  const accountTypeIds = filter.accountTypeIds ?? []
+  if (cashTypeIds.length === 0 && accountTypeIds.length === 0) {
+    return isLoanAccount(account)
+  }
+  return matchesAccountOrCashType(account, filter)
+}
+
+/**
  * Payable: Settings Account/Cash Type match (OR) + negative balance.
  * Falls back to Loan + minus balance when both lists are empty.
  */
@@ -131,13 +148,8 @@ export function isPayableAccount(
   account: AccountRecord,
   filter: AccountTypeCashTypeFilter = {}
 ): boolean {
-  const cashTypeIds = filter.cashTypeIds ?? []
-  const accountTypeIds = filter.accountTypeIds ?? []
   const balance = Number(account.balance) || 0
-  if (cashTypeIds.length === 0 && accountTypeIds.length === 0) {
-    return isLegacyPayableAccount(account)
-  }
-  return matchesAccountOrCashType(account, filter) && balance < 0
+  return matchesPayableReceivableType(account, filter) && balance < 0
 }
 
 /**
@@ -148,13 +160,8 @@ export function isReceivableAccount(
   account: AccountRecord,
   filter: AccountTypeCashTypeFilter = {}
 ): boolean {
-  const cashTypeIds = filter.cashTypeIds ?? []
-  const accountTypeIds = filter.accountTypeIds ?? []
   const balance = Number(account.balance) || 0
-  if (cashTypeIds.length === 0 && accountTypeIds.length === 0) {
-    return isLegacyReceivableAccount(account)
-  }
-  return matchesAccountOrCashType(account, filter) && balance > 0
+  return matchesPayableReceivableType(account, filter) && balance > 0
 }
 
 export function isExpenseLabel(name: string, code: string): boolean {

@@ -92,36 +92,93 @@ export async function listTransactions() {
   }
 }
 
-export async function createTransactionRow(body: {
+type CreateBody = {
   transactionDate?: string
   accountId?: string
   narration?: string
   entryType?: string
   balance?: number | string
-}) {
+  /** Batch create (e.g. transfer debit+credit) — one DB round-trip */
+  items?: Array<{
+    transactionDate?: string
+    accountId?: string
+    narration?: string
+    entryType?: string
+    balance?: number | string
+  }>
+}
+
+type ParsedCreateRow = {
+  transaction_date: string
+  account_id: string
+  narration: string
+  entry_type: string
+  balance: number
+}
+
+function parseCreateItem(body: {
+  transactionDate?: string
+  accountId?: string
+  narration?: string
+  entryType?: string
+  balance?: number | string
+}): { row: ParsedCreateRow } | { error: string } {
+  const transactionDate = String(body.transactionDate ?? '').trim().slice(0, 10)
+  const accountId = String(body.accountId ?? '').trim()
+  const narration = String(body.narration ?? '').trim()
+  const entryType = normalizeEntryType(body.entryType)
+  const balance = Math.abs(Number(body.balance))
+
+  if (!transactionDate) return { error: 'Transaction date is required.' }
+  if (!accountId) return { error: 'Account is required.' }
+  if (!narration) return { error: 'Narration is required.' }
+  if (!Number.isFinite(balance)) return { error: 'Balance must be a number.' }
+
+  return {
+    row: {
+      transaction_date: transactionDate,
+      account_id: accountId,
+      narration,
+      entry_type: entryType,
+      balance,
+    },
+  }
+}
+
+export async function createTransactionRow(body: CreateBody) {
   try {
-    const transactionDate = String(body.transactionDate ?? '').trim().slice(0, 10)
-    const accountId = String(body.accountId ?? '').trim()
-    const narration = String(body.narration ?? '').trim()
-    const entryType = normalizeEntryType(body.entryType)
-    const balance = Math.abs(Number(body.balance))
-
-    if (!transactionDate) return json({ error: 'Transaction date is required.' }, 400)
-    if (!accountId) return json({ error: 'Account is required.' }, 400)
-    if (!narration) return json({ error: 'Narration is required.' }, 400)
-    if (!Number.isFinite(balance)) return json({ error: 'Balance must be a number.' }, 400)
-
     const admin = getSupabaseAdmin()
+
+    if (Array.isArray(body.items)) {
+      if (body.items.length === 0) {
+        return json({ error: 'At least one transaction is required.' }, 400)
+      }
+      if (body.items.length > 20) {
+        return json({ error: 'Too many transactions in one request.' }, 400)
+      }
+      const rows: ParsedCreateRow[] = []
+      for (const raw of body.items) {
+        const parsed = parseCreateItem(raw)
+        if ('error' in parsed) return json({ error: parsed.error }, 400)
+        rows.push(parsed.row)
+      }
+      const { data, error } = await admin
+        .from('transactions')
+        .insert(rows)
+        .select(SELECT_COLS)
+
+      if (error) return json({ error: error.message }, 400)
+      const items = ((data ?? []) as unknown as JoinRow[]).map(mapJoinRow)
+      return json({ items, item: items[0] ?? null }, 201)
+    }
+
+    const parsed = parseCreateItem(body)
+    if ('error' in parsed) return json({ error: parsed.error }, 400)
+
     // One round-trip: insert + join select (no follow-up fetch).
     const { data, error } = await admin
       .from('transactions')
-      .insert({
-        transaction_date: transactionDate,
-        account_id: accountId,
-        narration,
-        entry_type: entryType,
-        balance,
-      })
+      .insert(parsed.row)
       .select(SELECT_COLS)
       .single()
 

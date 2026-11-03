@@ -22,7 +22,7 @@ export const formModalBodyClass =
   'overflow-y-auto flex-1 min-h-0 px-4 py-4 sm:px-6 bg-white dark:bg-gray-800'
 
 export const formModalFooterClass =
-  'flex-shrink-0 flex flex-wrap gap-2 px-4 py-3 sm:px-6 sm:py-4 bg-gradient-to-r from-primary-700 to-primary-600'
+  'flex-shrink-0 flex flex-wrap gap-2 justify-end px-4 py-3 sm:px-6 sm:py-4 bg-gradient-to-r from-primary-700 to-primary-600'
 
 export const formModalPrimaryButtonClass =
   'flex-1 sm:flex-none px-4 py-2.5 bg-white text-primary-700 font-medium rounded-md hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-white/50 disabled:opacity-50 disabled:cursor-not-allowed'

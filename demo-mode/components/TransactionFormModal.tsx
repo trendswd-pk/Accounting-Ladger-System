@@ -21,7 +21,11 @@ import {
   getCachedAppSettings,
   type DefaultEntryMode,
 } from '@/lib/appSettings'
-import { createTransaction, type TransactionEntryType } from '@/lib/transactions'
+import {
+  createTransaction,
+  createTransfer,
+  type TransactionEntryType,
+} from '@/lib/transactions'
 
 const inputClass =
   'w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500'
@@ -171,21 +175,14 @@ export default function TransactionFormModal({
     try {
       const uploadIds: string[] = []
       if (isTransfer) {
-        const debitItem = await createTransaction({
+        const { debit, credit } = await createTransfer({
           transactionDate,
-          accountId: fromAccountId,
+          fromAccountId,
+          toAccountId,
           narration: narrationTrim,
-          entryType: 'debit',
           balance: amount,
         })
-        const creditItem = await createTransaction({
-          transactionDate,
-          accountId: toAccountId,
-          narration: narrationTrim,
-          entryType: 'credit',
-          balance: amount,
-        })
-        uploadIds.push(debitItem.id, creditItem.id)
+        uploadIds.push(debit.id, credit.id)
       } else {
         const item = await createTransaction({
           transactionDate,
@@ -215,12 +212,11 @@ export default function TransactionFormModal({
   return (
     <div
       className={formModalOverlayClass}
-      onClick={close}
       role="dialog"
       aria-modal="true"
       aria-labelledby="dashboard-transaction-modal-title"
     >
-      <div className={`${formModalPanelClass} max-w-md`} onClick={(e) => e.stopPropagation()}>
+      <div className={`${formModalPanelClass} max-w-md`}>
         <FormModalHeader
           titleId="dashboard-transaction-modal-title"
           title="Add Transaction"
@@ -449,20 +445,20 @@ export default function TransactionFormModal({
         </FormModalBody>
         <FormModalFooter>
           <button
-            type="submit"
-            form="dashboard-transaction-form"
-            disabled={submitting}
-            className={formModalPrimaryButtonClass}
-          >
-            {submitting ? 'Saving…' : 'Add'}
-          </button>
-          <button
             type="button"
             onClick={close}
             disabled={submitting}
             className={formModalSecondaryButtonClass}
           >
             Cancel
+          </button>
+          <button
+            type="submit"
+            form="dashboard-transaction-form"
+            disabled={submitting}
+            className={formModalPrimaryButtonClass}
+          >
+            {submitting ? 'Saving…' : 'Add'}
           </button>
         </FormModalFooter>
       </div>

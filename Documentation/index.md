@@ -6,8 +6,8 @@ Accounting Ledger helps small businesses keep professional books: journals, acco
 
 | | |
 |---|---|
-| **Version** | 1.0.3 |
-| **Released** | 2026-10-31 |
+| **Version** | 1.0.4 |
+| **Released** | 2026-11-03 |
 | **Live demo** | [accounting-ladger-system-coral.vercel.app](https://accounting-ladger-system-coral.vercel.app) |
 
 ## How to open the demo
