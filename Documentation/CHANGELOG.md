@@ -25,6 +25,7 @@ All notable changes to Accounting Ledger are documented here.
 - Transfer entries save both debit and credit legs in **one** request (no sequential double-save wait).
 
 ### Fixed
+- Account search combobox (transaction forms): ArrowUp / ArrowDown move the highlight and Enter selects on desktop keyboard.
 - Account mobile cards no longer crash on Expenses / balance lists (`Minus is not defined`); Today % icons are imported from `lucide-react`.
 - Balance Mix day-over-day % now includes receivable/payable accounts that were cleared to zero today (e.g. payment recovery). Previously those accounts left the Receivable/Payable lists and their change was ignored, so the ribbon could stay at `0%`.
 - Mobile nav no longer warns about `aria-hidden` on a focused link when the drawer closes; focus returns to the menu button and the panel uses `inert` instead.
