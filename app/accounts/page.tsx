@@ -10,11 +10,11 @@ import {
   Pencil,
   Phone,
   Plus,
-  Search,
   X,
 } from 'lucide-react'
 import AccountMobileCard from '@/components/AccountMobileCard'
 import ActionsDropdown from '@/components/ActionsDropdown'
+import SoftSearchField from '@/components/SoftSearchField'
 import {
   FormModalBody,
   FormModalFooter,
@@ -588,20 +588,14 @@ export default function AccountsPage() {
             </div>
           </div>
           <div className="flex h-10 shrink-0 items-center gap-2">
-            <div className="relative hidden h-10 w-56 lg:block lg:w-64">
-              <Search
-                className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-                aria-hidden
-              />
-              <input
-                type="search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search accounts…"
-                aria-label="Search accounts"
-                className="h-10 w-full rounded-md border border-gray-300 bg-white pl-9 pr-3 text-sm leading-none text-gray-900 placeholder:text-gray-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-              />
-            </div>
+            <SoftSearchField
+              className="hidden w-56 lg:flex lg:w-72"
+              size="sm"
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search accounts…"
+              aria-label="Search accounts"
+            />
             <button
               type="button"
               onClick={openAdd}
@@ -619,20 +613,13 @@ export default function AccountsPage() {
             </button>
           </div>
         </div>
-        <div className="relative lg:hidden">
-          <Search
-            className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-            aria-hidden
-          />
-          <input
-            type="search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search accounts…"
-            aria-label="Search accounts"
-            className="w-full rounded-md border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-          />
-        </div>
+        <SoftSearchField
+          className="lg:hidden"
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search accounts…"
+          aria-label="Search accounts"
+        />
       </div>
 
       {listError ? (

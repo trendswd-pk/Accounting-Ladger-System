@@ -5,6 +5,7 @@ All notable changes to Accounting Ledger are documented here.
 ## [1.1.0] — 2026-11-03
 
 ### Added
+- Shared capsule search + circular primary button (`SoftSearchField`) on Accounts, balance lists, and Transactions — mobile and desktop.
 - Mobile bottom tab bar fixed full-width at the screen bottom (safe-area aware): icon-only Home, Account, Transactions, Expenses, Menu with soft active chip; brand greens; Menu opens the full sidebar. Desktop unchanged.
 
 ### Changed
