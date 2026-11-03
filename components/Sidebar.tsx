@@ -135,7 +135,24 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
 
   useLayoutEffect(() => {
     const el = asideRef.current
-    if (el) el.inert = !open
+    if (!el) return
+    // Blur before inert/hide so a focused nav link is never inside a
+    // non-interactive ancestor (avoids aria-hidden / inert focus warnings).
+    if (!open) {
+      const active = document.activeElement
+      if (active instanceof HTMLElement && el.contains(active)) {
+        active.blur()
+        const menuBtn = document.querySelector<HTMLElement>(
+          'button[aria-label="Open menu"]'
+        )
+        menuBtn?.focus({ preventScroll: true })
+      }
+    }
+    el.inert = !open
+    if (open) {
+      const closeBtn = el.querySelector<HTMLElement>('button[aria-label="Close menu"]')
+      closeBtn?.focus({ preventScroll: true })
+    }
   }, [open])
 
   useLayoutEffect(() => {
@@ -189,7 +206,6 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
         aria-label="Main navigation"
-        aria-hidden={!open}
       >
         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 px-4 py-4 dark:border-gray-700">
           <Link

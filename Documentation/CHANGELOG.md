@@ -11,6 +11,7 @@ All notable changes to Accounting Ledger are documented here.
 
 ### Fixed
 - Balance Mix day-over-day % now includes receivable/payable accounts that were cleared to zero today (e.g. payment recovery). Previously those accounts left the Receivable/Payable lists and their change was ignored, so the ribbon could stay at `0%`.
+- Mobile nav no longer warns about `aria-hidden` on a focused link when the drawer closes; focus returns to the menu button and the panel uses `inert` instead.
 
 ## [1.0.3] — 2026-10-31
 
