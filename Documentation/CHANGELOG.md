@@ -6,6 +6,7 @@ All notable changes to Accounting Ledger are documented here.
 
 ### Changed
 - Form modal footers put **Cancel** on the left and the primary action (**Add** / **Save** / **Download**) on the right, right-aligned on desktop.
+- Official app color scheme documented in Cursor rules; Tailwind adds `brand-sky` / `brand-ink` tokens (mobile cards use them).
 - Transactions mobile list uses sky-blue cards with a navy curved top-right date tab (reference-style layout: type label, dual amount pills, Amount / Running footer).
 - Entry form modals (Add Transaction, Accounts, types, message templates) no longer close when clicking the dimmed backdrop — use **Cancel** or **X** so typed fields are not lost.
 - Transfer entries save both debit and credit legs in **one** request (no sequential double-save wait).
@@ -13,6 +14,7 @@ All notable changes to Accounting Ledger are documented here.
 ### Fixed
 - Balance Mix day-over-day % now includes receivable/payable accounts that were cleared to zero today (e.g. payment recovery). Previously those accounts left the Receivable/Payable lists and their change was ignored, so the ribbon could stay at `0%`.
 - Mobile nav no longer warns about `aria-hidden` on a focused link when the drawer closes; focus returns to the menu button and the panel uses `inert` instead.
+- Click / tap no longer shows focus rings app-wide; keyboard Tab still shows `:focus-visible` rings.
 
 ## [1.0.3] — 2026-10-31
 

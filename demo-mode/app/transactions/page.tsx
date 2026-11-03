@@ -797,9 +797,14 @@ function TransactionsPageInner() {
     }
   }
 
-  const actionsFor = (row: TransactionRecord) => (
+  const actionsFor = (
+    row: TransactionRecord,
+    opts?: { buttonClassName?: string; iconClassName?: string }
+  ) => (
     <ActionsDropdown
       ariaLabel={`Actions for entry ${row.entryNumber}`}
+      buttonClassName={opts?.buttonClassName}
+      iconClassName={opts?.iconClassName}
       items={[
         { key: 'edit', label: 'Edit', onClick: () => openEdit(row) },
         {
@@ -825,6 +830,13 @@ function TransactionsPageInner() {
       ]}
     />
   )
+
+  const mobileCardActions = (row: TransactionRecord) =>
+    actionsFor(row, {
+      buttonClassName:
+        'inline-flex items-center justify-center rounded-full bg-white/55 p-1.5 text-brand-ink shadow-sm transition-colors hover:bg-white/90 focus:outline-none',
+      iconClassName: 'h-5 w-5 text-brand-ink',
+    })
 
   return (
     <div className="p-4 lg:p-8">
@@ -1114,7 +1126,7 @@ function TransactionsPageInner() {
           Array.from({ length: 3 }, (_, i) => (
             <div
               key={i}
-              className="animate-pulse overflow-hidden rounded-[1.75rem] bg-[#6eb6e0]/80 p-4 dark:bg-[#3d7aa3]/70"
+              className="animate-pulse overflow-hidden rounded-[1.75rem] bg-brand-sky/80 p-4"
             >
               <div className="mb-3 h-4 w-20 rounded bg-white/40" />
               <div className="mb-2 h-5 w-2/3 rounded bg-slate-900/20" />
@@ -1140,7 +1152,7 @@ function TransactionsPageInner() {
               row={row}
               formatBalance={formatBalance}
               formatDisplayDate={formatDisplayDate}
-              actions={actionsFor(row)}
+              actions={mobileCardActions(row)}
               onOpen={() => openDetail(row)}
             />
           ))

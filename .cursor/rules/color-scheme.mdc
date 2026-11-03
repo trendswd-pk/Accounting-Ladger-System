@@ -1,0 +1,75 @@
+---
+alwaysApply: true
+---
+# Color scheme (source of truth)
+
+When the user shares a **sample / screenshot / reference UI**, rebuild the layout and hierarchy from the sample, but **map every color to this scheme**. Do not invent new brand hues (no purple, terracotta, cream broadsheet, neon, random gradients). Prefer Tailwind tokens below over raw hex in components.
+
+## Brand
+
+| Token | Hex | Use |
+|-------|-----|-----|
+| `primary-50` | `#f0f9ff` | Soft tint backgrounds, selected chip wash |
+| `primary-100` | `#e0f2fe` | Light panels, hover wash |
+| `primary-200` | `#bae6fd` | Borders on tinted panels |
+| `primary-300` | `#7dd3fc` | Soft accents |
+| `primary-400` | `#38bdf8` | Icons / secondary accent |
+| `primary-500` | `#0ea5e9` | Focus rings, links accent |
+| `primary-600` | `#0369a1` | **Primary CTA** fill (WCAG with white text) |
+| `primary-700` | `#075985` | CTA hover / pressed |
+| `primary-800` | `#075985` | Strong text on light tint |
+| `primary-900` | `#0c4a6e` | Deep brand text |
+| `brand-sky` | `#74b4e0` | Fintech-style **card body** (mobile list cards, promo panels) |
+| `brand-ink` | `#0b1b33` | **Navy tab / titles** on sky cards; dark chrome on samples |
+
+## Surfaces (chrome)
+
+| Context | Light | Dark |
+|---------|-------|------|
+| App background | `bg-gray-50` | `dark:bg-gray-900` |
+| Card / panel | `bg-white` + `border-gray-100` / `border-gray-200` | `dark:bg-gray-800` + `dark:border-gray-700` |
+| Muted strip | `bg-gray-50` / `bg-gray-100` | `dark:bg-gray-900/40` |
+| Modal footer / brand bar | `from-primary-700 to-primary-600` | same |
+| Overlay | `bg-black/50` | same |
+
+## Text
+
+| Role | Light | Dark |
+|------|-------|------|
+| Primary | `text-gray-900` | `dark:text-gray-100` |
+| Secondary | `text-gray-600` / `text-gray-500` | `dark:text-gray-300` / `dark:text-gray-400` |
+| On primary CTA | `text-white` | `text-white` |
+| On `brand-sky` card | titles `text-brand-ink`, muted `text-brand-ink/65`, header labels `text-white` | **keep sky/ink** (do not recolor the whole card to gray-800) |
+| Link / emphasis | `text-primary-700` | `dark:text-primary-300` |
+
+## Semantic (ledger meaning — keep consistent)
+
+| Meaning | Classes |
+|---------|---------|
+| Credit / positive / up | `text-green-700` / `dark:text-green-400`, badges `bg-green-100 text-green-800` (+ dark variants) |
+| Debit / negative / down | `text-red-700` / `dark:text-red-400`, badges `bg-red-100 text-red-800` (+ dark variants) |
+| Neutral / zero | `text-gray-900` / `dark:text-gray-100` |
+| Danger actions | `text-red-600`, danger buttons use `formModalDangerButtonClass` |
+| Warning / demo banner | amber / yellow strips already used for Demo Mode — keep |
+
+## Mapping samples → this scheme
+
+When adapting a reference design:
+
+1. **Keep structure** (curves, pills, footer rows, spacing intent).
+2. **Replace sample blues** → `primary-*` or `brand-sky` / `brand-ink` (not a new blue).
+3. **Replace sample greens/reds for money** → semantic green/red above.
+4. **Replace cream / purple / orange brand themes** → primary + gray surfaces.
+5. **Dark mode**: standard pages flip gray surfaces; **branded sky cards stay sky + ink** so they match the approved card look.
+6. Prefer `focus-visible:ring-primary-500` (click rings are globally suppressed in `globals.css`).
+
+## Do not
+
+- Introduce a second brand color family.
+- Hardcode one-off hex except when adding a named token in `tailwind.config.js` **and** documenting it here in the same change.
+- Use purple-on-white, cream+terracotta, or newspaper black/white as a new default look.
+
+## Token files
+
+- Root: `tailwind.config.js` → `theme.extend.colors.primary` + `brand`
+- Demo: `demo-mode/tailwind.config.js` (keep in sync)

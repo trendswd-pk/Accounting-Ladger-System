@@ -22,6 +22,11 @@ module.exports = {
           800: '#075985',
           900: '#0c4a6e',
         },
+        /** Branded sky cards / navy chrome — see .cursor/rules/color-scheme.mdc */
+        brand: {
+          sky: '#74b4e0',
+          ink: '#0b1b33',
+        },
       },
     },
   },

@@ -17,7 +17,13 @@ type ActionsDropdownProps = {
   ariaLabel?: string
   /** Approx menu height for flip-above logic (default ~ item count). */
   estimatedItemHeight?: number
+  /** Optional trigger button classes (e.g. on colored cards). */
+  buttonClassName?: string
+  iconClassName?: string
 }
+
+const defaultButtonClass =
+  'rounded p-1.5 text-gray-600 hover:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:text-gray-400 dark:hover:bg-gray-600'
 
 /**
  * 3-dot actions menu (portal) — same pattern as Courier-Dashboard Due COD / payments.
@@ -26,6 +32,8 @@ export default function ActionsDropdown({
   items,
   ariaLabel = 'Actions',
   estimatedItemHeight = 40,
+  buttonClassName,
+  iconClassName,
 }: ActionsDropdownProps) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
@@ -82,12 +90,14 @@ export default function ActionsDropdown({
           if (open) close()
           else openMenu()
         }}
-        className="rounded p-1.5 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:hover:bg-gray-600"
+        className={buttonClassName ?? defaultButtonClass}
         aria-label={ariaLabel}
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        <MoreVertical className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+        <MoreVertical
+          className={iconClassName ?? 'h-5 w-5 text-gray-600 dark:text-gray-400'}
+        />
       </button>
 
       {open && pos && typeof document !== 'undefined'
