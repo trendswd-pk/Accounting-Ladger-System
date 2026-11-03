@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { BookOpen, Menu } from 'lucide-react'
 import Sidebar from './Sidebar'
+import MobileBottomNav from './MobileBottomNav'
 import RequestProfilerIcon from './RequestProfilerIcon'
 import RequestProfilerPanel from './RequestProfilerPanel'
 import ScrollToTopButton from './ScrollToTopButton'
@@ -94,7 +95,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
         <button
           type="button"
           onClick={() => setNavOpen(true)}
-          className="-ml-2 shrink-0 rounded-md p-2 text-gray-700 hover:bg-primary-50 hover:text-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-300 dark:hover:bg-gray-700"
+          className="-ml-2 hidden shrink-0 rounded-md p-2 text-gray-700 hover:bg-primary-50 hover:text-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-300 dark:hover:bg-gray-700 lg:inline-flex"
           aria-label="Open menu"
         >
           <Menu className="h-6 w-6" />
@@ -138,9 +139,13 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
           </button>
         ) : null}
       </header>
-      <main ref={mainScrollRef} className="min-h-0 flex-1 overflow-y-auto">
+      <main
+        ref={mainScrollRef}
+        className="min-h-0 flex-1 overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom,0px))] lg:pb-0"
+      >
         {children}
       </main>
+      <MobileBottomNav onOpenMenu={() => setNavOpen(true)} />
       <ScrollToTopButton scrollRef={mainScrollRef} pathname={pathname} />
       {isDev ? (
         <RequestProfilerPanel

@@ -2,7 +2,10 @@
 
 All notable changes to Accounting Ledger are documented here.
 
-## [1.0.4] — 2026-11-03
+## [1.1.0] — 2026-11-03
+
+### Added
+- Mobile bottom tab bar fixed full-width at the screen bottom (safe-area aware): icon-only Home, Account, Transactions, Expenses, Menu with soft active chip; brand greens; Menu opens the full sidebar. Desktop unchanged.
 
 ### Changed
 - Expense period mobile cards: current month/day shows a **Current** pill beside the title.

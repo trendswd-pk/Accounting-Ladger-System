@@ -142,9 +142,12 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
       const active = document.activeElement
       if (active instanceof HTMLElement && el.contains(active)) {
         active.blur()
-        const menuBtn = document.querySelector<HTMLElement>(
+        const menuBtns = document.querySelectorAll<HTMLElement>(
           'button[aria-label="Open menu"]'
         )
+        const menuBtn =
+          Array.from(menuBtns).find((b) => b.offsetParent !== null) ??
+          menuBtns[0]
         menuBtn?.focus({ preventScroll: true })
       }
     }

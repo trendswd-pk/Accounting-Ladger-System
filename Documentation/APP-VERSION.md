@@ -1,11 +1,12 @@
 # App version
 
-**Current version:** 1.0.4  
+**Current version:** 1.1.0  
 **Released:** 2026-11-03
 
 See the full [Changelog](./CHANGELOG.md).
 
 ## This release includes
+- Mobile bottom tab bar (full-width, safe-area): Home, Account, Transactions, Expenses, Menu
 - Green brand color scheme (Caribbean / Bangladesh / Rich Black) for light + dark; scheme sheet in Documentation/images
 - Balance Mix day-over-day % correctly reflects receivable/payable recoveries that clear accounts to zero
 - Offline Demo Mode with per-user sandboxes and realistic sample books
