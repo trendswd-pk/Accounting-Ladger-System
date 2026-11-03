@@ -52,6 +52,10 @@ import {
   fillMessageTemplate,
   openWhatsAppMessage,
 } from '@/lib/messageTemplates'
+import {
+  accountDayMovement,
+  todayNetsByAccount,
+} from '@/lib/accountDayMovement'
 import { formatMoney } from '@/lib/money'
 import { shareUrlForAttachmentFast } from '@/lib/shortUrl'
 import {
@@ -60,6 +64,11 @@ import {
   type SetupTypeRecord,
 } from '@/lib/setupTypes'
 import { DEFAULT_TABLE_PAGE_SIZE, TABLE_PAGE_SIZE_OPTIONS } from '@/lib/tablePagination'
+import {
+  fetchTransactions,
+  getCachedTransactions,
+  type TransactionRecord,
+} from '@/lib/transactions'
 
 const inputClass =
   'w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500'
@@ -128,6 +137,9 @@ export default function AccountsPage() {
   const [exportAccount, setExportAccount] = useState<AccountRecord | null>(null)
   const [exportFormat, setExportFormat] = useState<LedgerExportFormat>('pdf')
   const [exporting, setExporting] = useState(false)
+  const [transactions, setTransactions] = useState<TransactionRecord[]>(
+    () => getCachedTransactions() ?? []
+  )
 
   const loadLookups = useCallback(async () => {
     const [ats, cts] = await Promise.all([
@@ -165,6 +177,25 @@ export default function AccountsPage() {
       setAccountMessageIncludeLedgerUrl(s.accountMessageIncludeLedgerUrl)
     })
   }, [loadRows, loadLookups])
+
+  useEffect(() => {
+    const hit = getCachedTransactions()
+    if (hit) setTransactions(hit)
+    let cancelled = false
+    void fetchTransactions()
+      .then((items) => {
+        if (!cancelled) setTransactions(items)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const dayNetsByAccount = useMemo(
+    () => todayNetsByAccount(transactions),
+    [transactions]
+  )
 
   const filteredRows = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
@@ -636,23 +667,32 @@ export default function AccountsPage() {
             No accounts match your search.
           </div>
         ) : (
-          pageRows.map((row, index) => (
-            <AccountMobileCard
-              key={row.id}
-              row={{
-                id: row.id,
-                serialNumber: pageStartIndex + index + 1,
-                name: row.name,
-                phone: row.phone,
-                accountTypeName: row.accountTypeName,
-                cashTypeName: row.cashTypeName,
-                balance: row.balance,
-              }}
-              formatBalance={formatBalance}
-              actions={mobileCardActions(row)}
-              onOpen={() => openDetail(row)}
-            />
-          ))
+          pageRows.map((row, index) => {
+            const movement = accountDayMovement(
+              Number(row.balance) || 0,
+              dayNetsByAccount.get(row.id) ?? 0
+            )
+            return (
+              <AccountMobileCard
+                key={row.id}
+                row={{
+                  id: row.id,
+                  serialNumber: pageStartIndex + index + 1,
+                  name: row.name,
+                  phone: row.phone,
+                  accountTypeName: row.accountTypeName,
+                  cashTypeName: row.cashTypeName,
+                  balance: row.balance,
+                  dayDelta: movement.dayDelta,
+                  dayDeltaPct: movement.dayDeltaPct,
+                }}
+                formatBalance={formatBalance}
+                currency={currency}
+                actions={mobileCardActions(row)}
+                onOpen={() => openDetail(row)}
+              />
+            )
+          })
         )}
         <div className="lg:hidden">{paginationBar}</div>
       </div>

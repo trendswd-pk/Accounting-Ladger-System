@@ -1,7 +1,9 @@
 'use client'
 
-import { Phone, Wallet } from 'lucide-react'
+import { ArrowDown, ArrowUp, Minus, Phone, Wallet } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { formatDayDeltaPct } from '@/lib/accountDayMovement'
+import { formatMoney } from '@/lib/money'
 
 export type AccountMobileCardRow = {
   id: string
@@ -11,11 +13,16 @@ export type AccountMobileCardRow = {
   accountTypeName: string
   cashTypeName: string
   balance: number
+  /** Signed balance change today vs end of yesterday */
+  dayDelta?: number
+  /** Percent change vs yesterday's balance */
+  dayDeltaPct?: number
 }
 
 type AccountMobileCardProps = {
   row: AccountMobileCardRow
   formatBalance: (n: number) => string
+  currency?: string
   actions?: ReactNode
   onOpen: () => void
 }
@@ -27,6 +34,7 @@ type AccountMobileCardProps = {
 export default function AccountMobileCard({
   row,
   formatBalance,
+  currency,
   actions,
   onOpen,
 }: AccountMobileCardProps) {
@@ -41,6 +49,22 @@ export default function AccountMobileCard({
       : row.balance < 0
         ? 'text-red-700'
         : 'text-brand-ink'
+
+  const dayDelta = row.dayDelta ?? 0
+  const dayDeltaPct = row.dayDeltaPct ?? 0
+  const trend = dayDelta > 0 ? 'up' : dayDelta < 0 ? 'down' : 'flat'
+  const trendClass =
+    trend === 'up'
+      ? 'text-primary-800'
+      : trend === 'down'
+        ? 'text-red-700'
+        : 'text-brand-ink/45'
+  const trendTitle =
+    trend === 'flat'
+      ? 'No change vs yesterday'
+      : `${currency ? formatMoney(Math.abs(dayDelta), currency) : formatBalance(Math.abs(dayDelta))} ${
+          trend === 'up' ? 'up' : 'down'
+        } vs yesterday`
 
   return (
     <article
@@ -71,13 +95,23 @@ export default function AccountMobileCard({
 
         <div className="relative z-10 flex h-full items-center justify-between gap-2 px-4">
           <p className="min-w-0 truncate text-[12px] font-semibold tracking-wide text-white">
-            {typeLabel}
-            <span className="font-medium text-white/85"> · SR {row.serialNumber}</span>
+            {cashLabel}
           </p>
-          <div className="flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-white/85">
-            <Wallet className="h-3 w-3 opacity-80" strokeWidth={2.25} aria-hidden />
-            <span className="max-w-[7.5rem] truncate tabular-nums">{cashLabel}</span>
-          </div>
+          {phone ? (
+            <a
+              href={`tel:${phoneDigits}`}
+              onClick={(e) => e.stopPropagation()}
+              className="flex min-w-0 shrink-0 items-center gap-1.5 text-[11px] font-medium text-white/85 hover:text-white hover:underline"
+            >
+              <Phone className="h-3 w-3 shrink-0 opacity-80" strokeWidth={2.25} aria-hidden />
+              <span className="max-w-[7.5rem] truncate tabular-nums">{phone}</span>
+            </a>
+          ) : (
+            <span className="flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-white/55">
+              <Phone className="h-3 w-3 opacity-80" strokeWidth={2.25} aria-hidden />
+              —
+            </span>
+          )}
         </div>
       </div>
 
@@ -107,23 +141,23 @@ export default function AccountMobileCard({
           </span>
         </div>
 
-        {phone ? (
-          <a
-            href={`tel:${phoneDigits}`}
-            onClick={(e) => e.stopPropagation()}
-            className="mt-2 inline-flex max-w-full items-center gap-1.5 truncate text-[12px] font-medium text-brand-ink/75 hover:text-brand-ink hover:underline"
-          >
-            <Phone className="h-3 w-3 shrink-0 opacity-80" strokeWidth={2.25} aria-hidden />
-            {phone}
-          </a>
-        ) : (
-          <p className="mt-2 truncate text-[12px] text-brand-ink/65">No phone</p>
-        )}
-
         <div className="mt-3 flex items-center justify-between gap-3 border-t border-brand-ink/10 pt-2.5 text-[12px] font-medium text-brand-ink">
-          <p className="min-w-0 truncate">
-            <span className="opacity-70">Cash :</span>{' '}
-            <span className="font-semibold">{cashLabel}</span>
+          <p
+            className={`flex min-w-0 items-center gap-1 ${trendClass}`}
+            title={trendTitle}
+            aria-label={trendTitle}
+          >
+            <span className="opacity-70 text-brand-ink">Today :</span>
+            {trend === 'up' ? (
+              <ArrowUp className="h-3.5 w-3.5 shrink-0" strokeWidth={2.4} aria-hidden />
+            ) : trend === 'down' ? (
+              <ArrowDown className="h-3.5 w-3.5 shrink-0" strokeWidth={2.4} aria-hidden />
+            ) : (
+              <Minus className="h-3.5 w-3.5 shrink-0" strokeWidth={2.4} aria-hidden />
+            )}
+            <span className="font-semibold tabular-nums">
+              {formatDayDeltaPct(dayDeltaPct)}
+            </span>
           </p>
           <p className={`min-w-0 shrink-0 text-right ${balanceTone}`}>
             <span className="opacity-70 text-brand-ink">Balance :</span>{' '}

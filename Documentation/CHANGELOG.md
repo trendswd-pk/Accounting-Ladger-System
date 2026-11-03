@@ -7,6 +7,7 @@ All notable changes to Accounting Ledger are documented here.
 ### Changed
 - Accounts list pages (Accounts + Payable / Receivable / Cash / Investment / Expenses balance lists) use the same curved `brand-sky` / `brand-ink` mobile cards and toolbar sizing as Transactions.
 - Mobile account / transaction cards: tapping **⋮** expands action **icons** inline on the title row (Details, Edit, Export/PDF, Send, Delete); desktop tables keep the menu with icons.
+- Account mobile cards: curved header shows cash type (left) and phone (right); footer shows **Today** day-over-day % (same basis as Balance Mix) + balance.
 - Balance Mix pills match the reference layout (circular icon cap + rounded body) with a **single** brand green scheme (`primary-600`→`primary-400` badge, `primary-50` body); caps use Wallet / Banknote / TrendingUp / TrendingDown.
 - Form modal footers put **Cancel** on the left and the primary action (**Add** / **Save** / **Download**) on the right, right-aligned on desktop.
 - App brand palette set to the green identity sheet (Rich Black → Caribbean Green → Anti-Flash White): `primary-*`, green-tinted `gray-*`, `brand-*`; Cursor rule + `Documentation/images/color-scheme.jpg`.

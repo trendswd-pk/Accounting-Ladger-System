@@ -12,6 +12,10 @@ import {
   type AccountRecord,
 } from '@/lib/accounts'
 import {
+  accountDayMovement,
+  todayNetsByAccount,
+} from '@/lib/accountDayMovement'
+import {
   DEFAULT_APP_SETTINGS,
   getCachedAppSettings,
   watchAppSettings,
@@ -21,6 +25,11 @@ import {
   DEFAULT_TABLE_PAGE_SIZE,
   TABLE_PAGE_SIZE_OPTIONS,
 } from '@/lib/tablePagination'
+import {
+  fetchTransactions,
+  getCachedTransactions,
+  type TransactionRecord,
+} from '@/lib/transactions'
 
 export type AccountBalanceListPageProps = {
   title: string
@@ -51,6 +60,9 @@ export default function AccountBalanceListPage({
   const [currency, setCurrency] = useState(
     () => getCachedAppSettings()?.currency ?? DEFAULT_APP_SETTINGS.currency
   )
+  const [transactions, setTransactions] = useState<TransactionRecord[]>(
+    () => getCachedTransactions() ?? []
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -73,7 +85,26 @@ export default function AccountBalanceListPage({
     }
   }, [])
 
+  useEffect(() => {
+    const hit = getCachedTransactions()
+    if (hit) setTransactions(hit)
+    let cancelled = false
+    void fetchTransactions()
+      .then((items) => {
+        if (!cancelled) setTransactions(items)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   useEffect(() => watchAppSettings((s) => setCurrency(s.currency)), [])
+
+  const dayNetsByAccount = useMemo(
+    () => todayNetsByAccount(transactions),
+    [transactions]
+  )
 
   const rows = useMemo(
     () => allAccounts.filter(filterAccounts),
@@ -266,22 +297,31 @@ export default function AccountBalanceListPage({
             No accounts match your search.
           </div>
         ) : (
-          pageRows.map((row, index) => (
-            <AccountMobileCard
-              key={row.id}
-              row={{
-                id: row.id,
-                serialNumber: pageStartIndex + index + 1,
-                name: row.name,
-                phone: row.phone,
-                accountTypeName: row.accountTypeName,
-                cashTypeName: row.cashTypeName,
-                balance: row.balance,
-              }}
-              formatBalance={formatBalance}
-              onOpen={() => router.push(accountHref(row.id))}
-            />
-          ))
+          pageRows.map((row, index) => {
+            const movement = accountDayMovement(
+              Number(row.balance) || 0,
+              dayNetsByAccount.get(row.id) ?? 0
+            )
+            return (
+              <AccountMobileCard
+                key={row.id}
+                row={{
+                  id: row.id,
+                  serialNumber: pageStartIndex + index + 1,
+                  name: row.name,
+                  phone: row.phone,
+                  accountTypeName: row.accountTypeName,
+                  cashTypeName: row.cashTypeName,
+                  balance: row.balance,
+                  dayDelta: movement.dayDelta,
+                  dayDeltaPct: movement.dayDeltaPct,
+                }}
+                formatBalance={formatBalance}
+                currency={currency}
+                onOpen={() => router.push(accountHref(row.id))}
+              />
+            )
+          })
         )}
         {ready && filteredRows.length > 0 ? (
           <div className="flex items-center justify-between gap-3 rounded-[1.65rem] border border-gray-200 bg-white px-4 py-3 shadow-md dark:border-gray-700 dark:bg-gray-800">
