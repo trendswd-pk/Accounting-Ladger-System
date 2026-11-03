@@ -44,8 +44,8 @@ Accounting Ledger is responsive. On phones, the sidebar becomes an off-canvas dr
 ### Work transactions on mobile
 
 1. Open **Transactions**.
-2. Use search and filters; tap **Add** to create an entry.
-3. Sort **Transaction Date**, **Type**, or **Balance** when those headers are available.
+2. Each entry appears as a rounded card: **Credit/Debit** label, time + date on the dark curved tab, account name, amount badges, and Amount / Running footer.
+3. Use search and filters; tap **Add** to create an entry. Tap a card for Details.
 4. Pagination is compact: first and last page with `…` between (current page when in the middle).
 5. Scroll-to-top sits higher so it does not cover pagination.
 

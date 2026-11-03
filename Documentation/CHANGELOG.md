@@ -6,6 +6,7 @@ All notable changes to Accounting Ledger are documented here.
 
 ### Changed
 - Form modal footers put **Cancel** on the left and the primary action (**Add** / **Save** / **Download**) on the right, right-aligned on desktop.
+- Transactions mobile list uses sky-blue cards with a navy curved top-right date tab (reference-style layout: type label, dual amount pills, Amount / Running footer).
 - Entry form modals (Add Transaction, Accounts, types, message templates) no longer close when clicking the dimmed backdrop — use **Cancel** or **X** so typed fields are not lost.
 - Transfer entries save both debit and credit legs in **one** request (no sequential double-save wait).
 

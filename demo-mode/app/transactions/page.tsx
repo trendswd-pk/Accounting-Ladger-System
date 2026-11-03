@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react'
 import ActionsDropdown from '@/components/ActionsDropdown'
+import TransactionMobileCard from '@/components/TransactionMobileCard'
 import {
   FormModalBody,
   FormModalFooter,
@@ -1107,92 +1108,41 @@ function TransactionsPageInner() {
         </div>
       </aside>
 
-      {/* Mobile cards */}
-      <div className={`space-y-3 lg:hidden ${loading ? 'opacity-70' : ''}`}>
+      {/* Mobile cards — curved fintech-style cards */}
+      <div className={`space-y-3.5 lg:hidden ${loading ? 'opacity-70' : ''}`}>
         {!ready ? (
           Array.from({ length: 3 }, (_, i) => (
             <div
               key={i}
-              className="animate-pulse rounded-xl border border-gray-100 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
+              className="animate-pulse overflow-hidden rounded-[1.75rem] bg-[#6eb6e0]/80 p-4 dark:bg-[#3d7aa3]/70"
             >
-              <div className="mb-3 h-5 w-36 rounded bg-gray-200 dark:bg-gray-600" />
-              <div className="space-y-2">
-                <div className="h-4 w-full rounded bg-gray-100 dark:bg-gray-700/50" />
-                <div className="h-4 w-2/3 rounded bg-gray-100 dark:bg-gray-700/50" />
+              <div className="mb-3 h-4 w-20 rounded bg-white/40" />
+              <div className="mb-2 h-5 w-2/3 rounded bg-slate-900/20" />
+              <div className="mb-3 h-3 w-1/2 rounded bg-slate-900/15" />
+              <div className="flex gap-2">
+                <div className="h-6 w-16 rounded-full bg-white/50" />
+                <div className="h-6 w-28 rounded-full bg-white/30" />
               </div>
             </div>
           ))
         ) : rows.length === 0 ? (
-          <div className="rounded-xl border border-gray-100 bg-white px-4 py-8 text-center text-sm text-gray-500 shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+          <div className="rounded-[1.75rem] border border-gray-100 bg-white px-4 py-8 text-center text-sm text-gray-500 shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
             No transactions yet. Tap + to add one.
           </div>
         ) : filteredRows.length === 0 ? (
-          <div className="rounded-xl border border-gray-100 bg-white px-4 py-8 text-center text-sm text-gray-500 shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+          <div className="rounded-[1.75rem] border border-gray-100 bg-white px-4 py-8 text-center text-sm text-gray-500 shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
             No transactions match your search.
           </div>
         ) : (
           pageRows.map((row) => (
-            <article
+            <TransactionMobileCard
               key={row.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => openDetail(row)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  openDetail(row)
-                }
-              }}
-              className="cursor-pointer rounded-xl border border-gray-100 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
-            >
-              <div className="mb-3 flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-                    SR. {row.entryNumber} - {formatDisplayDate(row.transactionDate)}
-                  </p>
-                  <div className="mt-0.5 flex min-w-0 items-center gap-2">
-                    <h2 className="truncate text-base font-semibold text-gray-900 dark:text-gray-100">
-                      {row.accountName}
-                    </h2>
-                    <span
-                      className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium capitalize ${entryTypeBadgeClass(row.entryType)}`}
-                    >
-                      {row.entryType}
-                    </span>
-                  </div>
-                </div>
-                <div onClick={(e) => e.stopPropagation()}>{actionsFor(row)}</div>
-              </div>
-              <div className="mb-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Narration
-                </p>
-                <p className="mt-0.5 truncate text-sm text-gray-700 dark:text-gray-200">
-                  {row.narration.trim() ? row.narration : '—'}
-                </p>
-              </div>
-              <dl className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    Balance
-                  </dt>
-                  <dd className={`mt-0.5 tabular-nums font-medium ${amountColorClass(row.entryType)}`}>
-                    {row.entryType === 'debit' ? '− ' : '+ '}
-                    {formatBalance(Math.abs(row.balance))}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    Running Balance
-                  </dt>
-                  <dd
-                    className={`mt-0.5 tabular-nums font-medium ${runningBalanceColorClass(row.runningBalance)}`}
-                  >
-                    {formatBalance(row.runningBalance)}
-                  </dd>
-                </div>
-              </dl>
-            </article>
+              row={row}
+              formatBalance={formatBalance}
+              formatDisplayDate={formatDisplayDate}
+              actions={actionsFor(row)}
+              onOpen={() => openDetail(row)}
+            />
           ))
         )}
         <div className="lg:hidden">{paginationBar}</div>
