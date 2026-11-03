@@ -1,10 +1,11 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
+import { Manrope } from 'next/font/google'
 import './globals.css'
 import LayoutContent from '@/components/LayoutContent'
 import ThemeInit from '@/components/ThemeInit'
 
-const inter = Inter({
+/** Web stand-in for brand face Axiforma (see color-scheme rule). */
+const manrope = Manrope({
   subsets: ['latin'],
   display: 'swap',
   preload: false,
@@ -33,7 +34,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#0369a1',
+  themeColor: '#03624C',
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
@@ -42,7 +43,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={inter.className} suppressHydrationWarning>
+      <body className={manrope.className} suppressHydrationWarning>
         <ThemeInit />
         <LayoutContent>{children}</LayoutContent>
       </body>

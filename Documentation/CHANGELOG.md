@@ -6,8 +6,9 @@ All notable changes to Accounting Ledger are documented here.
 
 ### Changed
 - Form modal footers put **Cancel** on the left and the primary action (**Add** / **Save** / **Download**) on the right, right-aligned on desktop.
-- Official app color scheme documented in Cursor rules; Tailwind adds `brand-sky` / `brand-ink` tokens (mobile cards use them).
-- Transactions mobile list uses sky-blue cards with a navy curved top-right date tab (reference-style layout: type label, dual amount pills, Amount / Running footer).
+- App brand palette set to the green identity sheet (Rich Black → Caribbean Green → Anti-Flash White): `primary-*`, green-tinted `gray-*`, `brand-*`; Cursor rule + `Documentation/images/color-scheme.jpg`.
+- UI font: **Manrope** (web stand-in for Axiforma); light + dark surfaces follow the new neutrals.
+- Transactions mobile list uses `brand-sky` / `brand-ink` curved cards (type label, dual pills, Amount / Running footer).
 - Entry form modals (Add Transaction, Accounts, types, message templates) no longer close when clicking the dimmed backdrop — use **Cancel** or **X** so typed fields are not lost.
 - Transfer entries save both debit and credit legs in **one** request (no sequential double-save wait).
 

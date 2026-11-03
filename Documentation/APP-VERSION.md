@@ -6,7 +6,7 @@
 See the full [Changelog](./CHANGELOG.md).
 
 ## This release includes
-- Official `primary` + `brand-sky` / `brand-ink` color scheme (Cursor rule for sample → product mapping)
+- Green brand color scheme (Caribbean / Bangladesh / Rich Black) for light + dark; scheme sheet in Documentation/images
 - Balance Mix day-over-day % correctly reflects receivable/payable recoveries that clear accounts to zero
 - Offline Demo Mode with per-user sandboxes and realistic sample books
 - Dashboard **Transactions** shortcut, balance-mix day-over-day %, and mobile chart polish

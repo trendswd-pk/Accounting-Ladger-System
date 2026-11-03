@@ -4,6 +4,8 @@ Accounting Ledger helps small businesses keep professional books: journals, acco
 
 ![Dashboard overview](./images/02-dashboard.png)
 
+![Official color scheme](./images/color-scheme.jpg)
+
 | | |
 |---|---|
 | **Version** | 1.0.4 |

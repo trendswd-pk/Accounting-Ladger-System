@@ -111,7 +111,7 @@ export default function TransactionMobileCard({
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <span
             className={`inline-flex items-center gap-1 rounded-full bg-primary-50 px-2.5 py-1 text-[11px] font-semibold shadow-sm ${
-              isCredit ? 'text-green-700' : 'text-red-700'
+              isCredit ? 'text-primary-800' : 'text-red-700'
             }`}
           >
             {isCredit ? (

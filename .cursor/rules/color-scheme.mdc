@@ -1,75 +1,104 @@
 ---
+description: Official Accounting Ledger color scheme (green brand) — adapt all UI samples to this palette
 alwaysApply: true
 ---
+
 # Color scheme (source of truth)
 
-When the user shares a **sample / screenshot / reference UI**, rebuild the layout and hierarchy from the sample, but **map every color to this scheme**. Do not invent new brand hues (no purple, terracotta, cream broadsheet, neon, random gradients). Prefer Tailwind tokens below over raw hex in components.
+**Reference image:** `Documentation/images/color-scheme.jpg`  
+**Brand sheet origin:** Axiforma + green / teal identity (Rich Black → Caribbean Green → Anti-Flash White).
 
-## Brand
+When the user shares a **sample / screenshot / reference UI**, rebuild layout and hierarchy from the sample, but **map every color to this scheme**. Do not invent new brand hues (no sky-blue primary, purple, terracotta, cream broadsheet). Prefer Tailwind tokens over raw hex.
+
+## Typography
+
+| Role | Spec |
+|------|------|
+| Brand face | **Axiforma** (Regular / Medium / Semi Bold) when licensed files are available |
+| Web fallback | `Manrope` via `next/font` (geometric sans close to Axiforma) |
+| UI | Same family app-wide; Semi Bold ≈ headings, Medium ≈ emphasis, Regular ≈ body |
+
+## Primary scale (`primary-*`)
+
+| Token | Name | Hex | Use |
+|-------|------|-----|-----|
+| `primary-50` | Anti-Flash White | `#F1F7F6` | Soft washes, light chip bg |
+| `primary-100` | — | `#D8EDE6` | Hover wash / tint panels |
+| `primary-200` | Pistachio | `#AACBC4` | Soft borders, secondary chips |
+| `primary-300` | Mint | `#2FA98C` | Soft accents |
+| `primary-400` | Mountain Meadow | `#2CC295` | Icons, secondary accent, **branded card body** (`brand-sky`) |
+| `primary-500` | Caribbean Green | `#00DF81` | Bright accent, focus ring, highlights on dark |
+| `primary-600` | Bangladesh Green | `#03624C` | **Primary CTA** (white label) |
+| `primary-700` | Forest | `#095544` | CTA hover / pressed |
+| `primary-800` | Basil | `#0B453A` | Strong text on light tint |
+| `primary-900` | Dark Green | `#032221` | Deep brand / dark surfaces |
+
+## Brand aliases (`brand-*`)
 
 | Token | Hex | Use |
 |-------|-----|-----|
-| `primary-50` | `#f0f9ff` | Soft tint backgrounds, selected chip wash |
-| `primary-100` | `#e0f2fe` | Light panels, hover wash |
-| `primary-200` | `#bae6fd` | Borders on tinted panels |
-| `primary-300` | `#7dd3fc` | Soft accents |
-| `primary-400` | `#38bdf8` | Icons / secondary accent |
-| `primary-500` | `#0ea5e9` | Focus rings, links accent |
-| `primary-600` | `#0369a1` | **Primary CTA** fill (WCAG with white text) |
-| `primary-700` | `#075985` | CTA hover / pressed |
-| `primary-800` | `#075985` | Strong text on light tint |
-| `primary-900` | `#0c4a6e` | Deep brand text |
-| `brand-sky` | `#74b4e0` | Fintech-style **card body** (mobile list cards, promo panels) |
-| `brand-ink` | `#0b1b33` | **Navy tab / titles** on sky cards; dark chrome on samples |
+| `brand-sky` | `#2CC295` | Fintech-style card bodies (mobile txn cards) |
+| `brand-ink` | `#020F11` | Rich Black — titles / curved tabs on sky cards |
+| `brand-rich` | `#020F11` | App darkest chrome |
+| `brand-dark` | `#032221` | Dark Green panels |
+| `brand-pine` | `#06302B` | Dark card elevated surface |
+| `brand-caribbean` | `#00DF81` | Neon accent on dark UI |
+| `brand-meadow` | `#2CC295` | Same as sky |
+| `brand-mint` / `frog` / `forest` / `basil` | sheet secondaries | Rare accents |
+| `brand-stone` | `#707D7D` | Muted captions |
+| `brand-pistachio` | `#AACBC4` | Soft borders |
+| `brand-antiFlash` | `#F1F7F6` | Light canvas |
 
-## Surfaces (chrome)
+## Surfaces (light / dark)
 
 | Context | Light | Dark |
 |---------|-------|------|
-| App background | `bg-gray-50` | `dark:bg-gray-900` |
-| Card / panel | `bg-white` + `border-gray-100` / `border-gray-200` | `dark:bg-gray-800` + `dark:border-gray-700` |
-| Muted strip | `bg-gray-50` / `bg-gray-100` | `dark:bg-gray-900/40` |
-| Modal footer / brand bar | `from-primary-700 to-primary-600` | same |
+| App background | `bg-gray-50` (`#F1F7F6`) | `dark:bg-gray-950` or `dark:bg-gray-900` (`#020F11` / `#032221`) |
+| Card / panel | `bg-white` or `bg-gray-50` + `border-gray-200` | `dark:bg-gray-800` (`#06302B`) + `dark:border-gray-700` |
+| Modal brand bar | `from-primary-700 to-primary-600` | same |
 | Overlay | `bg-black/50` | same |
+| Branded list cards | `bg-brand-sky` + `brand-ink` tab | **keep meadow + ink** (do not gray-wash) |
+
+`gray-*` is **green-tinted** in `tailwind.config.js` so existing `gray-50`…`gray-900` classes follow the brand automatically.
 
 ## Text
 
 | Role | Light | Dark |
 |------|-------|------|
-| Primary | `text-gray-900` | `dark:text-gray-100` |
-| Secondary | `text-gray-600` / `text-gray-500` | `dark:text-gray-300` / `dark:text-gray-400` |
-| On primary CTA | `text-white` | `text-white` |
-| On `brand-sky` card | titles `text-brand-ink`, muted `text-brand-ink/65`, header labels `text-white` | **keep sky/ink** (do not recolor the whole card to gray-800) |
-| Link / emphasis | `text-primary-700` | `dark:text-primary-300` |
+| Primary | `text-gray-900` / `text-brand-ink` | `dark:text-gray-50` |
+| Secondary | `text-gray-500` / `text-brand-stone` | `dark:text-gray-300` |
+| On CTA (`primary-600`) | `text-white` | `text-white` |
+| On dark / ink | `text-brand-antiFlash` or `text-white` | — |
+| On `brand-sky` card | title `text-brand-ink`, muted `text-brand-ink/65`, header meta `text-white` | same |
+| Link / emphasis | `text-primary-700` | `dark:text-primary-400` / `dark:text-brand-caribbean` |
 
-## Semantic (ledger meaning — keep consistent)
+## Semantic (ledger)
 
-| Meaning | Classes |
-|---------|---------|
-| Credit / positive / up | `text-green-700` / `dark:text-green-400`, badges `bg-green-100 text-green-800` (+ dark variants) |
-| Debit / negative / down | `text-red-700` / `dark:text-red-400`, badges `bg-red-100 text-red-800` (+ dark variants) |
-| Neutral / zero | `text-gray-900` / `dark:text-gray-100` |
-| Danger actions | `text-red-600`, danger buttons use `formModalDangerButtonClass` |
-| Warning / demo banner | amber / yellow strips already used for Demo Mode — keep |
+| Meaning | Light | Dark |
+|---------|-------|------|
+| Credit / positive | `text-primary-700` or `text-green-800`, badge `bg-primary-100 text-primary-800` | `dark:text-primary-400` / caribbean |
+| Debit / negative | `text-red-700`, badge `bg-red-100 text-red-800` | `dark:text-red-400` |
+| Danger actions | red (`formModalDangerButtonClass`) | same |
+| Demo banner | amber / yellow (unchanged) | same |
+
+Prefer **brand greens for credit** when touching money UI so credit matches the palette; keep **red for debit** (do not use brand green for losses).
 
 ## Mapping samples → this scheme
 
-When adapting a reference design:
-
-1. **Keep structure** (curves, pills, footer rows, spacing intent).
-2. **Replace sample blues** → `primary-*` or `brand-sky` / `brand-ink` (not a new blue).
-3. **Replace sample greens/reds for money** → semantic green/red above.
-4. **Replace cream / purple / orange brand themes** → primary + gray surfaces.
-5. **Dark mode**: standard pages flip gray surfaces; **branded sky cards stay sky + ink** so they match the approved card look.
-6. Prefer `focus-visible:ring-primary-500` (click rings are globally suppressed in `globals.css`).
+1. Keep structure from the sample.
+2. Sample blues / old sky UI → `primary-*` / `brand-sky` / `brand-ink`.
+3. Sample neon greens → `primary-500` / `brand-caribbean`.
+4. Sample dark backgrounds → `gray-900` / `brand-rich` / `brand-pine`.
+5. Sample cream / purple / orange themes → reject; remap to this green system.
+6. Focus: `focus-visible:ring-primary-500` (click rings suppressed in `globals.css`).
 
 ## Do not
 
-- Introduce a second brand color family.
-- Hardcode one-off hex except when adding a named token in `tailwind.config.js` **and** documenting it here in the same change.
-- Use purple-on-white, cream+terracotta, or newspaper black/white as a new default look.
+- Reintroduce the old blue primary (`#0ea5e9` family) as brand.
+- Add a second unrelated brand hue.
+- Hardcode one-off hex without updating `tailwind.config.js` **and** this rule + the scheme image.
 
 ## Token files
 
-- Root: `tailwind.config.js` → `theme.extend.colors.primary` + `brand`
-- Demo: `demo-mode/tailwind.config.js` (keep in sync)
+- `tailwind.config.js` + `demo-mode/tailwind.config.js` (keep identical)
+- `Documentation/images/color-scheme.png` (visual swatch sheet for humans)

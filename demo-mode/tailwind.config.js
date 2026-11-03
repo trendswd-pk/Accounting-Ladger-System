@@ -9,23 +9,50 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        /**
+         * Official brand palette (green / teal).
+         * See `.cursor/rules/color-scheme.mdc` + `Documentation/images/color-scheme.png`.
+         */
         primary: {
-          50: '#f0f9ff',
-          100: '#e0f2fe',
-          200: '#bae6fd',
-          300: '#7dd3fc',
-          400: '#38bdf8',
-          500: '#0ea5e9',
-          // Darkened for WCAG AA (≥4.5:1) with white text on solid CTAs
-          600: '#0369a1',
-          700: '#075985',
-          800: '#075985',
-          900: '#0c4a6e',
+          50: '#F1F7F6',
+          100: '#D8EDE6',
+          200: '#AACBC4',
+          300: '#2FA98C',
+          400: '#2CC295',
+          500: '#00DF81',
+          600: '#03624C',
+          700: '#095544',
+          800: '#0B453A',
+          900: '#032221',
         },
-        /** Branded sky cards / navy chrome — see .cursor/rules/color-scheme.mdc */
         brand: {
-          sky: '#74b4e0',
-          ink: '#0b1b33',
+          sky: '#2CC295',
+          ink: '#020F11',
+          rich: '#020F11',
+          dark: '#032221',
+          pine: '#06302B',
+          caribbean: '#00DF81',
+          meadow: '#2CC295',
+          mint: '#2FA98C',
+          frog: '#17876D',
+          forest: '#095544',
+          basil: '#0B453A',
+          stone: '#707D7D',
+          pistachio: '#AACBC4',
+          antiFlash: '#F1F7F6',
+        },
+        gray: {
+          50: '#F1F7F6',
+          100: '#E4EEEC',
+          200: '#C5D9D4',
+          300: '#AACBC4',
+          400: '#707D7D',
+          500: '#5C6A6A',
+          600: '#4A5757',
+          700: '#2A3F3C',
+          800: '#06302B',
+          900: '#032221',
+          950: '#020F11',
         },
       },
     },
