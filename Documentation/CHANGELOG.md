@@ -10,6 +10,9 @@ All notable changes to Accounting Ledger are documented here.
 ### Changed
 - Send message: blank white prep tab replaced with branded progress UI (percent + status). Same progress overlay appears on Accounts and Transactions while PDFs/links prepare; then WhatsApp opens in that tab.
 
+### Fixed
+- Dashboard **Today Expense** / **Yesterday Expense** now follow the browser’s local calendar (and Asia/Karachi on the server when no client date is sent). Open tabs auto-roll at local midnight and refetch so overnight expenses move to Yesterday without waiting until morning.
+
 ## [1.1.0] — 2026-11-03
 
 ### Added

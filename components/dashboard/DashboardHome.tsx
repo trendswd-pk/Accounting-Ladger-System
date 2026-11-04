@@ -50,6 +50,7 @@ import {
   type DashboardExpenseSummary,
 } from '@/lib/dashboardExpenseSummary'
 import { formatMoney } from '@/lib/money'
+import { useLocalCalendarDay } from '@/lib/useLocalCalendarDay'
 
 const DashboardCharts = dynamic(
   () => import('@/components/dashboard/DashboardCharts'),
@@ -97,6 +98,7 @@ function scheduleIdle(cb: () => void): () => void {
 
 export default function DashboardHome() {
   const router = useRouter()
+  const { todayYmd, yesterdayYmd } = useLocalCalendarDay()
   const cachedAccounts = getCachedAccounts()
   const cachedSummary = getCachedDashboardExpenseSummary()
   const [accounts, setAccounts] = useState<AccountRecord[]>(() => cachedAccounts ?? [])
@@ -129,17 +131,23 @@ export default function DashboardHome() {
   const [infoOpen, setInfoOpen] = useState(false)
   const [txnModalOpen, setTxnModalOpen] = useState(false)
 
-  const loadSummary = useCallback(async (force: boolean) => {
-    try {
-      if (force) invalidateDashboardExpenseSummaryCache()
-      const next = await fetchDashboardExpenseSummary({ force })
-      setSummary(next)
-    } catch {
-      /* keep current */
-    } finally {
-      setSummaryReady(true)
-    }
-  }, [])
+  const loadSummary = useCallback(
+    async (force: boolean) => {
+      try {
+        if (force) invalidateDashboardExpenseSummaryCache()
+        const next = await fetchDashboardExpenseSummary({
+          force,
+          today: todayYmd,
+        })
+        setSummary(next)
+      } catch {
+        /* keep current */
+      } finally {
+        setSummaryReady(true)
+      }
+    },
+    [todayYmd]
+  )
 
   const refreshDashboard = useCallback(async () => {
     // Prefer soft-updated accounts cache (instant). Reconcile from API in background.
@@ -182,7 +190,8 @@ export default function DashboardHome() {
     }
   }, [])
 
-  // Defer expense summary + chart bundle until after first paint (cuts mobile TBT)
+  // Defer expense summary + chart bundle until after first paint (cuts mobile TBT).
+  // Re-runs when the local calendar day rolls over (midnight / tab focus).
   useEffect(() => {
     let cancelled = false
     const cancelIdle = scheduleIdle(() => {
@@ -194,7 +203,7 @@ export default function DashboardHome() {
       cancelled = true
       cancelIdle()
     }
-  }, [loadSummary])
+  }, [loadSummary, todayYmd])
 
   useEffect(() => {
     return watchAppSettings((s) => {
@@ -265,18 +274,8 @@ export default function DashboardHome() {
   const expenseBalance = useMemo(() => sumBalances(expenseAccounts), [expenseAccounts])
   const investBalance = useMemo(() => sumBalances(investAccounts), [investAccounts])
 
-  const { todayIso, yesterdayIso } = useMemo(() => {
-    const toIso = (d: Date) => {
-      const y = d.getFullYear()
-      const m = String(d.getMonth() + 1).padStart(2, '0')
-      const day = String(d.getDate()).padStart(2, '0')
-      return `${y}-${m}-${day}`
-    }
-    const today = new Date()
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-    return { todayIso: toIso(today), yesterdayIso: toIso(yesterday) }
-  }, [])
+  const todayIso = todayYmd
+  const yesterdayIso = yesterdayYmd
 
   // Soft-cached transactions for balance-mix day-over-day deltas
   useEffect(() => {

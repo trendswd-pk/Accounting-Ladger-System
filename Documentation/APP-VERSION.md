@@ -6,6 +6,7 @@
 See the full [Changelog](./CHANGELOG.md).
 
 ## This release includes
+- Dashboard Today/Yesterday expense cards roll over at local midnight (no UTC lag)
 - Share links show WhatsApp / messenger link previews (Open Graph card for ledger & voucher PDFs)
 - Send WhatsApp: branded progress % (in-app + prep tab) instead of a blank loading page
 - Open Graph / Twitter link previews with brand share card

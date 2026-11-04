@@ -1,10 +1,19 @@
 import { isExpenseLabel } from '@/lib/accountFilters'
+import {
+  isValidYmd,
+  pad2,
+  shiftYmd,
+  ymdInTimeZone,
+} from '@/lib/localDate'
 import { recordRequestDeduped } from '@/lib/requestProfiler'
 import {
   expenseSpendAmount,
   normalizeEntryType,
 } from '@/lib/transactions'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
+
+/** Default business calendar when the client does not send `today`. */
+const BUSINESS_TZ = 'Asia/Karachi'
 
 const ENDPOINT = '/api/dashboard/expense-summary'
 
@@ -84,23 +93,31 @@ type SlimTx = {
   balance: number
 }
 
-function emptySummary(): DashboardExpenseSummary {
-  const now = new Date()
+function resolveTodayYmd(todayParam?: string | null): string {
+  const raw = String(todayParam ?? '').trim().slice(0, 10)
+  if (isValidYmd(raw)) return raw
+  return ymdInTimeZone(new Date(), BUSINESS_TZ)
+}
+
+function emptySummary(todayYmd?: string): DashboardExpenseSummary {
+  const today = resolveTodayYmd(todayYmd)
+  const y = Number(today.slice(0, 4))
+  const monthIndex = Number(today.slice(5, 7)) - 1
+  const dayOfMonth = Number(today.slice(8, 10))
   const monthly: MonthlyExpensePoint[] = []
   for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    const y = d.getFullYear()
-    const m = d.getMonth()
-    const prefix = `${y}-${String(m + 1).padStart(2, '0')}`
+    const d = new Date(Date.UTC(y, monthIndex - i, 1))
+    const my = d.getUTCFullYear()
+    const m = d.getUTCMonth()
+    const prefix = `${my}-${pad2(m + 1)}`
     monthly.push({
       key: prefix,
-      label: `${MONTH_SHORT[m]} ${String(y).slice(2)}`,
+      label: `${MONTH_SHORT[m]} ${String(my).slice(2)}`,
       expense: 0,
     })
   }
-  const days = now.getDate()
   const daily: DailyExpensePoint[] = []
-  for (let day = 1; day <= days; day++) {
+  for (let day = 1; day <= dayOfMonth; day++) {
     daily.push({ day: String(day), expense: 0 })
   }
   return {
@@ -114,22 +131,16 @@ function emptySummary(): DashboardExpenseSummary {
   }
 }
 
-function isoDate(d: Date): string {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-
 function aggregate(
   txs: SlimTx[],
-  expenseAccounts: Array<{ id: string; name: string }>
+  expenseAccounts: Array<{ id: string; name: string }>,
+  todayYmd: string
 ): DashboardExpenseSummary {
-  const now = new Date()
-  const today = isoDate(now)
-  const yest = new Date(now)
-  yest.setDate(yest.getDate() - 1)
-  const yesterday = isoDate(yest)
+  const today = resolveTodayYmd(todayYmd)
+  const yesterday = shiftYmd(today, -1)
+  const y = Number(today.slice(0, 4))
+  const monthIndex = Number(today.slice(5, 7)) - 1
+  const dayOfMonth = Number(today.slice(8, 10))
 
   let todayExpense = 0
   let yesterdayExpense = 0
@@ -139,19 +150,19 @@ function aggregate(
   const monthlyByAccount = new Map<string, Map<string, number>>()
   const rangeAccountTotal = new Map<string, number>()
   for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    const prefix = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const d = new Date(Date.UTC(y, monthIndex - i, 1))
+    const prefix = `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}`
     monthlyMap.set(prefix, 0)
     monthlyByAccount.set(prefix, new Map())
   }
 
-  const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  const daysInView = now.getDate()
+  const monthPrefix = `${y}-${pad2(monthIndex + 1)}`
+  const daysInView = dayOfMonth
   const dailyMap = new Map<string, number>()
   /** date → accountId → spend */
   const dailyByAccount = new Map<string, Map<string, number>>()
   for (let day = 1; day <= daysInView; day++) {
-    const date = `${monthPrefix}-${String(day).padStart(2, '0')}`
+    const date = `${monthPrefix}-${pad2(day)}`
     dailyMap.set(date, 0)
     dailyByAccount.set(date, new Map())
   }
@@ -217,13 +228,13 @@ function aggregate(
 
   const monthly: MonthlyExpensePoint[] = []
   for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    const y = d.getFullYear()
-    const m = d.getMonth()
-    const prefix = `${y}-${String(m + 1).padStart(2, '0')}`
+    const d = new Date(Date.UTC(y, monthIndex - i, 1))
+    const my = d.getUTCFullYear()
+    const m = d.getUTCMonth()
+    const prefix = `${my}-${pad2(m + 1)}`
     const row: MonthlyExpensePoint = {
       key: prefix,
-      label: `${MONTH_SHORT[m]} ${String(y).slice(2)}`,
+      label: `${MONTH_SHORT[m]} ${String(my).slice(2)}`,
       expense: Math.max(0, monthlyMap.get(prefix) ?? 0),
     }
     const byAcc = monthlyByAccount.get(prefix)
@@ -241,7 +252,7 @@ function aggregate(
 
   const daily: DailyExpensePoint[] = []
   for (let day = 1; day <= daysInView; day++) {
-    const date = `${monthPrefix}-${String(day).padStart(2, '0')}`
+    const date = `${monthPrefix}-${pad2(day)}`
     const row: DailyExpensePoint = {
       day: String(day),
       expense: Math.max(0, dailyMap.get(date) ?? 0),
@@ -265,7 +276,10 @@ function aggregate(
 }
 
 /** Server: slim expense rows only (last ~6 months), pre-aggregated for dashboard. */
-export async function buildDashboardExpenseSummary(): Promise<DashboardExpenseSummary> {
+export async function buildDashboardExpenseSummary(
+  todayParam?: string | null
+): Promise<DashboardExpenseSummary> {
+  const today = resolveTodayYmd(todayParam)
   const admin = getSupabaseAdmin()
   const { data: accountRows, error: accountError } = await admin
     .from('accounts')
@@ -291,12 +305,13 @@ export async function buildDashboardExpenseSummary(): Promise<DashboardExpenseSu
     .filter((a) => a.isExpense)
     .map(({ id, name }) => ({ id, name }))
 
-  if (expenseAccounts.length === 0) return emptySummary()
+  if (expenseAccounts.length === 0) return emptySummary(today)
 
   const expenseIds = expenseAccounts.map((a) => a.id)
-  const now = new Date()
-  const from = new Date(now.getFullYear(), now.getMonth() - 5, 1)
-  const fromStr = isoDate(from)
+  const y = Number(today.slice(0, 4))
+  const monthIndex = Number(today.slice(5, 7)) - 1
+  const from = new Date(Date.UTC(y, monthIndex - 5, 1))
+  const fromStr = `${from.getUTCFullYear()}-${pad2(from.getUTCMonth() + 1)}-01`
 
   const { data: txRows, error: txError } = await admin
     .from('transactions')
@@ -320,11 +335,13 @@ export async function buildDashboardExpenseSummary(): Promise<DashboardExpenseSu
     })
   )
 
-  return aggregate(txs, expenseAccounts)
+  return aggregate(txs, expenseAccounts, today)
 }
 
 let cache: DashboardExpenseSummary | null = null
+let cacheTodayYmd: string | null = null
 let inflight: Promise<DashboardExpenseSummary> | null = null
+let inflightTodayYmd: string | null = null
 
 export function getCachedDashboardExpenseSummary(): DashboardExpenseSummary | null {
   return cache ? cloneSummary(cache) : null
@@ -332,36 +349,47 @@ export function getCachedDashboardExpenseSummary(): DashboardExpenseSummary | nu
 
 export function invalidateDashboardExpenseSummaryCache(): void {
   cache = null
+  cacheTodayYmd = null
   inflight = null
+  inflightTodayYmd = null
 }
 
 export async function fetchDashboardExpenseSummary(options?: {
   force?: boolean
+  /** Browser-local YYYY-MM-DD so Today/Yesterday match the user’s calendar. */
+  today?: string
 }): Promise<DashboardExpenseSummary> {
   const force = options?.force === true
-  if (!force && cache) {
+  const today = resolveTodayYmd(options?.today)
+  if (!force && cache && cacheTodayYmd === today) {
     return cloneSummary(cache)
   }
-  if (inflight) {
+  if (inflight && inflightTodayYmd === today) {
     recordRequestDeduped(ENDPOINT)
     return inflight
   }
 
   const req = (async () => {
-    const res = await fetch(ENDPOINT, { cache: 'no-store' })
+    const qs = new URLSearchParams({ today })
+    const res = await fetch(`${ENDPOINT}?${qs}`, { cache: 'no-store' })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || 'Failed to load expense summary')
     const summary = data as DashboardExpenseSummary
     if (!Array.isArray(summary.dailySeries)) summary.dailySeries = []
     if (!Array.isArray(summary.monthlySeries)) summary.monthlySeries = []
     cache = summary
+    cacheTodayYmd = today
     return cloneSummary(summary)
   })()
 
   inflight = req
+  inflightTodayYmd = today
   try {
     return await req
   } finally {
-    if (inflight === req) inflight = null
+    if (inflight === req) {
+      inflight = null
+      inflightTodayYmd = null
+    }
   }
 }
