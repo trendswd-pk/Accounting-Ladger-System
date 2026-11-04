@@ -1,5 +1,7 @@
 import { siteUrl } from '@/lib/siteUrl'
 
+export type ShareLinkKind = 'ledger' | 'voucher' | 'document'
+
 export type ShareLinkPreviewInput = {
   /** Absolute canonical URL of this share page (og:url). */
   pageUrl: string
@@ -10,7 +12,7 @@ export type ShareLinkPreviewInput = {
   /** Short description for OG + page. */
   description?: string
   /** ledger | voucher | document */
-  kind?: 'ledger' | 'voucher' | 'document'
+  kind?: ShareLinkKind
 }
 
 function escapeHtml(value: string): string {
@@ -34,14 +36,14 @@ export function titleFromFileName(fileName: string): string {
 }
 
 /** Infer kind from folder path / file name for OG card copy. */
-export function kindFromFolder(folder: string, fileName: string): ShareLinkPreviewInput['kind'] {
+export function kindFromFolder(folder: string, fileName: string): ShareLinkKind {
   const f = `${folder} ${fileName}`.toLowerCase()
   if (f.includes('ledger')) return 'ledger'
   if (f.includes('transaction') || f.includes('voucher')) return 'voucher'
   return 'document'
 }
 
-export function kindLabel(kind: ShareLinkPreviewInput['kind']): string {
+export function kindLabel(kind: ShareLinkKind | undefined): string {
   if (kind === 'ledger') return 'Account ledger PDF'
   if (kind === 'voucher') return 'Transaction voucher PDF'
   return 'Shared PDF document'

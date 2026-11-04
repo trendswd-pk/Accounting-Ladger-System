@@ -55,7 +55,7 @@ export async function GET(req: Request, { params }: Ctx) {
 
     let fileUrl = target
     let title = 'Shared document'
-    let kind: 'ledger' | 'voucher' | 'document' = 'document'
+    let kind = 'document' as ReturnType<typeof kindFromFolder>
 
     try {
       const u = new URL(target)
