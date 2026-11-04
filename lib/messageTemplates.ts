@@ -211,26 +211,49 @@ export function buildWhatsAppUrl(
   return digits ? `https://wa.me/${digits}${q}` : `https://wa.me/${q}`
 }
 
+type WhatsAppOpenTarget =
+  | Window
+  | {
+      win: Window
+      goToUrl: (url: string) => void
+      close: () => void
+    }
+
+function isPrepHandle(
+  target: WhatsAppOpenTarget
+): target is { win: Window; goToUrl: (url: string) => void; close: () => void } {
+  return typeof (target as { goToUrl?: unknown }).goToUrl === 'function'
+}
+
 /**
  * Opens WhatsApp with prefilled text (phone optional).
- * Pass `target` (e.g. a window opened immediately on click) so the tab
- * is ready before slow PDF work finishes — avoids popup blockers + lag.
+ * Pass a prep-tab handle (or window) opened on click so popup blockers
+ * stay happy while PDF / message work finishes.
  */
 export function openWhatsAppMessage(
   phone: string | null | undefined,
   text: string,
-  target?: Window | null
+  target?: WhatsAppOpenTarget | null
 ): void {
   if (typeof window === 'undefined') return
   const body = text.trim()
   if (!body) {
-    if (target && !target.closed) target.close()
+    if (target) {
+      if (isPrepHandle(target)) target.close()
+      else if (!target.closed) target.close()
+    }
     return
   }
   const url = buildWhatsAppUrl(phone, body)
-  if (target && !target.closed) {
-    target.location.href = url
-    return
+  if (target) {
+    if (isPrepHandle(target)) {
+      target.goToUrl(url)
+      return
+    }
+    if (!target.closed) {
+      target.location.href = url
+      return
+    }
   }
   window.open(url, '_blank', 'noopener,noreferrer')
 }

@@ -1,11 +1,12 @@
 # App version
 
-**Current version:** 1.1.0  
-**Released:** 2026-11-03
+**Current version:** 1.1.1  
+**Released:** 2026-11-04
 
 See the full [Changelog](./CHANGELOG.md).
 
 ## This release includes
+- Send WhatsApp: branded progress % (in-app + prep tab) instead of a blank loading page
 - Open Graph / Twitter link previews with brand share card
 - Mobile bottom tab bar (full-width, safe-area): Home, Account, Transactions, Expenses, Menu
 - Green brand color scheme (Caribbean / Bangladesh / Rich Black) for light + dark; scheme sheet in Documentation/images

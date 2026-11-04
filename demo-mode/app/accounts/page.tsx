@@ -16,7 +16,9 @@ import AccountMobileCard from '@/components/AccountMobileCard'
 import ActionsDropdown from '@/components/ActionsDropdown'
 import PhoneInput from '@/components/PhoneInput'
 import SoftSearchField from '@/components/SoftSearchField'
+import { WhatsAppPrepOverlay } from '@/components/WhatsAppPrepOverlay'
 import { toWhatsAppDigits } from '@/lib/phone'
+import { openWhatsAppPrepTab } from '@/lib/whatsappPrepTab'
 import {
   FormModalBody,
   FormModalFooter,
@@ -101,6 +103,8 @@ export default function AccountsPage() {
   const [docsNonce, setDocsNonce] = useState(0)
   const [savingLedgerPdf, setSavingLedgerPdf] = useState(false)
   const [sendingMessage, setSendingMessage] = useState(false)
+  const [waPrepPercent, setWaPrepPercent] = useState(0)
+  const [waPrepLabel, setWaPrepLabel] = useState('Preparing message…')
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [accountTypeId, setAccountTypeId] = useState('')
@@ -394,13 +398,21 @@ export default function AccountsPage() {
     if (sendingMessage || savingLedgerPdf) return
     setSendingMessage(true)
     setListError(null)
+    setWaPrepPercent(5)
+    setWaPrepLabel('Preparing message…')
 
-    const waTab =
-      typeof window !== 'undefined' ? window.open('about:blank', '_blank') : null
+    // Same-gesture tab with branded progress (avoids blank white page + blockers).
+    const prep = openWhatsAppPrepTab('Preparing message…')
+    const bump = (percent: number, label: string) => {
+      setWaPrepPercent(percent)
+      setWaPrepLabel(label)
+      prep?.setProgress(percent, label)
+    }
 
     try {
       let ledgerUrl = ''
       if (accountMessageIncludeLedgerUrl) {
+        bump(18, 'Creating ledger PDF…')
         try {
           const attachment = await saveAccountLedgerPdfToDocuments(row, {
             currency,
@@ -408,6 +420,7 @@ export default function AccountsPage() {
             logoUrl,
           })
           setDocsNonce((n) => n + 1)
+          bump(55, 'Building share link…')
           const share = shareUrlForAttachmentFast(attachment)
           if (share) {
             ledgerUrl = share
@@ -425,6 +438,7 @@ export default function AccountsPage() {
         }
       }
 
+      bump(78, 'Composing message…')
       let text = fillMessageTemplate(
         template,
         accountMessageVars(row, {
@@ -458,14 +472,16 @@ export default function AccountsPage() {
         .replace(/\n{3,}/g, '\n\n')
         .trim()
 
-      openWhatsAppMessage(row.phone, text, waTab)
+      bump(96, 'Opening WhatsApp…')
+      openWhatsAppMessage(row.phone, text, prep)
     } catch (err) {
-      if (waTab && !waTab.closed) waTab.close()
+      prep?.close()
       setListError(
         err instanceof Error ? err.message : 'Could not open WhatsApp message.'
       )
     } finally {
       setSendingMessage(false)
+      setWaPrepPercent(0)
     }
   }
 
@@ -1252,6 +1268,11 @@ export default function AccountsPage() {
           </div>
         </div>
       )}
+      <WhatsAppPrepOverlay
+        open={sendingMessage}
+        percent={waPrepPercent}
+        label={waPrepLabel}
+      />
     </div>
   )
 }

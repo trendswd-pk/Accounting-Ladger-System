@@ -44,11 +44,13 @@ import {
   watchAppSettings,
   type DefaultEntryMode,
 } from '@/lib/appSettings'
+import { WhatsAppPrepOverlay } from '@/components/WhatsAppPrepOverlay'
 import {
   fillMessageTemplate,
   openWhatsAppMessage,
   transactionMessageVars,
 } from '@/lib/messageTemplates'
+import { openWhatsAppPrepTab } from '@/lib/whatsappPrepTab'
 import { formatMoney } from '@/lib/money'
 import {
   createTransaction,
@@ -214,6 +216,8 @@ function TransactionsPageInner() {
         DEFAULT_APP_SETTINGS.transactionMessageIncludeLedgerUrl
     )
   const [sendingMessage, setSendingMessage] = useState(false)
+  const [waPrepPercent, setWaPrepPercent] = useState(0)
+  const [waPrepLabel, setWaPrepLabel] = useState('Preparing message…')
   const [defaultEntryMode, setDefaultEntryMode] = useState<FormMode>(
     () => getCachedAppSettings()?.defaultEntryMode ?? DEFAULT_APP_SETTINGS.defaultEntryMode
   )
@@ -655,11 +659,16 @@ function TransactionsPageInner() {
     if (sendingMessage || exportingPdfId) return
     setSendingMessage(true)
     setListError(null)
+    setWaPrepPercent(5)
+    setWaPrepLabel('Preparing message…')
 
-    // Open a tab immediately (same user gesture) so WhatsApp is not blocked
-    // and the UI does not feel stuck while PDFs generate.
-    const waTab =
-      typeof window !== 'undefined' ? window.open('about:blank', '_blank') : null
+    // Same-gesture tab with branded progress (avoids blank white page + blockers).
+    const prep = openWhatsAppPrepTab('Preparing message…')
+    const bump = (percent: number, label: string) => {
+      setWaPrepPercent(percent)
+      setWaPrepLabel(label)
+      prep?.setProgress(percent, label)
+    }
 
     try {
       const account = accounts.find((a) => a.id === row.accountId)
@@ -670,6 +679,11 @@ function TransactionsPageInner() {
       const { shareUrlForAttachmentFast, isShareableHttpUrl } = await import(
         '@/lib/shortUrl'
       )
+
+      const needPdfs =
+        transactionMessageIncludePdfUrl || transactionMessageIncludeLedgerUrl
+      if (needPdfs) bump(20, 'Creating PDFs…')
+      else bump(40, 'Composing message…')
 
       const [pdfResult, ledgerResult] = await Promise.all([
         transactionMessageIncludePdfUrl
@@ -723,9 +737,12 @@ function TransactionsPageInner() {
           : Promise.resolve(''),
       ])
 
+      if (needPdfs) bump(62, 'Building share links…')
+
       const pdfUrl = isShareableHttpUrl(pdfResult) ? pdfResult : ''
       const ledgerUrl = isShareableHttpUrl(ledgerResult) ? ledgerResult : ''
 
+      bump(82, 'Composing message…')
       let text = fillMessageTemplate(
         template,
         transactionMessageVars(row, {
@@ -770,14 +787,16 @@ function TransactionsPageInner() {
         .replace(/\n{3,}/g, '\n\n')
         .trim()
 
-      openWhatsAppMessage(account?.phone, text, waTab)
+      bump(96, 'Opening WhatsApp…')
+      openWhatsAppMessage(account?.phone, text, prep)
     } catch (err) {
-      if (waTab && !waTab.closed) waTab.close()
+      prep?.close()
       setListError(
         err instanceof Error ? err.message : 'Could not open WhatsApp message.'
       )
     } finally {
       setSendingMessage(false)
+      setWaPrepPercent(0)
     }
   }
 
@@ -1813,6 +1832,11 @@ function TransactionsPageInner() {
           </div>
         </div>
       )}
+      <WhatsAppPrepOverlay
+        open={sendingMessage}
+        percent={waPrepPercent}
+        label={waPrepLabel}
+      />
     </div>
   )
 }
