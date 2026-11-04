@@ -6,6 +6,7 @@
 See the full [Changelog](./CHANGELOG.md).
 
 ## This release includes
+- Share links show WhatsApp / messenger link previews (Open Graph card for ledger & voucher PDFs)
 - Send WhatsApp: branded progress % (in-app + prep tab) instead of a blank loading page
 - Open Graph / Twitter link previews with brand share card
 - Mobile bottom tab bar (full-width, safe-area): Home, Account, Transactions, Expenses, Menu

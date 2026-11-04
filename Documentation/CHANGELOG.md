@@ -4,6 +4,9 @@ All notable changes to Accounting Ledger are documented here.
 
 ## [1.1.1] — 2026-11-04
 
+### Added
+- Ledger / voucher share links (`/l/f/…`, `/l/…`) now serve a branded landing page with Open Graph + Twitter preview image so WhatsApp and other messengers show a professional link card (title, description, PDF badge). Direct file redirect still available via `?raw=1`.
+
 ### Changed
 - Send message: blank white prep tab replaced with branded progress UI (percent + status). Same progress overlay appears on Accounts and Transactions while PDFs/links prepare; then WhatsApp opens in that tab.
 
