@@ -6,6 +6,7 @@ import {
   DEFAULT_TRANSACTION_MESSAGE_TEMPLATE,
 } from '@/lib/messageTemplates'
 import type { AppSettings } from '@/lib/appSettings'
+import type { BankDetailRecord } from '@/lib/banks'
 import type { SetupTypeRecord } from '@/lib/setupTypes'
 import type { TransactionRecord } from '@/lib/transactions'
 import {
@@ -13,6 +14,7 @@ import {
   isDemoSeeded,
   markDemoSeeded,
   setAccountTypes,
+  setBankDetails,
   setCashTypes,
   setStoredAccounts,
   setStoredSettings,
@@ -54,6 +56,7 @@ function typeRow(
 export function buildNorthlineSeed(): {
   accountTypes: SetupTypeRecord[]
   cashTypes: SetupTypeRecord[]
+  bankDetails: BankDetailRecord[]
   accounts: StoredAccount[]
   transactions: TransactionRecord[]
   settings: AppSettings
@@ -259,7 +262,36 @@ export function buildNorthlineSeed(): {
     updatedAt: base,
   }
 
-  return { accountTypes, cashTypes, accounts, transactions, settings }
+  const bankDetails: BankDetailRecord[] = [
+    {
+      id: 'bank-hbl',
+      bankName: 'Habib Bank Limited',
+      accountTitle: 'Northline Advisory',
+      accountNumber: '123456789012',
+      iban: 'PK36HABB0012345678901234',
+      branchName: 'Clifton Branch',
+      branchCode: '0071',
+      swiftCode: 'HABBPKKA',
+      notes: 'Primary operating account',
+      active: true,
+      createdAt: base,
+    },
+    {
+      id: 'bank-mcb',
+      bankName: 'MCB Bank',
+      accountTitle: 'Northline Advisory',
+      accountNumber: '987654321098',
+      iban: 'PK12MUCB0098765432109876',
+      branchName: 'I.I. Chundrigar Road',
+      branchCode: '0155',
+      swiftCode: 'MUCBPKKA',
+      notes: 'Savings reserve',
+      active: true,
+      createdAt: base,
+    },
+  ]
+
+  return { accountTypes, cashTypes, bankDetails, accounts, transactions, settings }
 }
 
 /** Seed once per user sandbox (first login). */
@@ -280,6 +312,7 @@ function applySeed(userId: string): void {
   const seed = buildNorthlineSeed()
   setAccountTypes(seed.accountTypes, userId)
   setCashTypes(seed.cashTypes, userId)
+  setBankDetails(seed.bankDetails, userId)
   setStoredAccounts(seed.accounts, userId)
   setStoredTransactions(seed.transactions, userId)
   setStoredSettings(seed.settings, userId)

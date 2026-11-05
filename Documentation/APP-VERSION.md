@@ -6,6 +6,7 @@
 See the full [Changelog](./CHANGELOG.md).
 
 ## This release includes
+- Settings → **Bank details** to store business bank accounts (run `2026-11-05_bank_details.sql`)
 - Transactions **Print preview**: opens `/transactions/{id}/print` with Print + Download PDF
 - Dashboard Today/Yesterday expense cards roll over at local midnight (no UTC lag)
 - Share links show WhatsApp / messenger link previews (Open Graph card for ledger & voucher PDFs)

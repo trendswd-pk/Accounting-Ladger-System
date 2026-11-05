@@ -1,4 +1,5 @@
 import type { AppSettings } from '@/lib/appSettings'
+import type { BankDetailRecord } from '@/lib/banks'
 import type { SetupTypeRecord } from '@/lib/setupTypes'
 import type { TransactionRecord } from '@/lib/transactions'
 import type { FileAttachment } from '@/lib/uploads'
@@ -9,6 +10,7 @@ const SESSION_KEY = `demo:${SLUG}:session`
 export type DemoResource =
   | 'accountTypes'
   | 'cashTypes'
+  | 'bankDetails'
   | 'accounts'
   | 'transactions'
   | 'settings'
@@ -83,6 +85,16 @@ export function getCashTypes(userId?: string): SetupTypeRecord[] {
 export function setCashTypes(rows: SetupTypeRecord[], userId?: string): void {
   const id = requireUserId(userId)
   writeJson(demoStorageKey(id, 'cashTypes'), rows)
+}
+
+export function getBankDetails(userId?: string): BankDetailRecord[] {
+  const id = requireUserId(userId)
+  return readJson<BankDetailRecord[]>(demoStorageKey(id, 'bankDetails'), [])
+}
+
+export function setBankDetails(rows: BankDetailRecord[], userId?: string): void {
+  const id = requireUserId(userId)
+  writeJson(demoStorageKey(id, 'bankDetails'), rows)
 }
 
 export type StoredAccount = {
@@ -160,6 +172,7 @@ export function clearDemoUserData(userId?: string): void {
   const resources: DemoResource[] = [
     'accountTypes',
     'cashTypes',
+    'bankDetails',
     'accounts',
     'transactions',
     'settings',

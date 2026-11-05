@@ -4,6 +4,9 @@ All notable changes to Accounting Ledger are documented here.
 
 ## [1.1.2] — 2026-11-05
 
+### Added
+- Settings → **Bank details**: list / add / edit / delete business bank accounts (name, title, account number, IBAN, branch, SWIFT, notes). Requires Supabase migration `database/migrations/2026-11-05_bank_details.sql`.
+
 ### Changed
 - Transactions actions: **Export PDF** is now **Print preview**. Opens `{app}/transactions/{id}/print` on your domain (not `about:blank`) with Print + Download PDF toolbar.
 

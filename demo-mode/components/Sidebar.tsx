@@ -19,22 +19,15 @@ import {
   X,
   ChevronDown,
   LogOut,
-  RotateCcw,
   type LucideIcon,
 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 import {
   DEFAULT_APP_SETTINGS,
   getCachedAppSettings,
-  invalidateAppSettingsCache,
   saveAppSettings,
   watchAppSettings,
 } from '@/lib/appSettings'
-import { getDemoSession, signOutDemo } from '@/lib/demoAuth'
-import { resetDemoData } from '@/lib/demoSeed'
-import { invalidateAccountsCache } from '@/lib/accounts'
-import { invalidateTransactionsCache } from '@/lib/transactions'
-import { invalidateSetupTypesCache } from '@/lib/setupTypes'
-import { invalidateDashboardExpenseSummaryCache } from '@/lib/dashboardExpenseSummary'
 import {
   applyThemePreference,
   getActiveThemePreference,
@@ -81,6 +74,7 @@ const menuItems: MenuItem[] = [
       { name: 'Profile', path: '/settings/profile' },
       { name: 'Account Type', path: '/settings/account-type' },
       { name: 'Cash Type', path: '/settings/cash-type' },
+      { name: 'Bank details', path: '/settings/bank-details' },
     ],
   },
 ]
@@ -104,7 +98,6 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
   const [theme, setTheme] = useState<ThemePreference>(getDefaultTheme())
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [signingOut, setSigningOut] = useState(false)
-  const [resetting, setResetting] = useState(false)
   const [businessName, setBusinessName] = useState(
     () => getCachedAppSettings()?.businessName ?? DEFAULT_APP_SETTINGS.businessName
   )
@@ -179,36 +172,13 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
     if (signingOut) return
     setSigningOut(true)
     try {
-      signOutDemo()
+      const supabase = createClient()
+      await supabase.auth.signOut()
       onClose?.()
       router.replace('/login')
       router.refresh()
     } catch {
       setSigningOut(false)
-    }
-  }
-
-  const handleResetDemo = () => {
-    if (resetting) return
-    const session = getDemoSession()
-    if (!session) return
-    const ok = window.confirm(
-      'Reset demo data for this account? Your sandbox will be restored to the Northline Advisory sample books.'
-    )
-    if (!ok) return
-    setResetting(true)
-    try {
-      resetDemoData(session.userId)
-      invalidateAccountsCache()
-      invalidateTransactionsCache()
-      invalidateSetupTypesCache()
-      invalidateDashboardExpenseSummaryCache()
-      invalidateAppSettingsCache()
-      onClose?.()
-      router.refresh()
-      window.location.reload()
-    } finally {
-      setResetting(false)
     }
   }
 
@@ -372,9 +342,6 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
         </nav>
 
         <div className="shrink-0 space-y-1 border-t border-gray-200 p-3 dark:border-gray-700">
-          <div className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
-            Demo Mode
-          </div>
           <button
             type="button"
             onClick={toggleTheme}
@@ -387,15 +354,6 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
               <Sun className="h-4 w-4 shrink-0" aria-hidden />
             )}
             {theme === 'light' ? 'Dark mode' : 'Light mode'}
-          </button>
-          <button
-            type="button"
-            onClick={handleResetDemo}
-            disabled={resetting}
-            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-amber-50 hover:text-amber-800 disabled:opacity-60 dark:text-gray-300 dark:hover:bg-amber-950/40 dark:hover:text-amber-200"
-          >
-            <RotateCcw className="h-4 w-4 shrink-0" aria-hidden />
-            {resetting ? 'Resetting…' : 'Reset demo data'}
           </button>
           <button
             type="button"

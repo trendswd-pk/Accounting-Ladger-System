@@ -74,6 +74,7 @@ const menuItems: MenuItem[] = [
       { name: 'Profile', path: '/settings/profile' },
       { name: 'Account Type', path: '/settings/account-type' },
       { name: 'Cash Type', path: '/settings/cash-type' },
+      { name: 'Bank details', path: '/settings/bank-details' },
     ],
   },
 ]
