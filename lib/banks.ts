@@ -10,6 +10,7 @@ export type BankDetailRecord = {
   branchCode: string
   swiftCode: string
   notes: string
+  qrCodeUrl: string | null
   active: boolean
   createdAt: string
 }
@@ -23,6 +24,7 @@ export type BankDetailInput = {
   branchCode?: string
   swiftCode?: string
   notes?: string
+  qrCodeUrl?: string | null
   active?: boolean
 }
 
@@ -36,11 +38,13 @@ type DbRow = {
   branch_code: string | null
   swift_code: string | null
   notes: string | null
+  qr_code_url?: string | null
   active: boolean
   created_at: string
 }
 
 export function mapBankDetailRow(row: DbRow): BankDetailRecord {
+  const qr = String(row.qr_code_url ?? '').trim()
   return {
     id: row.id,
     bankName: row.bank_name,
@@ -51,6 +55,7 @@ export function mapBankDetailRow(row: DbRow): BankDetailRecord {
     branchCode: row.branch_code ?? '',
     swiftCode: row.swift_code ?? '',
     notes: row.notes ?? '',
+    qrCodeUrl: qr || null,
     active: !!row.active,
     createdAt: row.created_at,
   }

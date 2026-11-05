@@ -16,6 +16,7 @@ export type BankDetailRecord = {
   branchCode: string
   swiftCode: string
   notes: string
+  qrCodeUrl: string | null
   active: boolean
   createdAt: string
 }
@@ -29,6 +30,7 @@ export type BankDetailInput = {
   branchCode?: string
   swiftCode?: string
   notes?: string
+  qrCodeUrl?: string | null
   active?: boolean
 }
 
@@ -38,6 +40,11 @@ let cache: BankDetailRecord[] | null = null
 let inflight: Promise<BankDetailRecord[]> | null = null
 
 function normalize(input: BankDetailInput) {
+  const qrRaw = input.qrCodeUrl
+  const qrCodeUrl =
+    qrRaw === null || qrRaw === undefined
+      ? null
+      : String(qrRaw).trim() || null
   return {
     bankName: String(input.bankName ?? '').trim(),
     accountTitle: String(input.accountTitle ?? '').trim(),
@@ -47,6 +54,7 @@ function normalize(input: BankDetailInput) {
     branchCode: String(input.branchCode ?? '').trim(),
     swiftCode: String(input.swiftCode ?? '').trim().toUpperCase(),
     notes: String(input.notes ?? '').trim(),
+    qrCodeUrl,
     active: input.active !== false,
   }
 }

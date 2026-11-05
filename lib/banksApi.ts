@@ -5,7 +5,7 @@ import { getSupabaseAdmin } from '@/lib/supabase-server'
 const NO_STORE = { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
 
 const SELECT_COLS =
-  'id, bank_name, account_title, account_number, iban, branch_name, branch_code, swift_code, notes, active, created_at'
+  'id, bank_name, account_title, account_number, iban, branch_name, branch_code, swift_code, notes, qr_code_url, active, created_at'
 
 function json(data: unknown, status = 200) {
   return NextResponse.json(data, { status, headers: NO_STORE })
@@ -29,6 +29,11 @@ function normalizeInput(body: BankDetailInput | Record<string, unknown>) {
   const branchCode = String(body.branchCode ?? '').trim()
   const swiftCode = String(body.swiftCode ?? '').trim().toUpperCase()
   const notes = String(body.notes ?? '').trim()
+  const qrRaw = body.qrCodeUrl
+  const qrCodeUrl =
+    qrRaw === null || qrRaw === undefined
+      ? null
+      : String(qrRaw).trim() || null
   const active = body.active !== false
 
   return {
@@ -40,6 +45,7 @@ function normalizeInput(body: BankDetailInput | Record<string, unknown>) {
     branchCode,
     swiftCode,
     notes,
+    qrCodeUrl,
     active,
   }
 }
@@ -100,6 +106,7 @@ export async function createBankRow(body: BankDetailInput) {
         branch_code: input.branchCode,
         swift_code: input.swiftCode,
         notes: input.notes,
+        qr_code_url: input.qrCodeUrl,
         active: input.active,
       })
       .select(SELECT_COLS)
@@ -141,6 +148,7 @@ export async function updateBankRow(id: string, body: BankDetailInput) {
         branch_code: input.branchCode,
         swift_code: input.swiftCode,
         notes: input.notes,
+        qr_code_url: input.qrCodeUrl,
         active: input.active,
         updated_at: new Date().toISOString(),
       })

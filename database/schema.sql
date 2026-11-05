@@ -99,10 +99,14 @@ CREATE TABLE IF NOT EXISTS public.bank_details (
   branch_code TEXT NOT NULL DEFAULT '',
   swift_code TEXT NOT NULL DEFAULT '',
   notes TEXT NOT NULL DEFAULT '',
+  qr_code_url TEXT,
   active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE public.bank_details
+  ADD COLUMN IF NOT EXISTS qr_code_url TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_bank_details_created_at
   ON public.bank_details (created_at);
@@ -148,6 +152,7 @@ AS $$
         'branch_code', COALESCE(b.branch_code, ''),
         'swift_code', COALESCE(b.swift_code, ''),
         'notes', COALESCE(b.notes, ''),
+        'qr_code_url', b.qr_code_url,
         'active', b.active,
         'created_at', b.created_at
       )

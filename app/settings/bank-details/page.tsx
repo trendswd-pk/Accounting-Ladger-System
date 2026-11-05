@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import {
   FormModalBody,
@@ -20,12 +20,22 @@ import {
   updateBank,
   type BankDetailRecord,
 } from '@/lib/banks'
+import {
+  BRAND_IMAGE_EXTENSIONS,
+  isBrandImageName,
+  uploadFileToR2,
+} from '@/lib/uploads'
 
 const inputClass =
   'w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500'
 
 const labelClass =
   'mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300'
+
+const actionBtnClass =
+  'rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
+
+const qrAccept = BRAND_IMAGE_EXTENSIONS.map((ext) => `.${ext}`).join(',')
 
 const emptyForm = {
   bankName: '',
@@ -36,6 +46,7 @@ const emptyForm = {
   branchCode: '',
   swiftCode: '',
   notes: '',
+  qrCodeUrl: null as string | null,
   active: true,
 }
 
@@ -51,6 +62,8 @@ export default function BankDetailsPage() {
   const [form, setForm] = useState(emptyForm)
   const [formError, setFormError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [qrUploading, setQrUploading] = useState(false)
+  const qrInputRef = useRef<HTMLInputElement | null>(null)
 
   const loadRows = useCallback(async () => {
     const hit = getCachedBanks()
@@ -94,10 +107,35 @@ export default function BankDetailsPage() {
       branchCode: row.branchCode,
       swiftCode: row.swiftCode,
       notes: row.notes,
+      qrCodeUrl: row.qrCodeUrl,
       active: row.active,
     })
     setFormError(null)
     setModalOpen(true)
+  }
+
+  const handleQrUpload = async (file: File | undefined) => {
+    if (!file) return
+    if (!isBrandImageName(file.name)) {
+      setFormError(
+        `Use an image file (${BRAND_IMAGE_EXTENSIONS.join(', ')}).`
+      )
+      return
+    }
+    setQrUploading(true)
+    setFormError(null)
+    try {
+      const attachment = await uploadFileToR2(file, {
+        folder: 'banks/qr',
+        compress: { maxEdge: 1200, quality: 0.88 },
+      })
+      setForm((prev) => ({ ...prev, qrCodeUrl: attachment.publicUrl }))
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'QR upload failed.')
+    } finally {
+      setQrUploading(false)
+      if (qrInputRef.current) qrInputRef.current.value = ''
+    }
   }
 
   const setField = <K extends keyof typeof emptyForm>(
@@ -122,6 +160,7 @@ export default function BankDetailsPage() {
         branchCode: form.branchCode.trim(),
         swiftCode: form.swiftCode.trim(),
         notes: form.notes.trim(),
+        qrCodeUrl: form.qrCodeUrl,
         active: form.active,
       }
       if (editingId) {
@@ -240,13 +279,23 @@ export default function BankDetailsPage() {
               className="rounded-xl border border-gray-200 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800"
             >
               <div className="mb-3 flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <h2 className="truncate text-base font-semibold text-gray-900 dark:text-gray-100">
-                    {row.bankName}
-                  </h2>
-                  <p className="mt-0.5 truncate text-sm text-gray-600 dark:text-gray-300">
-                    {row.accountTitle}
-                  </p>
+                <div className="flex min-w-0 flex-1 items-start gap-3">
+                  {row.qrCodeUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- remote R2 URL
+                    <img
+                      src={row.qrCodeUrl}
+                      alt=""
+                      className="h-12 w-12 shrink-0 rounded-md border border-gray-200 object-contain p-0.5 dark:border-gray-600"
+                    />
+                  ) : null}
+                  <div className="min-w-0 flex-1">
+                    <h2 className="truncate text-base font-semibold text-gray-900 dark:text-gray-100">
+                      {row.bankName}
+                    </h2>
+                    <p className="mt-0.5 truncate text-sm text-gray-600 dark:text-gray-300">
+                      {row.accountTitle}
+                    </p>
+                  </div>
                 </div>
                 {actionsFor(row)}
               </div>
@@ -305,6 +354,9 @@ export default function BankDetailsPage() {
             <thead className="bg-gray-50 dark:bg-gray-700/40">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-300">
+                  QR
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-300">
                   Bank
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-300">
@@ -331,7 +383,7 @@ export default function BankDetailsPage() {
               {!ready ? (
                 Array.from({ length: 4 }, (_, i) => (
                   <tr key={i} className="animate-pulse">
-                    <td colSpan={7} className="px-4 py-4">
+                    <td colSpan={8} className="px-4 py-4">
                       <div className="h-4 w-2/3 rounded bg-gray-100 dark:bg-gray-700/50" />
                     </td>
                   </tr>
@@ -339,7 +391,7 @@ export default function BankDetailsPage() {
               ) : rows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
                     No banks yet. Click Add bank to create one.
@@ -351,6 +403,18 @@ export default function BankDetailsPage() {
                     key={row.id}
                     className="bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700/40"
                   >
+                    <td className="px-4 py-3">
+                      {row.qrCodeUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- remote R2 URL
+                        <img
+                          src={row.qrCodeUrl}
+                          alt=""
+                          className="h-9 w-9 rounded border border-gray-200 object-contain dark:border-gray-600"
+                        />
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
+                      )}
+                    </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
                       {row.bankName}
                     </td>
@@ -404,9 +468,12 @@ export default function BankDetailsPage() {
                 if (!submitting) setModalOpen(false)
               }}
             />
-            <form onSubmit={(e) => void handleSubmit(e)}>
-              <FormModalBody>
-                <div className="space-y-3">
+            <FormModalBody>
+              <form
+                id="bank-details-form"
+                onSubmit={(e) => void handleSubmit(e)}
+                className="space-y-3"
+              >
                 {formError ? (
                   <div className="rounded-md bg-red-50 p-2 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">
                     {formError}
@@ -506,6 +573,60 @@ export default function BankDetailsPage() {
                   />
                 </div>
                 <div>
+                  <label className={labelClass} htmlFor="bank-qr">
+                    Bank QR code
+                  </label>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700/50">
+                      {form.qrCodeUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- remote R2 URL
+                        <img
+                          src={form.qrCodeUrl}
+                          alt="Bank QR preview"
+                          className="h-full w-full object-contain p-1"
+                        />
+                      ) : (
+                        <span className="px-1 text-center text-[10px] leading-tight text-gray-400 dark:text-gray-500">
+                          No QR
+                        </span>
+                      )}
+                    </div>
+                    <input
+                      ref={qrInputRef}
+                      id="bank-qr"
+                      type="file"
+                      accept={qrAccept}
+                      className="sr-only"
+                      disabled={submitting || qrUploading}
+                      onChange={(e) => {
+                        void handleQrUpload(e.target.files?.[0])
+                      }}
+                    />
+                    <button
+                      type="button"
+                      disabled={submitting || qrUploading}
+                      onClick={() => qrInputRef.current?.click()}
+                      className={actionBtnClass}
+                    >
+                      {qrUploading
+                        ? 'Uploading…'
+                        : form.qrCodeUrl
+                          ? 'Replace QR'
+                          : 'Upload QR'}
+                    </button>
+                    {form.qrCodeUrl ? (
+                      <button
+                        type="button"
+                        disabled={submitting || qrUploading}
+                        onClick={() => setField('qrCodeUrl', null)}
+                        className={actionBtnClass}
+                      >
+                        Remove
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+                <div>
                   <label className={labelClass} htmlFor="bank-notes">
                     Notes
                   </label>
@@ -526,26 +647,26 @@ export default function BankDetailsPage() {
                   />
                   Active
                 </label>
-                </div>
-              </FormModalBody>
-              <FormModalFooter>
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  disabled={submitting}
-                  className={formModalSecondaryButtonClass}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className={formModalPrimaryButtonClass}
-                >
-                  {submitting ? 'Saving…' : editingId ? 'Save' : 'Add'}
-                </button>
-              </FormModalFooter>
-            </form>
+              </form>
+            </FormModalBody>
+            <FormModalFooter>
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                disabled={submitting}
+                className={formModalSecondaryButtonClass}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="bank-details-form"
+                disabled={submitting || qrUploading}
+                className={formModalPrimaryButtonClass}
+              >
+                {submitting ? 'Saving…' : editingId ? 'Save' : 'Add'}
+              </button>
+            </FormModalFooter>
           </div>
         </div>
       ) : null}
