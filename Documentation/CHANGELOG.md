@@ -33,6 +33,7 @@ All notable changes to Accounting Ledger are documented here.
 - Shared ledger **Export** opens a format picker: PDF, Excel (CSV), or CSV (same options as Accounts export).
 - Account and Transaction WhatsApp messages use one **Ledger preview link** (PIN-gated share). Separate Transaction PDF / Account ledger PDF toggles removed.
 - Shared ledger bank details: tap account number / IBAN / branch / SWIFT to **copy** to clipboard.
+- Account / Transaction message templates auto-upgrade: after the note, footer is **Ledger preview URL + access code + valid until** (legacy PDF link lines removed).
 
 ## [1.1.2] — 2026-11-05
 

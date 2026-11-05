@@ -9,7 +9,7 @@ export const ACCOUNT_MESSAGE_VARS = [
   { key: 'phone', label: 'Phone' },
   { key: 'balance', label: 'Balance' },
   { key: 'note', label: 'Note' },
-  { key: 'ledger_url', label: 'Ledger URL' },
+  { key: 'ledger_url', label: 'Ledger preview URL' },
   { key: 'ledger_pin', label: 'Ledger PIN' },
   { key: 'ledger_expires', label: 'Ledger expires' },
   { key: 'account_type', label: 'Account type' },
@@ -29,7 +29,7 @@ export const TRANSACTION_MESSAGE_VARS = [
   { key: 'current_transaction', label: 'This entry' },
   { key: 'current_balance', label: 'Current bal.' },
   { key: 'note', label: 'Note' },
-  { key: 'ledger_url', label: 'Ledger URL' },
+  { key: 'ledger_url', label: 'Ledger preview URL' },
   { key: 'ledger_pin', label: 'Ledger PIN' },
   { key: 'ledger_expires', label: 'Ledger expires' },
   { key: 'balance', label: 'Amount (alias)' },
@@ -114,6 +114,62 @@ Valid until: {{ledger_expires}}`
 export function normalizeMessageTemplate(value: unknown): string {
   if (value == null) return ''
   return String(value).slice(0, 4000)
+}
+
+const LEDGER_PREVIEW_FOOTER = `Ledger: {{ledger_url}}
+Access code: {{ledger_pin}}
+Valid until: {{ledger_expires}}`
+
+/**
+ * Upgrade older WhatsApp templates that used PDF / bare ledger URL
+ * to the interactive ledger preview footer (URL + PIN + expiry).
+ * Leaves clearly custom user text alone when possible.
+ */
+export function upgradeLedgerPreviewMessageTemplate(
+  stored: unknown,
+  fallback: string
+): string {
+  let text = normalizeMessageTemplate(stored)
+  if (!text) return fallback
+
+  // Known early seed note wording → full current default.
+  if (text.includes('A plus (+) balance means this account owes you')) {
+    return fallback
+  }
+
+  // Drop legacy voucher PDF line.
+  if (/\{\{\s*pdf_url\s*\}\}/i.test(text)) {
+    text = text
+      .replace(/^[ \t]*PDF:[ \t]*\{\{\s*pdf_url\s*\}\}[ \t]*$/gim, '')
+      .replace(/\{\{\s*pdf_url\s*\}\}/gi, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+  }
+
+  const hasLedgerUrl = /\{\{\s*ledger_url\s*\}\}/i.test(text)
+  const hasPin = /\{\{\s*ledger_pin\s*\}\}/i.test(text)
+  const hasExpires = /\{\{\s*ledger_expires\s*\}\}/i.test(text)
+
+  if (hasLedgerUrl && (!hasPin || !hasExpires)) {
+    if (/Ledger:\s*\{\{\s*ledger_url\s*\}\}/i.test(text)) {
+      text = text
+        .replace(
+          /Ledger:\s*\{\{\s*ledger_url\s*\}\}(?:\s*\n[ \t]*Access code:[ \t]*\{\{\s*ledger_pin\s*\}\})?(?:\s*\n[ \t]*Valid until:[ \t]*\{\{\s*ledger_expires\s*\}\})?/gi,
+          LEDGER_PREVIEW_FOOTER
+        )
+        .replace(/\n{3,}/g, '\n\n')
+        .trim()
+    } else {
+      text = `${text.trim()}\n\n${LEDGER_PREVIEW_FOOTER}`
+    }
+  } else if (!hasLedgerUrl && !hasPin && !hasExpires) {
+    // Templates that ended after Note with no link — append preview footer.
+    if (/Note:\s*\{\{\s*note\s*\}\}\s*$/i.test(text.trim())) {
+      text = `${text.trim()}\n\n${LEDGER_PREVIEW_FOOTER}`
+    }
+  }
+
+  return text
 }
 
 export function fillMessageTemplate(

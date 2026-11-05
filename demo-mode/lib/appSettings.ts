@@ -5,7 +5,7 @@ import {
   DEFAULT_MESSAGE_NOTE_ZERO,
   DEFAULT_TRANSACTION_MESSAGE_TEMPLATE,
   normalizeMessageNote,
-  normalizeMessageTemplate,
+  upgradeLedgerPreviewMessageTemplate,
 } from '@/lib/messageTemplates'
 import { recordRequestDeduped } from '@/lib/requestProfiler'
 import type { ThemePreference } from '@/lib/theme'
@@ -13,14 +13,11 @@ import { requireDemoUser } from '@/lib/demoAuth'
 import { getStoredSettings, setStoredSettings } from '@/lib/demoStore'
 
 /**
- * Migrate only known early seed templates. Do not rewrite user-edited text
- * (e.g. templates that say "Note:" without {{note}} must still persist).
+ * Migrate known seed / PDF-link templates to interactive ledger preview.
+ * Does not rewrite unrelated custom note wording beyond that upgrade.
  */
 function coerceMessageTemplate(stored: unknown, fallback: string): string {
-  const text = normalizeMessageTemplate(stored)
-  if (!text) return fallback
-  if (text.includes('A plus (+) balance means this account owes you')) return fallback
-  return text
+  return upgradeLedgerPreviewMessageTemplate(stored, fallback)
 }
 
 export type DefaultEntryMode = 'normal' | 'transfer'
