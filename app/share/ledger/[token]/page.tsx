@@ -7,7 +7,9 @@ import {
   BookOpen,
   Building2,
   CalendarRange,
+  Check,
   ChevronRight,
+  Copy,
   Download,
   FileText,
   Lock,
@@ -17,7 +19,17 @@ import {
 } from 'lucide-react'
 import TransactionMobileCard from '@/components/TransactionMobileCard'
 import {
-  exportLedgerPdfFromLines,
+  FormModalBody,
+  FormModalFooter,
+  FormModalHeader,
+  formModalOverlayClass,
+  formModalPanelClass,
+  formModalPrimaryButtonClass,
+  formModalSecondaryButtonClass,
+} from '@/components/FormModal'
+import {
+  exportLedgerFromLines,
+  type LedgerExportFormat,
   type LedgerLine,
 } from '@/lib/ledgerExport'
 import { formatDisplayDate, formatDisplayDateTime } from '@/lib/localDate'
@@ -134,10 +146,63 @@ export default function SharedLedgerPage() {
   )
   const [detailTxn, setDetailTxn] = useState<Txn | null>(null)
   const [exporting, setExporting] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [exportFormat, setExportFormat] = useState<LedgerExportFormat>('pdf')
   const [qrPreview, setQrPreview] = useState<{
     url: string
     bankName: string
   } | null>(null)
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
+
+  const copyText = useCallback(async (key: string, value: string) => {
+    const text = String(value ?? '').trim()
+    if (!text || text === '—') return
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedKey(key)
+      window.setTimeout(() => {
+        setCopiedKey((cur) => (cur === key ? null : cur))
+      }, 1600)
+    } catch {
+      /* clipboard may be blocked */
+    }
+  }, [])
+
+  const renderCopyable = (key: string, value: string, tabular = false) => {
+    const text = String(value ?? '').trim()
+    if (!text) {
+      return (
+        <span className="font-semibold text-brand-ink dark:text-gray-50">—</span>
+      )
+    }
+    const copied = copiedKey === key
+    return (
+      <button
+        type="button"
+        onClick={() => void copyText(key, text)}
+        title={copied ? 'Copied' : 'Tap to copy'}
+        aria-label={copied ? 'Copied' : `Copy ${text}`}
+        className="inline-flex max-w-full min-w-0 items-center justify-end gap-1.5 rounded-md text-right font-semibold text-brand-ink transition hover:text-primary-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:text-gray-50 dark:hover:text-primary-300"
+      >
+        <span
+          className={`min-w-0 break-all ${tabular ? 'tabular-nums' : ''}`}
+        >
+          {text}
+        </span>
+        {copied ? (
+          <Check
+            className="h-3.5 w-3.5 shrink-0 text-primary-600 dark:text-primary-400"
+            aria-hidden
+          />
+        ) : (
+          <Copy
+            className="h-3.5 w-3.5 shrink-0 opacity-55"
+            aria-hidden
+          />
+        )}
+      </button>
+    )
+  }
 
   useEffect(() => {
     if (!token) {
@@ -331,7 +396,7 @@ export default function SharedLedgerPage() {
     setView('home')
   }
 
-  const handleExportPdf = async () => {
+  const handleExportLedger = async () => {
     if (exporting) return
     setExporting(true)
     try {
@@ -344,7 +409,7 @@ export default function SharedLedgerPage() {
         signedAmount: t.entryType === 'debit' ? -t.amount : t.amount,
         runningBalance: t.runningBalance,
       }))
-      await exportLedgerPdfFromLines(
+      await exportLedgerFromLines(
         {
           name: ledger.account.name,
           phone: ledger.account.phone,
@@ -353,12 +418,14 @@ export default function SharedLedgerPage() {
           balance: ledger.account.balance,
         },
         lines,
+        exportFormat,
         {
           currency,
           businessName: ledger.businessName,
           logoUrl: ledger.logoUrl,
         }
       )
+      setExportOpen(false)
     } catch {
       /* ignore — browser may block download */
     } finally {
@@ -650,11 +717,11 @@ export default function SharedLedgerPage() {
                 })}
 
                 {menuBtn({
-                  title: exporting ? 'Preparing PDF…' : 'Export ledger',
-                  subtitle: 'Download full ledger as PDF',
+                  title: exporting ? 'Exporting…' : 'Export ledger',
+                  subtitle: 'PDF, Excel, or CSV download',
                   icon: <Download className="h-5 w-5" aria-hidden />,
                   onClick: () => {
-                    void handleExportPdf()
+                    if (!exporting) setExportOpen(true)
                   },
                 })}
 
@@ -671,6 +738,105 @@ export default function SharedLedgerPage() {
             </div>
           </div>
         </div>
+
+        {exportOpen ? (
+          <div
+            className={formModalOverlayClass}
+            onClick={() => {
+              if (!exporting) setExportOpen(false)
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="share-export-ledger-title"
+          >
+            <div
+              className={`${formModalPanelClass} max-w-sm`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <FormModalHeader
+                titleId="share-export-ledger-title"
+                title="Export ledger"
+                onClose={() => {
+                  if (!exporting) setExportOpen(false)
+                }}
+              />
+              <FormModalBody>
+                <p className="mb-4 text-sm text-gray-600 dark:text-gray-300">
+                  Download the full ledger for{' '}
+                  <span className="font-medium text-gray-900 dark:text-gray-100">
+                    {ledger.account.name}
+                  </span>
+                  . Choose a format:
+                </p>
+                <div className="space-y-2">
+                  {(
+                    [
+                      {
+                        id: 'pdf' as const,
+                        label: 'PDF',
+                        hint: 'Printable ledger document',
+                      },
+                      {
+                        id: 'excel' as const,
+                        label: 'Excel (CSV)',
+                        hint: 'Opens in Excel / Sheets',
+                      },
+                      {
+                        id: 'csv' as const,
+                        label: 'CSV',
+                        hint: 'Plain spreadsheet file',
+                      },
+                    ] as const
+                  ).map((opt) => (
+                    <label
+                      key={opt.id}
+                      className={`flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5 transition-colors ${
+                        exportFormat === opt.id
+                          ? 'border-primary-500 bg-primary-50 dark:border-primary-400 dark:bg-primary-900/20'
+                          : 'border-gray-200 hover:border-gray-300 dark:border-gray-600 dark:hover:border-gray-500'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="share-ledger-export-format"
+                        className="mt-1"
+                        checked={exportFormat === opt.id}
+                        onChange={() => setExportFormat(opt.id)}
+                        disabled={exporting}
+                      />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {opt.label}
+                        </span>
+                        <span className="block text-xs text-gray-500 dark:text-gray-400">
+                          {opt.hint}
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </FormModalBody>
+              <FormModalFooter>
+                <button
+                  type="button"
+                  onClick={() => setExportOpen(false)}
+                  disabled={exporting}
+                  className={formModalSecondaryButtonClass}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleExportLedger()}
+                  disabled={exporting}
+                  className={formModalPrimaryButtonClass}
+                >
+                  {exporting ? 'Exporting…' : 'Download'}
+                </button>
+              </FormModalFooter>
+            </div>
+          </div>
+        ) : null}
       </main>
     )
   }
@@ -990,7 +1156,7 @@ export default function SharedLedgerPage() {
             <span className="font-semibold text-brand-ink dark:text-gray-50">
               {formatMoney(ledger.account.balance, currency)}
             </span>
-            . Scan the QR where available.
+            . Tap account details to copy. Scan the QR where available.
           </p>
           <div className="grid min-w-0 items-stretch gap-4 lg:grid-cols-2">
             {banks.map((bank) => (
@@ -1007,35 +1173,41 @@ export default function SharedLedgerPage() {
                   </p>
                 </div>
                 <div className="flex min-h-[7.5rem] flex-1 flex-col space-y-2 px-4 py-3 text-sm">
-                  <div className="flex justify-between gap-2">
-                    <span className="text-brand-stone dark:text-gray-400">Account no.</span>
-                    <span className="font-semibold tabular-nums text-brand-ink dark:text-gray-50">
-                      {bank.accountNumber || '—'}
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="shrink-0 pt-0.5 text-brand-stone dark:text-gray-400">
+                      Account no.
                     </span>
+                    {renderCopyable(
+                      `${bank.id}-account`,
+                      bank.accountNumber || '',
+                      true
+                    )}
                   </div>
                   {bank.iban ? (
-                    <div className="flex justify-between gap-2">
-                      <span className="text-brand-stone dark:text-gray-400">IBAN</span>
-                      <span className="min-w-0 break-all text-right font-semibold text-brand-ink dark:text-gray-50">
-                        {bank.iban}
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="shrink-0 pt-0.5 text-brand-stone dark:text-gray-400">
+                        IBAN
                       </span>
+                      {renderCopyable(`${bank.id}-iban`, bank.iban)}
                     </div>
                   ) : null}
                   {bank.branchName ? (
-                    <div className="flex justify-between gap-2">
-                      <span className="text-brand-stone dark:text-gray-400">Branch</span>
-                      <span className="text-right font-semibold text-brand-ink dark:text-gray-50">
-                        {bank.branchName}
-                        {bank.branchCode ? ` (${bank.branchCode})` : ''}
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="shrink-0 pt-0.5 text-brand-stone dark:text-gray-400">
+                        Branch
                       </span>
+                      {renderCopyable(
+                        `${bank.id}-branch`,
+                        `${bank.branchName}${bank.branchCode ? ` (${bank.branchCode})` : ''}`
+                      )}
                     </div>
                   ) : null}
                   {bank.swiftCode ? (
-                    <div className="flex justify-between gap-2">
-                      <span className="text-brand-stone dark:text-gray-400">SWIFT</span>
-                      <span className="font-semibold text-brand-ink dark:text-gray-50">
-                        {bank.swiftCode}
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="shrink-0 pt-0.5 text-brand-stone dark:text-gray-400">
+                        SWIFT
                       </span>
+                      {renderCopyable(`${bank.id}-swift`, bank.swiftCode)}
                     </div>
                   ) : null}
                   {bank.notes ? (

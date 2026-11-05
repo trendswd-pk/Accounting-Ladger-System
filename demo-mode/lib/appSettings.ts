@@ -44,11 +44,14 @@ export type AppSettings = {
   messageNoteMinus: string
   /** Custom {{note}} when balance is zero (settled). */
   messageNoteZero: string
-  /** When true, Account Send message generates a ledger PDF and fills {{ledger_url}}. */
+  /** When true, Account Send message creates interactive ledger preview link + PIN. */
   accountMessageIncludeLedgerUrl: boolean
-  /** When true, Transaction Send message generates a voucher PDF and fills {{pdf_url}}. */
+  /**
+   * Legacy: voucher PDF in transaction messages (no longer used in UI).
+   * Kept so older API/DB rows still load without error.
+   */
   transactionMessageIncludePdfUrl: boolean
-  /** When true, Transaction Send message also generates account ledger PDF and fills {{ledger_url}}. */
+  /** When true, Transaction Send message creates interactive ledger preview link + PIN. */
   transactionMessageIncludeLedgerUrl: boolean
   cashSavingsCashTypeIds: string[]
   cashSavingsAccountTypeIds: string[]
@@ -71,7 +74,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   messageNoteMinus: DEFAULT_MESSAGE_NOTE_MINUS,
   messageNoteZero: DEFAULT_MESSAGE_NOTE_ZERO,
   accountMessageIncludeLedgerUrl: true,
-  transactionMessageIncludePdfUrl: true,
+  transactionMessageIncludePdfUrl: false,
   transactionMessageIncludeLedgerUrl: true,
   cashSavingsCashTypeIds: [],
   cashSavingsAccountTypeIds: [],

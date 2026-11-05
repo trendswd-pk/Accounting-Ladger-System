@@ -47,6 +47,11 @@ import {
 } from '@/lib/appSettings'
 import { WhatsAppPrepOverlay } from '@/components/WhatsAppPrepOverlay'
 import {
+  buildShareAccessFooter,
+  createLedgerShare,
+  formatShareExpiryLabel,
+} from '@/lib/ledgerShare'
+import {
   fillMessageTemplate,
   openWhatsAppMessage,
   transactionMessageVars,
@@ -196,12 +201,6 @@ function TransactionsPageInner() {
   const [messageNoteZero, setMessageNoteZero] = useState(
     () => getCachedAppSettings()?.messageNoteZero ?? DEFAULT_APP_SETTINGS.messageNoteZero
   )
-  const [transactionMessageIncludePdfUrl, setTransactionMessageIncludePdfUrl] =
-    useState(
-      () =>
-        getCachedAppSettings()?.transactionMessageIncludePdfUrl ??
-        DEFAULT_APP_SETTINGS.transactionMessageIncludePdfUrl
-    )
   const [transactionMessageIncludeLedgerUrl, setTransactionMessageIncludeLedgerUrl] =
     useState(
       () =>
@@ -279,7 +278,6 @@ function TransactionsPageInner() {
       setMessageNotePlus(s.messageNotePlus)
       setMessageNoteMinus(s.messageNoteMinus)
       setMessageNoteZero(s.messageNoteZero)
-      setTransactionMessageIncludePdfUrl(s.transactionMessageIncludePdfUrl)
       setTransactionMessageIncludeLedgerUrl(s.transactionMessageIncludeLedgerUrl)
     })
   }, [loadRows, loadAccounts])
@@ -669,71 +667,33 @@ function TransactionsPageInner() {
         runningBalanceById.get(row.id) ?? signedTransactionAmount(row)
       const previousBalance = currentBalance - signedTransactionAmount(row)
 
-      const { shareUrlForAttachmentFast, isShareableHttpUrl } = await import(
-        '@/lib/shortUrl'
-      )
+      let ledgerUrl = ''
+      let ledgerPin = ''
+      let ledgerExpiresIso = ''
+      let ledgerExpires = ''
 
-      const needPdfs =
-        transactionMessageIncludePdfUrl || transactionMessageIncludeLedgerUrl
-      if (needPdfs) bump(20, 'Creating PDFs…')
-      else bump(40, 'Composing message…')
-
-      const [pdfResult, ledgerResult] = await Promise.all([
-        transactionMessageIncludePdfUrl
-          ? (async () => {
-              const { saveTransactionPdfToDocuments } = await import(
-                '@/lib/transactionExport'
-              )
-              const attachment = await saveTransactionPdfToDocuments(row, {
-                currency,
-                businessName,
-                logoUrl,
-                account: account ?? null,
-                runningBalance: currentBalance,
-              })
-              setDetailDocCount((n) => Math.max(n, 1))
-              return shareUrlForAttachmentFast(attachment)
-            })().catch((err: unknown) => {
-              setListError(
-                err instanceof Error
-                  ? err.message
-                  : 'Could not save transaction PDF for the message link.'
-              )
-              return ''
-            })
-          : Promise.resolve(''),
-        transactionMessageIncludeLedgerUrl
-          ? account
-            ? (async () => {
-                const { saveAccountLedgerPdfToDocuments } = await import(
-                  '@/lib/ledgerExport'
-                )
-                const attachment = await saveAccountLedgerPdfToDocuments(
-                  account,
-                  { currency, businessName, logoUrl }
-                )
-                return shareUrlForAttachmentFast(attachment)
-              })().catch((err: unknown) => {
-                setListError(
-                  err instanceof Error
-                    ? err.message
-                    : 'Could not save account ledger PDF for the message link.'
-                )
-                return ''
-              })
-            : Promise.resolve('').then(() => {
-                setListError(
-                  'Account not found — cannot attach ledger PDF link.'
-                )
-                return ''
-              })
-          : Promise.resolve(''),
-      ])
-
-      if (needPdfs) bump(62, 'Building share links…')
-
-      const pdfUrl = isShareableHttpUrl(pdfResult) ? pdfResult : ''
-      const ledgerUrl = isShareableHttpUrl(ledgerResult) ? ledgerResult : ''
+      if (transactionMessageIncludeLedgerUrl) {
+        if (!account) {
+          setListError('Account not found — cannot create ledger preview link.')
+        } else {
+          bump(20, 'Creating secure ledger link…')
+          try {
+            const share = await createLedgerShare(account.id)
+            ledgerUrl = share.url
+            ledgerPin = share.pin
+            ledgerExpiresIso = share.expiresAt
+            ledgerExpires = formatShareExpiryLabel(share.expiresAt)
+          } catch (err) {
+            setListError(
+              err instanceof Error
+                ? err.message
+                : 'Could not create secure ledger link.'
+            )
+          }
+        }
+      } else {
+        bump(40, 'Composing message…')
+      }
 
       bump(82, 'Composing message…')
       let text = fillMessageTemplate(
@@ -749,34 +709,39 @@ function TransactionsPageInner() {
             minus: messageNoteMinus,
             zero: messageNoteZero,
           },
-          pdfUrl,
           ledgerUrl,
+          ledgerPin,
+          ledgerExpires,
         })
       )
 
-      if (pdfUrl && transactionMessageIncludePdfUrl) {
-        if (/\{\{\s*pdf_url\s*\}\}/i.test(template)) {
-          if (!text.includes(pdfUrl)) {
-            text = `${text.trim()}\n\nPDF: ${pdfUrl}`
-          }
-        } else {
-          text = `${text.trim()}\n\nPDF: ${pdfUrl}`
-        }
-      }
-
       if (ledgerUrl && transactionMessageIncludeLedgerUrl) {
+        const footer = buildShareAccessFooter({
+          url: ledgerUrl,
+          pin: ledgerPin,
+          expiresAt: ledgerExpiresIso || new Date().toISOString(),
+        })
         if (/\{\{\s*ledger_url\s*\}\}/i.test(template)) {
           if (!text.includes(ledgerUrl)) {
-            text = `${text.trim()}\n\nLedger: ${ledgerUrl}`
+            text = `${text.trim()}\n\n${footer}`
           }
         } else {
-          text = `${text.trim()}\n\nLedger: ${ledgerUrl}`
+          text = `${text.trim()}\n\n${footer}`
+        }
+
+        if (ledgerPin && !text.includes(ledgerPin)) {
+          text = `${text.trim()}\nAccess code: ${ledgerPin}`
+        }
+        if (ledgerExpires && !text.includes(ledgerExpires)) {
+          text = `${text.trim()}\nValid until: ${ledgerExpires}`
         }
       }
 
       text = text
         .replace(/^[ \t]*PDF:[ \t]*$/gim, '')
         .replace(/^[ \t]*Ledger:[ \t]*$/gim, '')
+        .replace(/^[ \t]*Access code:[ \t]*$/gim, '')
+        .replace(/^[ \t]*Valid until:[ \t]*$/gim, '')
         .replace(/\n{3,}/g, '\n\n')
         .trim()
 
@@ -1731,8 +1696,8 @@ function TransactionsPageInner() {
                 onClick={() => void sendTransactionMessage(detailRow)}
                 disabled={sendingMessage}
                 className={formModalSecondaryIconButtonClass}
-                aria-label="Send message with PDF link"
-                title="Send message with PDF link"
+                aria-label="Send message with ledger link"
+                title="Send message with ledger link"
               >
                 {sendingMessage ? (
                   <Loader2 className="h-5 w-5 animate-spin" aria-hidden />

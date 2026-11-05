@@ -1343,7 +1343,7 @@ export default function SettingsPage() {
           shareUrlOptions={[
             {
               key: 'ledger_url',
-              title: 'Ledger PDF link',
+              title: 'Ledger preview link',
               variable: 'ledger_url',
               enabled: accountMessageIncludeLedgerUrl,
             },
@@ -1382,24 +1382,14 @@ export default function SettingsPage() {
           variables={TRANSACTION_MESSAGE_VARS}
           shareUrlOptions={[
             {
-              key: 'pdf_url',
-              title: 'Transaction PDF link',
-              variable: 'pdf_url',
-              enabled: transactionMessageIncludePdfUrl,
-            },
-            {
               key: 'ledger_url',
-              title: 'Account ledger PDF link',
+              title: 'Ledger preview link',
               variable: 'ledger_url',
               enabled: transactionMessageIncludeLedgerUrl,
             },
           ]}
           onClose={() => setMessageEditor(null)}
           onSave={async (next, notes) => {
-            const includePdf =
-              typeof notes.shareUrlEnabled?.pdf_url === 'boolean'
-                ? notes.shareUrlEnabled.pdf_url
-                : transactionMessageIncludePdfUrl
             const includeLedger =
               typeof notes.shareUrlEnabled?.ledger_url === 'boolean'
                 ? notes.shareUrlEnabled.ledger_url
@@ -1409,14 +1399,14 @@ export default function SettingsPage() {
               messageNotePlus: notes.plus,
               messageNoteMinus: notes.minus,
               messageNoteZero: notes.zero,
-              transactionMessageIncludePdfUrl: includePdf,
+              transactionMessageIncludePdfUrl: false,
               transactionMessageIncludeLedgerUrl: includeLedger,
             })
             setTransactionMessageTemplate(saved.transactionMessageTemplate)
             setMessageNotePlus(saved.messageNotePlus)
             setMessageNoteMinus(saved.messageNoteMinus)
             setMessageNoteZero(saved.messageNoteZero)
-            setTransactionMessageIncludePdfUrl(saved.transactionMessageIncludePdfUrl)
+            setTransactionMessageIncludePdfUrl(false)
             setTransactionMessageIncludeLedgerUrl(saved.transactionMessageIncludeLedgerUrl)
             setMessage({ type: 'success', text: 'Transaction message template saved.' })
           }}

@@ -1,4 +1,5 @@
 import type { AccountRecord } from '@/lib/accounts'
+import { formatDisplayDate } from '@/lib/localDate'
 import { formatMoney } from '@/lib/money'
 import { toWhatsAppDigits } from '@/lib/phone'
 import type { TransactionRecord } from '@/lib/transactions'
@@ -28,8 +29,9 @@ export const TRANSACTION_MESSAGE_VARS = [
   { key: 'current_transaction', label: 'This entry' },
   { key: 'current_balance', label: 'Current bal.' },
   { key: 'note', label: 'Note' },
-  { key: 'pdf_url', label: 'PDF URL' },
   { key: 'ledger_url', label: 'Ledger URL' },
+  { key: 'ledger_pin', label: 'Ledger PIN' },
+  { key: 'ledger_expires', label: 'Ledger expires' },
   { key: 'balance', label: 'Amount (alias)' },
   { key: 'business_name', label: 'Business' },
   { key: 'currency', label: 'Currency' },
@@ -104,8 +106,9 @@ Current Balance: {{current_balance}}
 
 Note: {{note}}
 
-PDF: {{pdf_url}}
-Ledger: {{ledger_url}}`
+Ledger: {{ledger_url}}
+Access code: {{ledger_pin}}
+Valid until: {{ledger_expires}}`
 
 /** Cap stored template length. */
 export function normalizeMessageTemplate(value: unknown): string {
@@ -163,10 +166,10 @@ export function transactionMessageVars(
     currentBalance?: number
     /** Running balance before this entry. */
     previousBalance?: number
-    /** Short public transaction PDF link (empty when disabled / unavailable). */
-    pdfUrl?: string
-    /** Short public account ledger PDF link (empty when disabled / unavailable). */
+    /** Interactive ledger preview URL (PIN-gated). */
     ledgerUrl?: string
+    ledgerPin?: string
+    ledgerExpires?: string
   }
 ): Record<string, string> {
   const amount = Math.abs(Number(txn.balance) || 0)
@@ -180,11 +183,6 @@ export function transactionMessageVars(
       ? opts.previousBalance
       : current - signed
 
-  const iso = String(txn.transactionDate).slice(0, 10)
-  const dateLabel = /^\d{4}-\d{2}-\d{2}$/.test(iso)
-    ? `${iso.slice(8, 10)}-${iso.slice(5, 7)}-${iso.slice(0, 4)}`
-    : iso
-
   return {
     account_name: txn.accountName,
     phone: opts.phone ?? '',
@@ -193,15 +191,16 @@ export function transactionMessageVars(
       txn.entryType === 'debit'
         ? 'Debit (balance removed)'
         : 'Credit (balance added)',
-    date: dateLabel,
+    date: formatDisplayDate(txn.transactionDate),
     narration: txn.narration || '—',
     balance: formatMoney(amount, opts.currency),
     previous_balance: formatMoney(previous, opts.currency),
     current_transaction: formatMoney(signed, opts.currency),
     current_balance: formatMoney(current, opts.currency),
     note: balanceNoteFor(current, opts.notes),
-    pdf_url: String(opts.pdfUrl ?? '').trim(),
     ledger_url: String(opts.ledgerUrl ?? '').trim(),
+    ledger_pin: String(opts.ledgerPin ?? '').trim(),
+    ledger_expires: String(opts.ledgerExpires ?? '').trim(),
     business_name: opts.businessName,
     currency: opts.currency,
   }

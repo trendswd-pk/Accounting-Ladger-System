@@ -108,7 +108,7 @@ export async function exportAccountLedgerCsv(
     ['Cash type', account.cashTypeName || ''],
     ['Currency', opts.currency],
     ['Closing balance', account.balance],
-    ['Exported on', new Date().toISOString().slice(0, 10)],
+    ['Exported on', formatDisplayDate(new Date())],
     [],
   ]
   const csvBody = toCsv(headers, rows)
@@ -119,6 +119,67 @@ export async function exportAccountLedgerCsv(
   const bom = opts.excelFriendly ? '\uFEFF' : ''
   const base = `ledger-${safeFilePart(account.name)}-${stamp()}`
   downloadTextFile(`${base}.csv`, `${bom}${content}`, 'text/csv;charset=utf-8')
+}
+
+/** Download ledger CSV/Excel from in-memory share / preview lines (no auth APIs). */
+export async function exportLedgerCsvFromLines(
+  account: LedgerPdfAccountMeta,
+  lines: LedgerLine[],
+  opts: { currency: string; businessName: string; excelFriendly?: boolean }
+): Promise<void> {
+  const headers = [
+    'date',
+    'entry_no',
+    'narration',
+    'type',
+    'amount',
+    'running_balance',
+  ]
+  const rows = lines.map((l) => [
+    formatDisplayDate(l.date),
+    l.entryNumber,
+    l.narration,
+    l.entryType,
+    l.signedAmount,
+    l.runningBalance,
+  ])
+  const meta = [
+    ['Business', opts.businessName],
+    ['Account', account.name],
+    ['Phone', account.phone || ''],
+    ['Account type', account.accountTypeName || ''],
+    ['Cash type', account.cashTypeName || ''],
+    ['Currency', opts.currency],
+    ['Closing balance', account.balance],
+    ['Exported on', formatDisplayDate(new Date())],
+    [],
+  ]
+  const csvBody = toCsv(headers, rows)
+  const metaCsv = meta
+    .map((r) => r.map((c) => csvEscape(c as string | number)).join(','))
+    .join('\n')
+  const content = `${metaCsv}\n${csvBody}`
+  const bom = opts.excelFriendly ? '\uFEFF' : ''
+  const base = `ledger-${safeFilePart(account.name)}-${stamp()}`
+  downloadTextFile(`${base}.csv`, `${bom}${content}`, 'text/csv;charset=utf-8')
+}
+
+/** Download ledger from in-memory lines as PDF, Excel (CSV), or CSV. */
+export async function exportLedgerFromLines(
+  account: LedgerPdfAccountMeta,
+  lines: LedgerLine[],
+  format: LedgerExportFormat,
+  opts: { currency: string; businessName: string; logoUrl?: string | null }
+): Promise<void> {
+  if (format === 'pdf') {
+    await exportLedgerPdfFromLines(account, lines, opts)
+    return
+  }
+  await exportLedgerCsvFromLines(account, lines, {
+    currency: opts.currency,
+    businessName: opts.businessName,
+    excelFriendly: format === 'excel' || format === 'csv',
+  })
 }
 
 type PdfLogo = { dataUrl: string; width: number; height: number }
