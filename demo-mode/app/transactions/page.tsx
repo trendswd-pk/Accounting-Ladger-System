@@ -193,7 +193,6 @@ function TransactionsPageInner() {
       getCachedAppSettings()?.transactionMessageTemplate ??
       DEFAULT_APP_SETTINGS.transactionMessageTemplate
   )
-  const [exportingPdfId, setExportingPdfId] = useState<string | null>(null)
   const [messageNotePlus, setMessageNotePlus] = useState(
     () => getCachedAppSettings()?.messageNotePlus ?? DEFAULT_APP_SETTINGS.messageNotePlus
   )
@@ -656,7 +655,7 @@ function TransactionsPageInner() {
       setListError('Set a Transaction message template in Settings first.')
       return
     }
-    if (sendingMessage || exportingPdfId) return
+    if (sendingMessage) return
     setSendingMessage(true)
     setListError(null)
     setWaPrepPercent(5)
@@ -800,25 +799,9 @@ function TransactionsPageInner() {
     }
   }
 
-  const exportTransactionAsPdf = async (row: TransactionRecord) => {
-    setExportingPdfId(row.id)
-    setListError(null)
-    try {
-      const account = accounts.find((a) => a.id === row.accountId) ?? null
-      // Lazy-load pdf-lib only when exporting (keeps /transactions chunk small & nav faster).
-      const { exportTransactionPdf } = await import('@/lib/transactionExport')
-      await exportTransactionPdf(row, {
-        currency,
-        businessName,
-        logoUrl,
-        account,
-        runningBalance: runningBalanceById.get(row.id),
-      })
-    } catch (err) {
-      setListError(err instanceof Error ? err.message : 'Transaction PDF export failed.')
-    } finally {
-      setExportingPdfId(null)
-    }
+  const openTransactionPrintPreview = (row: TransactionRecord) => {
+    const href = `/transactions/${encodeURIComponent(row.id)}/print`
+    window.open(href, '_blank', 'noopener,noreferrer')
   }
 
   const actionsFor = (
@@ -838,9 +821,8 @@ function TransactionsPageInner() {
         { key: 'edit', label: 'Edit', onClick: () => openEdit(row) },
         {
           key: 'pdf',
-          label: exportingPdfId === row.id ? 'Exporting PDF…' : 'Export PDF',
-          disabled: exportingPdfId === row.id,
-          onClick: () => void exportTransactionAsPdf(row),
+          label: 'Print preview',
+          onClick: () => openTransactionPrintPreview(row),
         },
         {
           key: 'send',
@@ -1753,7 +1735,7 @@ function TransactionsPageInner() {
               <button
                 type="button"
                 onClick={() => void sendTransactionMessage(detailRow)}
-                disabled={sendingMessage || exportingPdfId === detailRow.id}
+                disabled={sendingMessage}
                 className={formModalSecondaryIconButtonClass}
                 aria-label="Send message with PDF link"
                 title="Send message with PDF link"

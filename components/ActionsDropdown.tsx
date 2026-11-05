@@ -5,10 +5,10 @@ import { createPortal } from 'react-dom'
 import {
   Eye,
   FileDown,
-  FileText,
   MessageCircle,
   MoreVertical,
   Pencil,
+  Printer,
   Trash2,
   X,
   type LucideIcon,
@@ -45,7 +45,8 @@ const DEFAULT_ICONS: Record<string, LucideIcon> = {
   details: Eye,
   edit: Pencil,
   export: FileDown,
-  pdf: FileText,
+  pdf: Printer,
+  preview: Printer,
   send: MessageCircle,
   delete: Trash2,
 }

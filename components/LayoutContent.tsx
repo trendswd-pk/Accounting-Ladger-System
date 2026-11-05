@@ -45,6 +45,9 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   const mainScrollRef = useRef<HTMLElement | null>(null)
   const isDev = process.env.NODE_ENV === 'development'
   const isLogin = pathname === '/login'
+  /** Full-screen voucher print/preview — no app chrome. */
+  const isTransactionPrint =
+    !!pathname && /^\/transactions\/[^/]+\/print\/?$/.test(pathname)
 
   useEffect(() => {
     setNavOpen(false)
@@ -86,7 +89,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
     return () => globalThis.clearTimeout(t)
   }, [isLogin, pathname, router])
 
-  if (isLogin) {
+  if (isLogin || isTransactionPrint) {
     return <>{children}</>
   }
 

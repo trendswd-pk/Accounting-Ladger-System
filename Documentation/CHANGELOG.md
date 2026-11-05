@@ -2,6 +2,11 @@
 
 All notable changes to Accounting Ledger are documented here.
 
+## [1.1.2] — 2026-11-05
+
+### Changed
+- Transactions actions: **Export PDF** is now **Print preview**. Opens `{app}/transactions/{id}/print` on your domain (not `about:blank`) with Print + Download PDF toolbar.
+
 ## [1.1.1] — 2026-11-04
 
 ### Added

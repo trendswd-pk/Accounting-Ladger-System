@@ -547,6 +547,7 @@ export async function buildTransactionPdfBlob(
 /**
  * PDF: page 1 = transaction details, then each uploaded document
  * (images embedded, PDFs merged, other types listed as note pages).
+ * Downloads immediately (no preview window).
  */
 export async function exportTransactionPdf(
   txn: TransactionRecord,

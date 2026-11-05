@@ -16,15 +16,26 @@ import {
 } from '@/lib/appSettings'
 import { fetchAccounts } from '@/lib/accounts'
 import { fetchTransactions } from '@/lib/transactions'
-import { getDemoSession } from '@/lib/demoAuth'
-import { ensureDemoSeeded } from '@/lib/demoSeed'
+
+const PREFETCH_ROUTES = [
+  '/',
+  '/transactions',
+  '/accounts',
+  '/cash-savings',
+  '/payable',
+  '/receivable',
+  '/expenses',
+  '/expenses/daily',
+  '/expenses/monthly',
+  '/investment',
+  '/settings',
+] as const
 
 export default function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const [navOpen, setNavOpen] = useState(false)
   const [profilerOpen, setProfilerOpen] = useState(false)
-  const [authReady, setAuthReady] = useState(false)
   const [businessName, setBusinessName] = useState(
     () => getCachedAppSettings()?.businessName ?? DEFAULT_APP_SETTINGS.businessName
   )
@@ -34,6 +45,9 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   const mainScrollRef = useRef<HTMLElement | null>(null)
   const isDev = process.env.NODE_ENV === 'development'
   const isLogin = pathname === '/login'
+  /** Full-screen voucher print/preview — no app chrome. */
+  const isTransactionPrint =
+    !!pathname && /^\/transactions\/[^/]+\/print\/?$/.test(pathname)
 
   useEffect(() => {
     setNavOpen(false)
@@ -47,49 +61,40 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
     })
   }, [])
 
-  useEffect(() => {
-    const session = getDemoSession()
-    if (!isLogin && !session) {
-      router.replace(`/login?next=${encodeURIComponent(pathname || '/')}`)
-      return
-    }
-    if (isLogin && session) {
-      router.replace('/')
-      return
-    }
-    if (session) {
-      ensureDemoSeeded(session.userId)
-    }
-    setAuthReady(true)
-  }, [isLogin, pathname, router])
-
   // Prefetch core lists so Transactions / Accounts open without a cold full-load flash.
   useEffect(() => {
-    if (isLogin || !authReady) return
-    if (!getDemoSession()) return
+    if (isLogin) return
     void fetchTransactions().catch(() => {})
     void fetchAccounts().catch(() => {})
-  }, [isLogin, authReady])
+  }, [isLogin])
 
-  if (isLogin) {
+  // Warm Next.js route payloads so sidebar / dashboard clicks feel instant.
+  useEffect(() => {
+    if (isLogin) return
+    const run = () => {
+      for (const route of PREFETCH_ROUTES) {
+        if (route !== pathname) router.prefetch(route)
+      }
+    }
+    const w = window as Window &
+      typeof globalThis & {
+        requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number
+        cancelIdleCallback?: (id: number) => void
+      }
+    if (typeof w.requestIdleCallback === 'function') {
+      const id = w.requestIdleCallback(run, { timeout: 2500 })
+      return () => w.cancelIdleCallback?.(id)
+    }
+    const t = globalThis.setTimeout(run, 400)
+    return () => globalThis.clearTimeout(t)
+  }, [isLogin, pathname, router])
+
+  if (isLogin || isTransactionPrint) {
     return <>{children}</>
-  }
-
-  if (!authReady) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-950">
-        <p className="text-sm text-gray-500 dark:text-gray-400">Loading demo…</p>
-      </div>
-    )
   }
 
   return (
     <div className="flex h-screen flex-col bg-gray-50 dark:bg-gray-950">
-      <div className="shrink-0 border-b border-amber-200/80 bg-amber-50 px-3 py-1.5 text-center dark:border-amber-800/50 dark:bg-amber-950/40">
-        <p className="text-xs font-medium text-amber-800 dark:text-amber-200">
-          Demo Mode — data is stored in this browser only
-        </p>
-      </div>
       <Sidebar open={navOpen} onClose={() => setNavOpen(false)} />
       <header className="flex shrink-0 items-center gap-3 border-b border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-800">
         <button
@@ -103,10 +108,10 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
         <Link
           href="/"
           className="flex min-w-0 flex-1 items-center gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
-          title={`${businessName} (Demo)`}
+          title={businessName}
         >
           {logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- demo branding data URL
+            // eslint-disable-next-line @next/next/no-img-element -- remote R2 branding URL
             <img
               src={logoUrl}
               alt={businessName}
@@ -119,9 +124,6 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
               </span>
               <span className="truncate text-base font-bold text-primary-600 dark:text-primary-400">
                 {businessName}
-                <span className="ml-1.5 text-xs font-semibold text-amber-700 dark:text-amber-300">
-                  (Demo)
-                </span>
               </span>
             </>
           )}

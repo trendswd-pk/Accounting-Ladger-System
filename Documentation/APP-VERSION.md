@@ -1,11 +1,12 @@
 # App version
 
-**Current version:** 1.1.1  
-**Released:** 2026-11-04
+**Current version:** 1.1.2  
+**Released:** 2026-11-05
 
 See the full [Changelog](./CHANGELOG.md).
 
 ## This release includes
+- Transactions **Print preview**: opens `/transactions/{id}/print` with Print + Download PDF
 - Dashboard Today/Yesterday expense cards roll over at local midnight (no UTC lag)
 - Share links show WhatsApp / messenger link previews (Open Graph card for ledger & voucher PDFs)
 - Send WhatsApp: branded progress % (in-app + prep tab) instead of a blank loading page

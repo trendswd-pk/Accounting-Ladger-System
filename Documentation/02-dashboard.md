@@ -1,6 +1,6 @@
 # Dashboard
 
-**Version:** 1.1.1  
+**Version:** 1.1.2  
 **Route:** `/`  
 **Who can access:** Signed-in users (Admin, Editor, Viewer in Demo Mode).
 

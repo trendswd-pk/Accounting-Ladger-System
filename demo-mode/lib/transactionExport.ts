@@ -35,10 +35,13 @@ function formatDisplayDate(iso: string): string {
   return `${d}-${m}-${y}`
 }
 
-/** Demo Mode: attachments are data URLs — fetch directly (no branding proxy). */
+function proxyUrl(href: string): string {
+  return `/api/branding/image?url=${encodeURIComponent(href)}`
+}
+
 async function fetchAttachmentBytes(publicUrl: string): Promise<ArrayBuffer | null> {
   try {
-    const res = await fetch(publicUrl)
+    const res = await fetch(proxyUrl(publicUrl), { cache: 'force-cache' })
     if (!res.ok) return null
     return await res.arrayBuffer()
   } catch {
@@ -111,7 +114,7 @@ async function buildDetailsPdfBytes(
   const logoHref = String(opts.logoUrl ?? '').trim()
   if (logoHref) {
     try {
-      const res = await fetch(logoHref)
+      const res = await fetch(proxyUrl(logoHref), { cache: 'force-cache' })
       if (res.ok) {
         const blob = await res.blob()
         const objectUrl = URL.createObjectURL(blob)
@@ -544,6 +547,7 @@ export async function buildTransactionPdfBlob(
 /**
  * PDF: page 1 = transaction details, then each uploaded document
  * (images embedded, PDFs merged, other types listed as note pages).
+ * Downloads immediately (no preview window).
  */
 export async function exportTransactionPdf(
   txn: TransactionRecord,
