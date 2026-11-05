@@ -1,8 +1,17 @@
 'use client'
 
-import { Fragment, useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { FileText, Lock, Paperclip } from 'lucide-react'
+import {
+  FormModalBody,
+  FormModalFooter,
+  FormModalHeader,
+  formModalOverlayClass,
+  formModalPanelClass,
+  formModalSecondaryButtonClass,
+} from '@/components/FormModal'
+import TransactionMobileCard from '@/components/TransactionMobileCard'
 import {
   fetchLedgerShareMeta,
   unlockLedgerShareDemo,
@@ -78,7 +87,7 @@ function formatExportedOn(): string {
   })
 }
 
-/** Demo Mode: PIN-gated ledger preview (statement layout like ledger PDF). */
+/** Demo Mode: PIN-gated ledger preview (statement + txn detail popup). */
 export default function DemoSharedLedgerPage() {
   const params = useParams()
   const token = String(params?.token ?? '').trim()
@@ -86,11 +95,12 @@ export default function DemoSharedLedgerPage() {
   const [meta, setMeta] = useState<ShareMeta | null>(null)
   const [metaError, setMetaError] = useState<string | null>(null)
   const [metaLoading, setMetaLoading] = useState(true)
+
   const [pin, setPin] = useState('')
   const [unlocking, setUnlocking] = useState(false)
   const [unlockError, setUnlockError] = useState<string | null>(null)
   const [ledger, setLedger] = useState<LedgerPayload | null>(null)
-  const [openId, setOpenId] = useState<string | null>(null)
+  const [detailTxn, setDetailTxn] = useState<Txn | null>(null)
 
   useEffect(() => {
     if (!token) {
@@ -101,6 +111,7 @@ export default function DemoSharedLedgerPage() {
     let cancelled = false
     void (async () => {
       setMetaLoading(true)
+      setMetaError(null)
       try {
         const next = await fetchLedgerShareMeta(token)
         if (!cancelled) setMeta(next)
@@ -241,16 +252,17 @@ export default function DemoSharedLedgerPage() {
   const rows = ledger.transactions
 
   return (
-    <main className="min-h-screen bg-[#525659] py-4 sm:py-8 print:bg-white print:py-0">
-      <div className="mx-auto w-full max-w-[840px] overflow-hidden rounded-sm bg-white shadow-2xl print:max-w-none print:shadow-none">
+    <main className="min-h-screen bg-[#525659] px-0 py-0 pb-[env(safe-area-inset-bottom)] sm:px-3 sm:py-8 print:bg-white print:px-0 print:py-0">
+      <div className="mx-auto w-full max-w-[840px] overflow-hidden bg-white shadow-2xl sm:rounded-sm print:max-w-none print:shadow-none">
+        {/* Brand bar — matches ledger PDF header */}
         <header className="flex items-center justify-between gap-3 bg-primary-600 px-4 py-3.5 text-white sm:px-8 sm:py-4">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={logoUrl}
                 alt={ledger.businessName}
-                className="h-8 max-w-[160px] object-contain sm:h-9"
+                className="h-8 max-w-[140px] object-contain sm:h-9 sm:max-w-[160px]"
               />
             ) : (
               <p className="truncate text-sm font-bold tracking-tight sm:text-base">
@@ -258,9 +270,9 @@ export default function DemoSharedLedgerPage() {
               </p>
             )}
           </div>
-          <div className="shrink-0 text-right">
-            <p className="text-[11px] font-bold uppercase tracking-wide sm:text-xs">
-              Account ledger
+          <div className="max-w-[58%] shrink-0 text-right sm:max-w-[50%]">
+            <p className="truncate text-sm font-bold tracking-tight text-red-400 sm:text-base">
+              {ledger.account.name || 'Account'}
             </p>
             <p className="mt-0.5 text-[10px] text-primary-100 sm:text-[11px]">
               Exported {formatExportedOn()}
@@ -268,73 +280,140 @@ export default function DemoSharedLedgerPage() {
           </div>
         </header>
 
-        <div className="px-3 py-4 sm:px-8 sm:py-5">
+        <div className="px-4 py-4 sm:px-8 sm:py-5">
+          {/* Meta panel */}
           <section className="rounded-md border border-gray-200 bg-gray-50 px-3 py-3 sm:px-4 sm:py-3.5">
-            <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-[12px] sm:grid-cols-2 sm:text-[13px]">
+            <dl className="grid grid-cols-1 gap-x-6 gap-y-2.5 text-[12px] sm:grid-cols-2 sm:gap-y-2 sm:text-[13px]">
               <div className="flex gap-2">
-                <dt className="w-[6.5rem] shrink-0 text-brand-stone">Name</dt>
-                <dd className="min-w-0 font-semibold text-brand-ink">
+                <dt className="w-[5.75rem] shrink-0 text-brand-stone sm:w-[6.5rem]">
+                  Name
+                </dt>
+                <dd className="min-w-0 break-words font-semibold text-brand-ink">
                   {ledger.account.name || '—'}
                 </dd>
               </div>
               <div className="flex gap-2">
-                <dt className="w-[6.5rem] shrink-0 text-brand-stone">Phone</dt>
-                <dd className="min-w-0 font-semibold text-brand-ink">
+                <dt className="w-[5.75rem] shrink-0 text-brand-stone sm:w-[6.5rem]">
+                  Phone
+                </dt>
+                <dd className="min-w-0 break-all font-semibold text-brand-ink">
                   {ledger.account.phone || '—'}
                 </dd>
               </div>
               <div className="flex gap-2">
-                <dt className="w-[6.5rem] shrink-0 text-brand-stone">Currency</dt>
+                <dt className="w-[5.75rem] shrink-0 text-brand-stone sm:w-[6.5rem]">
+                  Currency
+                </dt>
                 <dd className="font-semibold text-brand-ink">{currency || '—'}</dd>
               </div>
               <div className="flex gap-2">
-                <dt className="w-[6.5rem] shrink-0 text-brand-stone">
-                  Closing balance
+                <dt className="w-[5.75rem] shrink-0 text-brand-stone sm:w-[6.5rem]">
+                  Closing bal.
                 </dt>
                 <dd className="font-semibold tabular-nums text-brand-ink">
                   {formatMoney(ledger.account.balance, currency)}
                 </dd>
               </div>
               <div className="flex gap-2">
-                <dt className="w-[6.5rem] shrink-0 text-brand-stone">
-                  Account type
+                <dt className="w-[5.75rem] shrink-0 text-brand-stone sm:w-[6.5rem]">
+                  Acc. type
                 </dt>
-                <dd className="font-semibold text-brand-ink">{accountTypeName}</dd>
+                <dd className="min-w-0 break-words font-semibold text-brand-ink">
+                  {accountTypeName}
+                </dd>
               </div>
               <div className="flex gap-2">
-                <dt className="w-[6.5rem] shrink-0 text-brand-stone">Entries</dt>
+                <dt className="w-[5.75rem] shrink-0 text-brand-stone sm:w-[6.5rem]">
+                  Entries
+                </dt>
                 <dd className="font-semibold text-brand-ink">{rows.length}</dd>
               </div>
               <div className="flex gap-2">
-                <dt className="w-[6.5rem] shrink-0 text-brand-stone">Cash type</dt>
-                <dd className="font-semibold text-brand-ink">{cashTypeName}</dd>
+                <dt className="w-[5.75rem] shrink-0 text-brand-stone sm:w-[6.5rem]">
+                  Cash type
+                </dt>
+                <dd className="min-w-0 break-words font-semibold text-brand-ink">
+                  {cashTypeName}
+                </dd>
               </div>
               <div className="flex gap-2">
-                <dt className="w-[6.5rem] shrink-0 text-brand-stone">Document</dt>
+                <dt className="w-[5.75rem] shrink-0 text-brand-stone sm:w-[6.5rem]">
+                  Document
+                </dt>
                 <dd className="font-semibold text-brand-ink">Ledger statement</dd>
               </div>
             </dl>
-            <p className="mt-3 border-t border-gray-200 pt-2 text-[11px] text-brand-stone">
+            <p className="mt-3 border-t border-gray-200 pt-2 text-[11px] leading-snug text-brand-stone">
               Link valid until {formatExpiry(ledger.expiresAt)}
             </p>
           </section>
 
           <div className="my-4 border-t-[3px] border-primary-600 border-b border-b-gray-200 pb-0.5" />
 
-          <div className="-mx-3 overflow-x-auto sm:mx-0">
-            <table className="min-w-[640px] w-full border-collapse text-left text-[12px] sm:text-[13px]">
+          {/* Mobile: same curved brand-sky cards as Transactions page */}
+          <div className="md:hidden">
+            <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-brand-stone">
+              Transactions · tap a card for details
+            </p>
+            {rows.length === 0 ? (
+              <div className="rounded-[1.75rem] border border-gray-200 bg-white px-4 py-8 text-center text-sm text-brand-stone shadow-md">
+                No transactions yet.
+              </div>
+            ) : (
+              <ul className="space-y-3.5">
+                {rows.map((txn) => (
+                  <li key={txn.id}>
+                    <TransactionMobileCard
+                      row={{
+                        id: txn.id,
+                        entryNumber: txn.entryNumber,
+                        transactionDate: txn.transactionDate,
+                        accountName: '',
+                        narration: txn.narration,
+                        entryType: txn.entryType,
+                        balance: txn.amount,
+                        runningBalance: txn.runningBalance,
+                      }}
+                      formatBalance={(n) => formatMoney(n, currency)}
+                      formatDisplayDate={formatDisplayDate}
+                      actions={
+                        txn.attachments.length > 0 ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-1 text-[11px] font-semibold text-brand-ink shadow-sm">
+                            <Paperclip className="h-3 w-3" aria-hidden />
+                            {txn.attachments.length}
+                          </span>
+                        ) : undefined
+                      }
+                      onOpen={() => setDetailTxn(txn)}
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {rows.length > 0 ? (
+              <div className="mt-4 flex items-center justify-between gap-3 rounded-[1.25rem] border border-primary-200 bg-primary-50 px-4 py-3.5">
+                <span className="text-sm font-bold text-primary-800">
+                  Closing balance
+                </span>
+                <span className="text-sm font-bold tabular-nums text-primary-800">
+                  {formatMoney(ledger.account.balance, currency)}
+                </span>
+              </div>
+            ) : null}
+          </div>
+
+          {/* Desktop / print: full statement table */}
+          <div className="hidden overflow-x-auto md:block print:block">
+            <table className="w-full min-w-[640px] border-collapse text-left text-[13px]">
               <thead>
                 <tr className="bg-primary-600 text-white">
-                  <th className="px-2 py-2.5 font-semibold sm:px-3">Date</th>
-                  <th className="px-2 py-2.5 font-semibold sm:px-3">No.</th>
-                  <th className="px-2 py-2.5 font-semibold sm:px-3">Narration</th>
-                  <th className="px-2 py-2.5 font-semibold sm:px-3">Type</th>
-                  <th className="px-2 py-2.5 text-right font-semibold sm:px-3">
-                    Amount
-                  </th>
-                  <th className="px-2 py-2.5 text-right font-semibold sm:px-3">
-                    Balance
-                  </th>
+                  <th className="px-3 py-2.5 font-semibold">Date</th>
+                  <th className="px-3 py-2.5 font-semibold">No.</th>
+                  <th className="px-3 py-2.5 font-semibold">Narration</th>
+                  <th className="px-3 py-2.5 font-semibold">Type</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">Amount</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">Balance</th>
                 </tr>
               </thead>
               <tbody>
@@ -349,90 +428,48 @@ export default function DemoSharedLedgerPage() {
                   </tr>
                 ) : (
                   rows.map((txn, index) => {
-                    const open = openId === txn.id
                     const isDebit = txn.entryType === 'debit'
                     const signed = isDebit ? -txn.amount : txn.amount
                     const zebra = index % 2 === 1
                     return (
-                      <Fragment key={txn.id}>
-                        <tr
-                          className={`cursor-pointer border border-gray-200 ${
-                            zebra ? 'bg-gray-50' : 'bg-white'
-                          } hover:bg-primary-50/60`}
-                          onClick={() => setOpenId(open ? null : txn.id)}
-                        >
-                          <td className="whitespace-nowrap px-2 py-2 text-gray-800 sm:px-3">
-                            {formatDisplayDate(txn.transactionDate)}
-                          </td>
-                          <td className="whitespace-nowrap px-2 py-2 tabular-nums text-gray-800 sm:px-3">
-                            {txn.entryNumber}
-                          </td>
-                          <td className="max-w-[220px] px-2 py-2 text-gray-800 sm:max-w-none sm:px-3">
-                            <span className="line-clamp-2">
-                              {txn.narration || '—'}
+                      <tr
+                        key={txn.id}
+                        className={`cursor-pointer border border-gray-200 ${
+                          zebra ? 'bg-gray-50' : 'bg-white'
+                        } hover:bg-primary-50/60`}
+                        onClick={() => setDetailTxn(txn)}
+                      >
+                        <td className="whitespace-nowrap px-3 py-2 text-gray-800">
+                          {formatDisplayDate(txn.transactionDate)}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2 tabular-nums text-gray-800">
+                          {txn.entryNumber}
+                        </td>
+                        <td className="px-3 py-2 text-gray-800">
+                          <span className="line-clamp-2">
+                            {txn.narration || '—'}
+                          </span>
+                          {txn.attachments.length > 0 ? (
+                            <span className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-brand-stone">
+                              <Paperclip className="h-3 w-3" aria-hidden />
+                              {txn.attachments.length}
                             </span>
-                            {txn.attachments.length > 0 ? (
-                              <span className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-brand-stone">
-                                <Paperclip className="h-3 w-3" aria-hidden />
-                                {txn.attachments.length}
-                              </span>
-                            ) : null}
-                          </td>
-                          <td
-                            className={`whitespace-nowrap px-2 py-2 font-semibold sm:px-3 ${
-                              isDebit ? 'text-red-700' : 'text-primary-700'
-                            }`}
-                          >
-                            {isDebit ? 'Debit' : 'Credit'}
-                          </td>
-                          <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums text-gray-800 sm:px-3">
-                            {formatMoney(signed, currency)}
-                          </td>
-                          <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums text-gray-800 sm:px-3">
-                            {formatMoney(txn.runningBalance, currency)}
-                          </td>
-                        </tr>
-                        {open ? (
-                          <tr className="border border-gray-200 bg-primary-50/40">
-                            <td colSpan={6} className="px-3 py-3">
-                              <div className="flex flex-wrap items-start justify-between gap-3">
-                                <div>
-                                  <p className="text-[10px] font-semibold uppercase tracking-wider text-brand-stone">
-                                    Entry detail
-                                  </p>
-                                  <p className="mt-1 text-sm text-brand-ink">
-                                    {txn.narration || '—'}
-                                  </p>
-                                </div>
-                                {txn.attachments.length > 0 ? (
-                                  <ul className="flex min-w-0 flex-1 flex-col gap-1.5 sm:items-end">
-                                    {txn.attachments.map((file) => (
-                                      <li key={file.id}>
-                                        <a
-                                          href={file.publicUrl}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          onClick={(e) => e.stopPropagation()}
-                                          className="inline-flex max-w-full items-center gap-2 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-sm text-primary-700 hover:bg-primary-50"
-                                        >
-                                          <FileText className="h-4 w-4 shrink-0" />
-                                          <span className="truncate">
-                                            {file.fileName}
-                                          </span>
-                                        </a>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                ) : (
-                                  <p className="text-xs text-brand-stone">
-                                    No attachments on this entry.
-                                  </p>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ) : null}
-                      </Fragment>
+                          ) : null}
+                        </td>
+                        <td
+                          className={`whitespace-nowrap px-3 py-2 font-semibold ${
+                            isDebit ? 'text-red-700' : 'text-primary-700'
+                          }`}
+                        >
+                          {isDebit ? 'Debit' : 'Credit'}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-gray-800">
+                          {formatMoney(signed, currency)}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-gray-800">
+                          {formatMoney(txn.runningBalance, currency)}
+                        </td>
+                      </tr>
                     )
                   })
                 )}
@@ -441,13 +478,13 @@ export default function DemoSharedLedgerPage() {
                   <tr className="border border-primary-200 bg-primary-50">
                     <td
                       colSpan={3}
-                      className="px-2 py-3 text-sm font-bold text-primary-800 sm:px-3"
+                      className="px-3 py-3 text-sm font-bold text-primary-800"
                     >
                       Closing balance
                     </td>
-                    <td className="px-2 py-3 sm:px-3" />
-                    <td className="px-2 py-3 sm:px-3" />
-                    <td className="px-2 py-3 text-right text-sm font-bold tabular-nums text-primary-800 sm:px-3">
+                    <td className="px-3 py-3" />
+                    <td className="px-3 py-3" />
+                    <td className="px-3 py-3 text-right text-sm font-bold tabular-nums text-primary-800">
                       {formatMoney(ledger.account.balance, currency)}
                     </td>
                   </tr>
@@ -455,20 +492,146 @@ export default function DemoSharedLedgerPage() {
               </tbody>
             </table>
           </div>
-
-          <p className="mt-2 text-[11px] text-brand-stone sm:hidden">
-            Tip: swipe sideways to see Amount and Balance columns. Tap a row for
-            attachments.
-          </p>
         </div>
 
-        <footer className="flex items-center justify-between gap-3 border-t border-gray-200 px-4 py-3 text-[11px] text-brand-stone sm:px-8">
-          <span>
+        <footer className="flex flex-col gap-1 border-t border-gray-200 px-4 py-3 text-[11px] text-brand-stone sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-8">
+          <span className="min-w-0 break-words">
             {ledger.businessName} — Confidential ledger export
           </span>
           <span className="shrink-0">{rows.length} entries</span>
         </footer>
       </div>
+
+      {detailTxn ? (
+        <div
+          className={formModalOverlayClass}
+          onClick={() => setDetailTxn(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="share-txn-detail-title"
+        >
+          <div
+            className={`${formModalPanelClass} max-w-lg`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <FormModalHeader
+              titleId="share-txn-detail-title"
+              title={
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="truncate">
+                    Entry #{detailTxn.entryNumber}
+                  </span>
+                  <span
+                    className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
+                      detailTxn.entryType === 'debit'
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-primary-100 text-primary-800'
+                    }`}
+                  >
+                    {detailTxn.entryType}
+                  </span>
+                </span>
+              }
+              onClose={() => setDetailTxn(null)}
+            />
+            <FormModalBody>
+              <dl className="space-y-3 text-sm">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                      Date
+                    </dt>
+                    <dd className="mt-0.5 text-brand-ink">
+                      {formatDisplayDate(detailTxn.transactionDate)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                      Account
+                    </dt>
+                    <dd className="mt-0.5 truncate text-brand-ink">
+                      {ledger.account.name || '—'}
+                    </dd>
+                  </div>
+                </div>
+                <div>
+                  <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                    Narration
+                  </dt>
+                  <dd className="mt-0.5 whitespace-pre-wrap break-words text-gray-800">
+                    {detailTxn.narration.trim() || '—'}
+                  </dd>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                      Amount
+                    </dt>
+                    <dd
+                      className={`mt-0.5 font-medium tabular-nums ${
+                        detailTxn.entryType === 'debit'
+                          ? 'text-red-700'
+                          : 'text-primary-700'
+                      }`}
+                    >
+                      {detailTxn.entryType === 'debit' ? '−' : '+'}
+                      {formatMoney(detailTxn.amount, currency)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                      Running balance
+                    </dt>
+                    <dd className="mt-0.5 font-medium tabular-nums text-brand-ink">
+                      {formatMoney(detailTxn.runningBalance, currency)}
+                    </dd>
+                  </div>
+                </div>
+                <div>
+                  <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                    Attachments
+                    {detailTxn.attachments.length > 0
+                      ? ` (${detailTxn.attachments.length})`
+                      : ''}
+                  </dt>
+                  <dd className="mt-1.5">
+                    {detailTxn.attachments.length > 0 ? (
+                      <ul className="space-y-1.5">
+                        {detailTxn.attachments.map((file) => (
+                          <li key={file.id}>
+                            <a
+                              href={file.publicUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex max-w-full items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-2 text-sm text-primary-700 hover:bg-primary-50"
+                            >
+                              <FileText className="h-4 w-4 shrink-0" aria-hidden />
+                              <span className="truncate">{file.fileName}</span>
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-xs text-brand-stone">
+                        No attachments on this entry.
+                      </p>
+                    )}
+                  </dd>
+                </div>
+              </dl>
+            </FormModalBody>
+            <FormModalFooter>
+              <button
+                type="button"
+                onClick={() => setDetailTxn(null)}
+                className={formModalSecondaryButtonClass}
+              >
+                Close
+              </button>
+            </FormModalFooter>
+          </div>
+        </div>
+      ) : null}
     </main>
   )
 }

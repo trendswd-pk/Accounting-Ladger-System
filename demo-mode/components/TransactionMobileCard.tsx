@@ -82,10 +82,16 @@ export default function TransactionMobileCard({
             <span className="font-medium text-white/85"> · SR {row.entryNumber}</span>
           </p>
           <div className="flex shrink-0 items-center gap-3 text-[11px] font-medium text-white/85">
-            <span className="inline-flex items-center gap-1 tabular-nums">
-              <Clock className="h-3 w-3 opacity-80" strokeWidth={2.25} aria-hidden />
-              {formatTime(row.createdAt)}
-            </span>
+            {row.createdAt ? (
+              <span className="inline-flex items-center gap-1 tabular-nums">
+                <Clock
+                  className="h-3 w-3 opacity-80"
+                  strokeWidth={2.25}
+                  aria-hidden
+                />
+                {formatTime(row.createdAt)}
+              </span>
+            ) : null}
             <span className="inline-flex items-center gap-1 tabular-nums">
               <Calendar className="h-3 w-3 opacity-80" strokeWidth={2.25} aria-hidden />
               {formatDisplayDate(row.transactionDate)}
@@ -95,20 +101,30 @@ export default function TransactionMobileCard({
       </div>
 
       <div className="relative px-4 pb-3.5 pt-1.5">
-        <div className="flex min-w-0 items-center justify-between gap-2">
-          <div className="min-w-0 flex-1 overflow-hidden">
-            <h2 className="truncate text-[1.125rem] font-bold leading-snug tracking-tight text-brand-ink">
-              {row.accountName}
-            </h2>
+        {row.accountName.trim() || actions ? (
+          <div className="flex min-w-0 items-center justify-between gap-2">
+            {row.accountName.trim() ? (
+              <div className="min-w-0 flex-1 overflow-hidden">
+                <h2 className="truncate text-[1.125rem] font-bold leading-snug tracking-tight text-brand-ink">
+                  {row.accountName}
+                </h2>
+              </div>
+            ) : (
+              <div className="min-w-0 flex-1" />
+            )}
+            {actions ? (
+              <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                {actions}
+              </div>
+            ) : null}
           </div>
-          {actions ? (
-            <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-              {actions}
-            </div>
-          ) : null}
-        </div>
+        ) : null}
 
-        <div className="mt-2 flex flex-wrap items-center gap-2">
+        <div
+          className={`flex flex-wrap items-center gap-2 ${
+            row.accountName.trim() || actions ? 'mt-2' : 'mt-0.5'
+          }`}
+        >
           <span
             className={`inline-flex items-center gap-1 rounded-full bg-primary-50 px-2.5 py-1 text-[11px] font-semibold shadow-sm ${
               isCredit ? 'text-primary-800' : 'text-red-700'
@@ -121,19 +137,15 @@ export default function TransactionMobileCard({
             )}
             {typeLabel}
           </span>
-          <span className="inline-flex items-center rounded-full border border-white/75 bg-white/18 px-2.5 py-1 text-[11px] font-semibold tabular-nums text-white">
+          <span className="inline-flex items-center rounded-full border border-brand-ink bg-white/18 px-2.5 py-1 text-[11px] font-semibold tabular-nums text-brand-ink">
             {signedLabel}
           </span>
         </div>
 
         <p className="mt-2 truncate text-[12px] text-brand-ink/65">{narration}</p>
 
-        <div className="mt-3 flex items-center justify-between gap-3 border-t border-brand-ink/10 pt-2.5 text-[12px] font-medium text-brand-ink">
+        <div className="mt-3 border-t border-brand-ink/10 pt-2.5 text-right text-[12px] font-medium text-brand-ink">
           <p className="min-w-0 truncate">
-            <span className="opacity-70">Amount :</span>{' '}
-            <span className="font-semibold tabular-nums">{signedLabel}</span>
-          </p>
-          <p className="min-w-0 shrink-0 text-right">
             <span className="opacity-70">Running :</span>{' '}
             <span className="font-semibold tabular-nums">
               {formatBalance(row.runningBalance)}

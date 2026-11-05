@@ -9,6 +9,11 @@ All notable changes to Accounting Ledger are documented here.
 
 ### Changed
 - Shared ledger unlock page now uses the same **statement layout** as the ledger PDF (brand bar, account meta panel, Date / No. / Narration / Type / Amount / Balance table, closing balance). Tap a row to open attachments.
+- Shared ledger page is **mobile-first**: phones use the same curved **brand-sky** transaction cards as the Transactions page (tap for attachments); tablets/desktop keep the full PDF-style table.
+- Mobile transaction cards hide the clock when entry time is unavailable (no more empty “—” on share ledger).
+- Mobile transaction amount chip uses black text + border for clearer contrast on brand-sky cards.
+- Mobile transaction cards no longer repeat Amount in the footer (chip already shows it; footer keeps Running only).
+- Shared ledger: tapping a transaction opens a **detail popup** (date, narration, amount, running balance, attachments) instead of expanding attachments under the card.
 
 ## [1.1.2] — 2026-11-05
 
