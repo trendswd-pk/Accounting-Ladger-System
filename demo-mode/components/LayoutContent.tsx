@@ -48,6 +48,8 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   /** Full-screen voucher print/preview — no app chrome. */
   const isTransactionPrint =
     !!pathname && /^\/transactions\/[^/]+\/print\/?$/.test(pathname)
+  /** Public PIN-gated ledger share for WhatsApp recipients. */
+  const isPublicShare = !!pathname && pathname.startsWith('/share/')
 
   useEffect(() => {
     setNavOpen(false)
@@ -89,7 +91,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
     return () => globalThis.clearTimeout(t)
   }, [isLogin, pathname, router])
 
-  if (isLogin || isTransactionPrint) {
+  if (isLogin || isTransactionPrint || isPublicShare) {
     return <>{children}</>
   }
 

@@ -9,6 +9,8 @@ export const ACCOUNT_MESSAGE_VARS = [
   { key: 'balance', label: 'Balance' },
   { key: 'note', label: 'Note' },
   { key: 'ledger_url', label: 'Ledger URL' },
+  { key: 'ledger_pin', label: 'Ledger PIN' },
+  { key: 'ledger_expires', label: 'Ledger expires' },
   { key: 'account_type', label: 'Account type' },
   { key: 'cash_type', label: 'Cash type' },
   { key: 'business_name', label: 'Business' },
@@ -83,7 +85,9 @@ Current Balance: {{balance}}
 
 Note: {{note}}
 
-Ledger: {{ledger_url}}`
+Ledger: {{ledger_url}}
+Access code: {{ledger_pin}}
+Valid until: {{ledger_expires}}`
 
 /** Default transaction WhatsApp/share template ({{note}} matches current balance). */
 export const DEFAULT_TRANSACTION_MESSAGE_TEMPLATE = `Transaction Details
@@ -127,8 +131,10 @@ export function accountMessageVars(
     businessName: string
     currency: string
     notes?: BalanceNoteTexts
-    /** Short public ledger PDF link (empty when disabled / unavailable). */
+    /** Interactive ledger preview URL (PIN-gated). */
     ledgerUrl?: string
+    ledgerPin?: string
+    ledgerExpires?: string
   }
 ): Record<string, string> {
   return {
@@ -137,6 +143,8 @@ export function accountMessageVars(
     balance: formatMoney(account.balance, opts.currency),
     note: balanceNoteFor(account.balance, opts.notes),
     ledger_url: String(opts.ledgerUrl ?? '').trim(),
+    ledger_pin: String(opts.ledgerPin ?? '').trim(),
+    ledger_expires: String(opts.ledgerExpires ?? '').trim(),
     account_type: account.accountTypeName,
     cash_type: account.cashTypeName,
     business_name: opts.businessName,

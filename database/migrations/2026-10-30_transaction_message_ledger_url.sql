@@ -62,7 +62,7 @@ AS $$
     ),
     jsonb_build_object(
       'id', 1,
-      'business_name', 'My Business',
+      'business_name', 'Trends WD',
       'currency', 'PKR',
       'theme', 'dark',
       'default_entry_mode', 'normal',

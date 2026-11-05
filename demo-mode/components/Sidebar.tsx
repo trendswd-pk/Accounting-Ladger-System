@@ -21,7 +21,7 @@ import {
   LogOut,
   type LucideIcon,
 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { signOutDemo } from '@/lib/demoAuth'
 import {
   DEFAULT_APP_SETTINGS,
   getCachedAppSettings,
@@ -172,8 +172,7 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
     if (signingOut) return
     setSigningOut(true)
     try {
-      const supabase = createClient()
-      await supabase.auth.signOut()
+      signOutDemo()
       onClose?.()
       router.replace('/login')
       router.refresh()

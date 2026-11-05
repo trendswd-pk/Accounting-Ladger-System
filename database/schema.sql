@@ -169,7 +169,7 @@ $$;
 
 CREATE TABLE IF NOT EXISTS public.app_settings (
   id INTEGER PRIMARY KEY CHECK (id = 1),
-  business_name TEXT NOT NULL DEFAULT 'My Business',
+  business_name TEXT NOT NULL DEFAULT 'Trends WD',
   currency TEXT NOT NULL DEFAULT 'PKR',
   theme TEXT NOT NULL DEFAULT 'dark' CHECK (theme IN ('light', 'dark')),
   default_entry_mode TEXT NOT NULL DEFAULT 'normal'
@@ -257,7 +257,7 @@ GRANT ALL ON public.app_settings TO anon;
 GRANT ALL ON public.app_settings TO service_role;
 
 INSERT INTO public.app_settings (id, business_name, currency, theme)
-VALUES (1, 'My Business', 'PKR', 'dark')
+VALUES (1, 'Trends WD', 'PKR', 'dark')
 ON CONFLICT (id) DO NOTHING;
 
 -- Seed message notes / templates when empty
@@ -556,7 +556,7 @@ AS $$
     ),
     jsonb_build_object(
       'id', 1,
-      'business_name', 'My Business',
+      'business_name', 'Trends WD',
       'currency', 'PKR',
       'theme', 'dark',
       'default_entry_mode', 'normal',
@@ -702,6 +702,34 @@ GRANT EXECUTE ON FUNCTION public.rpc_list_cash_types() TO anon, authenticated, s
 GRANT EXECUTE ON FUNCTION public.rpc_list_accounts() TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.rpc_list_transactions() TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.rpc_list_bank_details() TO anon, authenticated, service_role;
+
+-- #############################################################################
+-- Secure ledger shares (PIN + expiry) — /share/ledger/{token}
+-- #############################################################################
+
+CREATE TABLE IF NOT EXISTS public.ledger_shares (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  token TEXT NOT NULL,
+  account_id UUID NOT NULL REFERENCES public.accounts (id) ON DELETE CASCADE,
+  pin_hash TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  failed_attempts INTEGER NOT NULL DEFAULT 0,
+  locked_until TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT ledger_shares_token_unique UNIQUE (token)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ledger_shares_account_id
+  ON public.ledger_shares (account_id);
+
+CREATE INDEX IF NOT EXISTS idx_ledger_shares_expires_at
+  ON public.ledger_shares (expires_at);
+
+ALTER TABLE public.ledger_shares ENABLE ROW LEVEL SECURITY;
+
+GRANT ALL ON public.ledger_shares TO service_role;
+REVOKE ALL ON public.ledger_shares FROM anon;
+REVOKE ALL ON public.ledger_shares FROM authenticated;
 
 -- =============================================================================
 -- OPTIONAL (do NOT run with schema install): clear all transactions only

@@ -2,6 +2,14 @@
 
 All notable changes to Accounting Ledger are documented here.
 
+## [1.2.0] — 2026-11-05
+
+### Added
+- Secure **interactive ledger preview** for WhatsApp recipients: Send message creates `/share/ledger/{token}` with a **4-digit access code**, valid **24 hours**. Recipient unlocks to view balance, transaction list, entry details, and attachments. Failed PINs lock after 5 tries. Requires `database/migrations/2026-11-05_ledger_shares.sql`.
+
+### Changed
+- Shared ledger unlock page now uses the same **statement layout** as the ledger PDF (brand bar, account meta panel, Date / No. / Narration / Type / Amount / Balance table, closing balance). Tap a row to open attachments.
+
 ## [1.1.2] — 2026-11-05
 
 ### Added

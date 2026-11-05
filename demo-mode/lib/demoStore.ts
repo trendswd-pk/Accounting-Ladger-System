@@ -11,12 +11,24 @@ export type DemoResource =
   | 'accountTypes'
   | 'cashTypes'
   | 'bankDetails'
+  | 'ledgerShares'
   | 'accounts'
   | 'transactions'
   | 'settings'
   | 'uploads'
   | 'seeded'
   | 'profile'
+
+export type DemoLedgerShare = {
+  id: string
+  token: string
+  accountId: string
+  pinHash: string
+  expiresAt: string
+  failedAttempts: number
+  lockedUntil: string | null
+  createdAt: string
+}
 
 export function demoStorageKey(userId: string, resource: DemoResource): string {
   return `demo:${SLUG}:user:${userId}:${resource}`
@@ -97,6 +109,70 @@ export function setBankDetails(rows: BankDetailRecord[], userId?: string): void 
   writeJson(demoStorageKey(id, 'bankDetails'), rows)
 }
 
+export function getLedgerShares(userId?: string): DemoLedgerShare[] {
+  const id = requireUserId(userId)
+  return readJson<DemoLedgerShare[]>(demoStorageKey(id, 'ledgerShares'), [])
+}
+
+export function setLedgerShares(rows: DemoLedgerShare[], userId?: string): void {
+  const id = requireUserId(userId)
+  writeJson(demoStorageKey(id, 'ledgerShares'), rows)
+}
+
+/** Resolve which demo user owns a ledger share token (recipients may be logged out). */
+export function findLedgerShareOwnerUserId(token: string): string | null {
+  if (typeof window === 'undefined') return null
+  const prefix = `demo:${SLUG}:user:`
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (!key || !key.startsWith(prefix) || !key.endsWith(':ledgerShares')) {
+        continue
+      }
+      const rows = readJson<DemoLedgerShare[]>(key, [])
+      if (rows.some((r) => r.token === token)) {
+        // demo:{slug}:user:{userId}:ledgerShares
+        const mid = key.slice(prefix.length)
+        return mid.replace(/:ledgerShares$/, '') || null
+      }
+    }
+  } catch {
+    return null
+  }
+  return null
+}
+
+/** Find a share by token across the current user sandbox (or any sandbox). */
+export function findLedgerShareByToken(token: string): DemoLedgerShare | null {
+  const owner = findLedgerShareOwnerUserId(token)
+  if (owner) {
+    return getLedgerShares(owner).find((r) => r.token === token) ?? null
+  }
+  const id = currentUserIdFromSession()
+  if (!id) return null
+  return getLedgerShares(id).find((r) => r.token === token) ?? null
+}
+
+export function updateLedgerShareByToken(
+  token: string,
+  patch: Partial<DemoLedgerShare>
+): DemoLedgerShare | null {
+  if (typeof window === 'undefined') return null
+  const prefix = `demo:${SLUG}:user:`
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i)
+    if (!key || !key.startsWith(prefix) || !key.endsWith(':ledgerShares')) continue
+    const rows = readJson<DemoLedgerShare[]>(key, [])
+    const idx = rows.findIndex((r) => r.token === token)
+    if (idx < 0) continue
+    const next = { ...rows[idx]!, ...patch }
+    const updated = rows.map((r, j) => (j === idx ? next : r))
+    writeJson(key, updated)
+    return next
+  }
+  return null
+}
+
 export type StoredAccount = {
   id: string
   name: string
@@ -173,6 +249,7 @@ export function clearDemoUserData(userId?: string): void {
     'accountTypes',
     'cashTypes',
     'bankDetails',
+    'ledgerShares',
     'accounts',
     'transactions',
     'settings',

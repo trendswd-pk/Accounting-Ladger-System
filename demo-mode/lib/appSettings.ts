@@ -59,7 +59,7 @@ export type AppSettings = {
 }
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
-  businessName: 'My Business',
+  businessName: 'Trends WD',
   currency: 'PKR',
   theme: 'dark',
   defaultEntryMode: 'normal',

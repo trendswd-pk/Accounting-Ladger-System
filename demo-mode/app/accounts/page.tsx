@@ -61,7 +61,11 @@ import {
   todayNetsByAccount,
 } from '@/lib/accountDayMovement'
 import { formatMoney } from '@/lib/money'
-import { shareUrlForAttachmentFast } from '@/lib/shortUrl'
+import {
+  buildShareAccessFooter,
+  createLedgerShare,
+  formatShareExpiryLabel,
+} from '@/lib/ledgerShare'
 import {
   fetchSetupTypes,
   getCachedSetupTypes,
@@ -411,30 +415,37 @@ export default function AccountsPage() {
 
     try {
       let ledgerUrl = ''
+      let ledgerPin = ''
+      let ledgerExpiresIso = ''
+      let ledgerExpires = ''
+
       if (accountMessageIncludeLedgerUrl) {
-        bump(18, 'Creating ledger PDF…')
+        bump(15, 'Creating secure ledger link…')
         try {
-          const attachment = await saveAccountLedgerPdfToDocuments(row, {
+          const share = await createLedgerShare(row.id)
+          ledgerUrl = share.url
+          ledgerPin = share.pin
+          ledgerExpiresIso = share.expiresAt
+          ledgerExpires = formatShareExpiryLabel(share.expiresAt)
+        } catch (err) {
+          setListError(
+            err instanceof Error
+              ? err.message
+              : 'Could not create secure ledger link.'
+          )
+        }
+
+        // Still archive a PDF in Documents for internal records (best-effort).
+        bump(45, 'Saving ledger PDF copy…')
+        try {
+          await saveAccountLedgerPdfToDocuments(row, {
             currency,
             businessName,
             logoUrl,
           })
           setDocsNonce((n) => n + 1)
-          bump(55, 'Building share link…')
-          const share = shareUrlForAttachmentFast(attachment)
-          if (share) {
-            ledgerUrl = share
-          } else {
-            setListError(
-              'Ledger PDF saved, but share link could not be built. Check Allow URL in Settings.'
-            )
-          }
-        } catch (err) {
-          setListError(
-            err instanceof Error
-              ? err.message
-              : 'Could not save ledger PDF for the message link.'
-          )
+        } catch {
+          /* PDF archive optional when interactive link exists */
         }
       }
 
@@ -450,25 +461,38 @@ export default function AccountsPage() {
             zero: messageNoteZero,
           },
           ledgerUrl,
+          ledgerPin,
+          ledgerExpires,
         })
       )
 
-      // Always put a working link at the end when allowed (covers older templates
-      // and empty {{ledger_url}} placeholders).
       if (ledgerUrl && accountMessageIncludeLedgerUrl) {
+        const footer = buildShareAccessFooter({
+          url: ledgerUrl,
+          pin: ledgerPin,
+          expiresAt: ledgerExpiresIso || new Date().toISOString(),
+        })
         if (/\{\{\s*ledger_url\s*\}\}/i.test(template)) {
-          // Placeholder already filled above; if still blank somehow, append.
           if (!text.includes(ledgerUrl)) {
-            text = `${text.trim()}\n\nLedger: ${ledgerUrl}`
+            text = `${text.trim()}\n\n${footer}`
           }
         } else {
-          text = `${text.trim()}\n\nLedger: ${ledgerUrl}`
+          text = `${text.trim()}\n\n${footer}`
+        }
+
+        // Ensure PIN / expiry appear even with older templates that only had URL.
+        if (ledgerPin && !text.includes(ledgerPin)) {
+          text = `${text.trim()}\nAccess code: ${ledgerPin}`
+        }
+        if (ledgerExpires && !text.includes(ledgerExpires)) {
+          text = `${text.trim()}\nValid until: ${ledgerExpires}`
         }
       }
 
-      // Drop empty "Ledger:" lines when URL was not available.
       text = text
         .replace(/^[ \t]*Ledger:[ \t]*$/gim, '')
+        .replace(/^[ \t]*Access code:[ \t]*$/gim, '')
+        .replace(/^[ \t]*Valid until:[ \t]*$/gim, '')
         .replace(/\n{3,}/g, '\n\n')
         .trim()
 

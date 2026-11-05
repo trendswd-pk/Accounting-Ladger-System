@@ -320,7 +320,7 @@ function applySeed(userId: string): void {
   setStoredSettings(seed.settings, userId)
   setStoredUploads([], userId)
   markDemoSeeded(userId)
-  // Warm settings cache so header shows Northline Advisory, not "My Business".
+  // Warm settings cache so header shows Trends WD, not "Trends WD".
   void import('@/lib/appSettings').then(({ invalidateAppSettingsCache, fetchAppSettings }) => {
     invalidateAppSettingsCache()
     void fetchAppSettings().catch(() => {})
