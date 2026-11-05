@@ -20,7 +20,10 @@ type TransactionMobileCardProps = {
   row: TransactionMobileCardRow
   formatBalance: (n: number) => string
   formatDisplayDate: (iso: string) => string
+  /** Top-right actions (e.g. menus on Transactions page). */
   actions?: ReactNode
+  /** Footer left slot (e.g. attachment chip on shared ledger). */
+  footerLeft?: ReactNode
   onOpen: () => void
 }
 
@@ -42,12 +45,14 @@ export default function TransactionMobileCard({
   formatBalance,
   formatDisplayDate,
   actions,
+  footerLeft,
   onOpen,
 }: TransactionMobileCardProps) {
   const isCredit = row.entryType === 'credit'
   const signedLabel = `${isCredit ? '+' : '−'}${formatBalance(Math.abs(row.balance))}`
   const typeLabel = isCredit ? 'Credit' : 'Debit'
   const narration = row.narration.trim() || '—'
+  const hasTopRow = Boolean(row.accountName.trim() || actions)
 
   return (
     <article
@@ -101,7 +106,7 @@ export default function TransactionMobileCard({
       </div>
 
       <div className="relative px-4 pb-3.5 pt-1.5">
-        {row.accountName.trim() || actions ? (
+        {hasTopRow ? (
           <div className="flex min-w-0 items-center justify-between gap-2">
             {row.accountName.trim() ? (
               <div className="min-w-0 flex-1 overflow-hidden">
@@ -122,7 +127,7 @@ export default function TransactionMobileCard({
 
         <div
           className={`flex flex-wrap items-center gap-2 ${
-            row.accountName.trim() || actions ? 'mt-2' : 'mt-0.5'
+            hasTopRow ? 'mt-2' : 'mt-0.5'
           }`}
         >
           <span
@@ -144,8 +149,16 @@ export default function TransactionMobileCard({
 
         <p className="mt-2 truncate text-[12px] text-brand-ink/65">{narration}</p>
 
-        <div className="mt-3 border-t border-brand-ink/10 pt-2.5 text-right text-[12px] font-medium text-brand-ink">
-          <p className="min-w-0 truncate">
+        <div className="mt-3 flex min-w-0 items-center justify-between gap-2 border-t border-brand-ink/10 pt-2.5 text-[12px] font-medium text-brand-ink">
+          <div
+            className="shrink-0"
+            onClick={(e) => {
+              if (footerLeft) e.stopPropagation()
+            }}
+          >
+            {footerLeft ?? null}
+          </div>
+          <p className="min-w-0 truncate text-right">
             <span className="opacity-70">Running :</span>{' '}
             <span className="font-semibold tabular-nums">
               {formatBalance(row.runningBalance)}

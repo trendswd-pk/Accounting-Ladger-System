@@ -2,6 +2,8 @@
  * Client helpers for interactive ledger shares (PIN + expiry).
  */
 
+import { formatDisplayDateTime } from '@/lib/localDate'
+
 export type CreatedLedgerShare = {
   token: string
   pin: string
@@ -10,15 +12,7 @@ export type CreatedLedgerShare = {
 }
 
 export function formatShareExpiryLabel(iso: string): string {
-  try {
-    const d = new Date(iso)
-    return d.toLocaleString(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    })
-  } catch {
-    return String(iso).slice(0, 16)
-  }
+  return formatDisplayDateTime(iso)
 }
 
 export function buildShareAccessFooter(opts: {

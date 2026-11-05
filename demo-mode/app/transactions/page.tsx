@@ -37,6 +37,7 @@ import TransactionFormAttachments, {
   uploadPendingTransactionFiles,
 } from '@/components/TransactionFormAttachments'
 import { isExpenseAccount } from '@/lib/accountFilters'
+import { formatDisplayDate } from '@/lib/localDate'
 import { fetchAccounts, getCachedAccounts, type AccountRecord } from '@/lib/accounts'
 import {
   DEFAULT_APP_SETTINGS,
@@ -79,13 +80,6 @@ function todayISO(): string {
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
-}
-
-function formatDisplayDate(iso: string): string {
-  const raw = String(iso ?? '').slice(0, 10)
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw || '—'
-  const [y, m, d] = raw.split('-')
-  return `${d}-${m}-${y}`
 }
 
 function entryTypeBadgeClass(type: TransactionEntryType): string {

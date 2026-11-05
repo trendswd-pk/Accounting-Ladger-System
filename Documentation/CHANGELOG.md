@@ -14,6 +14,22 @@ All notable changes to Accounting Ledger are documented here.
 - Mobile transaction amount chip uses black text + border for clearer contrast on brand-sky cards.
 - Mobile transaction cards no longer repeat Amount in the footer (chip already shows it; footer keeps Running only).
 - Shared ledger: tapping a transaction opens a **detail popup** (date, narration, amount, running balance, attachments) instead of expanding attachments under the card.
+- Shared ledger after PIN unlock opens a **menu**: account details, last transaction, **Full ledger details**, **Current month ledger**, and (when balance is due / positive) **Bank details** with QR from Settings → Bank details.
+- Shared ledger menu uses consistent action buttons (including last transaction); transaction opens a **detail page** (not popup). Desktop home uses a two-column layout.
+- Shared ledger menu includes **Export ledger** — recipient can download the full statement as PDF.
+- Full / current-month ledger previews use the same **PDF statement layout** (brand header, account meta panel, entry list, closing balance).
+- Shared ledger pages follow the app **dark theme** surfaces (`gray-50` / `gray-950`, dark cards and borders) so unlocked preview matches the rest of the product.
+- Root HTML defaults to `dark` (matching app theme default) so share and other pages do not flash a light canvas before client theme init.
+- Current month ledger shows **opening balance** (balance before this month) on the menu button and as a line above month entries, plus closing balance.
+- Shared ledger brand header has lightly rounded bottom corners.
+- Shared ledger account details: Balance label and amount are stronger / higher contrast (especially in dark mode).
+- Shared ledger bank cards: stronger header wash and clearer bank name / account title text.
+- Shared ledger bank cards in a row stretch to equal height (details body fills space).
+- Shared ledger bank QR blocks are equal height; tap opens a **full-screen white QR** for easier scanning.
+- Shared ledger bank card titles readable again in dark mode (solid `primary-900` header instead of missing `primary-950`).
+- Shared ledger mobile layout: no horizontal overflow (grid/menu `min-w-0`, header truncate, overflow clamp).
+- Mobile shared-ledger cards: attachment chip in footer left; Running balance stays right.
+- Display dates use a single format everywhere: **05-Nov-2026** (and datetimes as `05-Nov-2026, 5:18 PM`).
 
 ## [1.1.2] — 2026-11-05
 

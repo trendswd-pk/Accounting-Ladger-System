@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import type { AccountRecord } from '@/lib/accounts'
+import { formatDisplayDate } from '@/lib/localDate'
 import { formatMoney } from '@/lib/money'
 import type { TransactionRecord } from '@/lib/transactions'
 import {
@@ -26,13 +27,6 @@ function safeFilePart(name: string): string {
       .replace(/^-+|-+$/g, '')
       .slice(0, 40) || 'transaction'
   )
-}
-
-function formatDisplayDate(iso: string): string {
-  const raw = String(iso ?? '').slice(0, 10)
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw || '—'
-  const [y, m, d] = raw.split('-')
-  return `${d}-${m}-${y}`
 }
 
 function proxyUrl(href: string): string {
@@ -185,11 +179,7 @@ async function buildDetailsPdfBytes(
     doc.text(opts.businessName || 'Ledger', marginX, barH / 2 + 5)
   }
 
-  const exported = new Date().toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  })
+  const exported = formatDisplayDate(new Date())
   doc.setTextColor(255, 255, 255)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(11)

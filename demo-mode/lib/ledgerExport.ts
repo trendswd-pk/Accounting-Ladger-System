@@ -1,4 +1,5 @@
 import { csvEscape, toCsv, downloadTextFile } from '@/lib/csv'
+import { formatDisplayDate } from '@/lib/localDate'
 import { formatMoney } from '@/lib/money'
 import {
   fetchTransactions,
@@ -39,13 +40,6 @@ function safeFilePart(name: string): string {
     .replace(/-{2,}/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 40) || 'account'
-}
-
-function formatDisplayDate(iso: string): string {
-  const raw = String(iso ?? '').slice(0, 10)
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw || '—'
-  const [y, m, d] = raw.split('-')
-  return `${d}-${m}-${y}`
 }
 
 /** Chronological ledger lines with running balance for one account. */
@@ -129,13 +123,17 @@ export async function exportAccountLedgerCsv(
 
 type PdfLogo = { dataUrl: string; width: number; height: number }
 
-/** Load settings logo for jsPDF (demo data URLs or remote URLs). */
+function logoProxyUrl(href: string): string {
+  return `/api/branding/image?url=${encodeURIComponent(href)}`
+}
+
+/** Load settings logo for jsPDF via same-origin proxy → PNG data URL. */
 async function loadLogoForPdf(url: string | null | undefined): Promise<PdfLogo | null> {
   const href = String(url ?? '').trim()
   if (!href || typeof window === 'undefined') return null
 
   try {
-    const res = await fetch(href)
+    const res = await fetch(logoProxyUrl(href), { cache: 'force-cache' })
     if (!res.ok) return null
     const blob = await res.blob()
     const objectUrl = URL.createObjectURL(blob)
@@ -180,9 +178,17 @@ async function loadLogoForPdf(url: string | null | undefined): Promise<PdfLogo |
   }
 }
 
+export type LedgerPdfAccountMeta = {
+  name: string
+  phone: string
+  accountTypeName: string
+  cashTypeName: string
+  balance: number
+}
+
 function drawLedgerPdfHeader(
   doc: InstanceType<typeof import('jspdf').jsPDF>,
-  account: AccountRecord,
+  account: LedgerPdfAccountMeta,
   opts: {
     currency: string
     businessName: string
@@ -224,11 +230,7 @@ function drawLedgerPdfHeader(
   }
 
   // Right corner: title + export date
-  const exported = new Date().toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  })
+  const exported = formatDisplayDate(new Date())
   doc.setTextColor(255, 255, 255)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(11)
@@ -300,9 +302,10 @@ function drawLedgerPdfHeader(
   return y + 12
 }
 
-/** Build ledger PDF bytes without downloading (shared by export + Documents save). */
-export async function buildAccountLedgerPdfBlob(
-  account: AccountRecord,
+/** Build ledger PDF from precomputed lines (share links / offline export). */
+export async function buildLedgerPdfBlobFromLines(
+  account: LedgerPdfAccountMeta,
+  lines: LedgerLine[],
   opts: { currency: string; businessName: string; logoUrl?: string | null }
 ): Promise<{ blob: Blob; filename: string }> {
   const [{ jsPDF }, autoTableMod] = await Promise.all([
@@ -310,10 +313,7 @@ export async function buildAccountLedgerPdfBlob(
     import('jspdf-autotable'),
   ])
   const autoTable = autoTableMod.default
-  const [lines, logo] = await Promise.all([
-    loadAccountLedgerLines(account.id),
-    loadLogoForPdf(opts.logoUrl),
-  ])
+  const logo = await loadLogoForPdf(opts.logoUrl)
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' })
   const marginX = 40
@@ -451,6 +451,29 @@ export async function buildAccountLedgerPdfBlob(
   const filename = `ledger-${safeFilePart(account.name)}-${stamp()}.pdf`
   const blob = doc.output('blob')
   return { blob, filename }
+}
+
+/** Build ledger PDF bytes without downloading (shared by export + Documents save). */
+export async function buildAccountLedgerPdfBlob(
+  account: AccountRecord,
+  opts: { currency: string; businessName: string; logoUrl?: string | null }
+): Promise<{ blob: Blob; filename: string }> {
+  const lines = await loadAccountLedgerLines(account.id)
+  return buildLedgerPdfBlobFromLines(account, lines, opts)
+}
+
+/** Download a ledger PDF from in-memory share / preview lines (no auth APIs). */
+export async function exportLedgerPdfFromLines(
+  account: LedgerPdfAccountMeta,
+  lines: LedgerLine[],
+  opts: { currency: string; businessName: string; logoUrl?: string | null }
+): Promise<void> {
+  const { blob, filename } = await buildLedgerPdfBlobFromLines(
+    account,
+    lines,
+    opts
+  )
+  downloadBlob(filename, blob)
 }
 
 export async function exportAccountLedgerPdf(

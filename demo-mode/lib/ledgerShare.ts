@@ -1,8 +1,10 @@
+import { formatDisplayDateTime } from '@/lib/localDate'
 import { requireDemoUser } from '@/lib/demoAuth'
 import {
   findLedgerShareByToken,
   findLedgerShareOwnerUserId,
   getAccountTypes,
+  getBankDetails,
   getCashTypes,
   getStoredAccounts,
   getStoredSettings,
@@ -34,14 +36,7 @@ export type CreatedLedgerShare = {
 }
 
 export function formatShareExpiryLabel(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    })
-  } catch {
-    return String(iso).slice(0, 16)
-  }
+  return formatDisplayDateTime(iso)
 }
 
 export function buildShareAccessFooter(opts: {
@@ -199,6 +194,21 @@ export async function unlockLedgerShareDemo(token: string, pin: string) {
   const cashTypeName =
     cashTypes.find((t) => t.id === account.cashTypeId)?.name ?? ''
 
+  const banks = getBankDetails(ownerId)
+    .filter((b) => b.active)
+    .map((b) => ({
+      id: b.id,
+      bankName: b.bankName,
+      accountTitle: b.accountTitle,
+      accountNumber: b.accountNumber,
+      iban: b.iban,
+      branchName: b.branchName,
+      branchCode: b.branchCode,
+      swiftCode: b.swiftCode,
+      notes: b.notes,
+      qrCodeUrl: b.qrCodeUrl,
+    }))
+
   return {
     account: {
       id: account.id,
@@ -214,5 +224,6 @@ export async function unlockLedgerShareDemo(token: string, pin: string) {
     expiresAt: share.expiresAt,
     // Chronological like the ledger PDF statement.
     transactions: withRunning,
+    banks,
   }
 }

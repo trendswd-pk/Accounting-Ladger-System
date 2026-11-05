@@ -2,8 +2,78 @@
 
 const YMD_RE = /^(\d{4})-(\d{2})-(\d{2})$/
 
+const MONTH_SHORT = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const
+
 export function pad2(n: number): string {
   return String(n).padStart(2, '0')
+}
+
+/**
+ * Display date: `05-Nov-2026`.
+ * Accepts YYYY-MM-DD, ISO datetime, or Date. Invalid → `—` (or raw slice).
+ */
+export function formatDisplayDate(
+  value: string | Date | null | undefined
+): string {
+  if (value == null || value === '') return '—'
+
+  let y: number
+  let m: number
+  let d: number
+
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return '—'
+    y = value.getFullYear()
+    m = value.getMonth() + 1
+    d = value.getDate()
+  } else {
+    const raw = String(value).trim()
+    const ymd = raw.slice(0, 10)
+    if (YMD_RE.test(ymd)) {
+      y = Number(ymd.slice(0, 4))
+      m = Number(ymd.slice(5, 7))
+      d = Number(ymd.slice(8, 10))
+    } else {
+      const parsed = new Date(raw)
+      if (Number.isNaN(parsed.getTime())) return raw || '—'
+      y = parsed.getFullYear()
+      m = parsed.getMonth() + 1
+      d = parsed.getDate()
+    }
+  }
+
+  if (m < 1 || m > 12 || d < 1 || d > 31) return '—'
+  return `${pad2(d)}-${MONTH_SHORT[m - 1]}-${y}`
+}
+
+/** Display datetime: `05-Nov-2026, 5:18 PM`. */
+export function formatDisplayDateTime(
+  value: string | Date | null | undefined
+): string {
+  if (value == null || value === '') return '—'
+  const date = value instanceof Date ? value : new Date(String(value))
+  if (Number.isNaN(date.getTime())) return formatDisplayDate(value)
+
+  const datePart = formatDisplayDate(date)
+  let h = date.getHours()
+  const min = pad2(date.getMinutes())
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  h = h % 12
+  if (h === 0) h = 12
+  return `${datePart}, ${h}:${min} ${ampm}`
 }
 
 /** Browser / Node local calendar day as YYYY-MM-DD. */

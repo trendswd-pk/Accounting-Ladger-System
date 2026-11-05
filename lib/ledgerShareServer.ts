@@ -39,6 +39,19 @@ export type LedgerShareTxn = {
   attachments: LedgerShareAttachment[]
 }
 
+export type LedgerShareBank = {
+  id: string
+  bankName: string
+  accountTitle: string
+  accountNumber: string
+  iban: string
+  branchName: string
+  branchCode: string
+  swiftCode: string
+  notes: string
+  qrCodeUrl: string | null
+}
+
 export type LedgerSharePayload = {
   account: {
     id: string
@@ -53,6 +66,8 @@ export type LedgerSharePayload = {
   logoUrl: string | null
   expiresAt: string
   transactions: LedgerShareTxn[]
+  /** Active business bank accounts (for pay-in when balance is due). */
+  banks: LedgerShareBank[]
 }
 
 export async function createLedgerShareForAccount(
@@ -332,6 +347,30 @@ async function buildLedgerPayload(
 
   const logoRaw = String(settings?.logo_url ?? '').trim()
 
+  const { data: bankRows } = await admin
+    .from('bank_details')
+    .select(
+      'id, bank_name, account_title, account_number, iban, branch_name, branch_code, swift_code, notes, qr_code_url, active'
+    )
+    .eq('active', true)
+    .order('created_at', { ascending: true })
+
+  const banks: LedgerShareBank[] = (bankRows ?? []).map((b) => {
+    const qr = String(b.qr_code_url ?? '').trim()
+    return {
+      id: String(b.id),
+      bankName: String(b.bank_name ?? ''),
+      accountTitle: String(b.account_title ?? ''),
+      accountNumber: String(b.account_number ?? ''),
+      iban: String(b.iban ?? ''),
+      branchName: String(b.branch_name ?? ''),
+      branchCode: String(b.branch_code ?? ''),
+      swiftCode: String(b.swift_code ?? ''),
+      notes: String(b.notes ?? ''),
+      qrCodeUrl: qr || null,
+    }
+  })
+
   return {
     account: {
       id: account.id,
@@ -346,5 +385,6 @@ async function buildLedgerPayload(
     logoUrl: logoRaw || null,
     expiresAt,
     transactions,
+    banks,
   }
 }
