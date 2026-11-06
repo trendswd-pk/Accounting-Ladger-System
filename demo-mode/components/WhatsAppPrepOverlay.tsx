@@ -6,7 +6,7 @@ type Props = {
   label?: string
 }
 
-/** In-app progress while WhatsApp message (and PDFs) are prepared. */
+/** In-app progress while WhatsApp message (and ledger link) are prepared. */
 export function WhatsAppPrepOverlay({
   open,
   percent,

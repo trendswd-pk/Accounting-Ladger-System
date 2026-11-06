@@ -410,11 +410,12 @@ function MessageTemplateModal({
                           {opt.title}
                         </p>
                         <InfoHint label={opt.title} placement="above">
-                          When enabled, Send message saves a PDF and fills{' '}
+                          When enabled, Send message creates a PIN-gated ledger
+                          preview and fills{' '}
                           <code className="rounded bg-gray-100 px-1 py-0.5 text-[11px] dark:bg-gray-700">
                             {`{{${opt.variable}}}`}
                           </code>{' '}
-                          with a short public link (no ads).
+                          (plus access code and expiry).
                         </InfoHint>
                       </div>
                       <button

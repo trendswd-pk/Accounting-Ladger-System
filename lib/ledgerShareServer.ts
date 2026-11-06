@@ -279,14 +279,6 @@ async function buildLedgerPayload(
     .eq('id', 1)
     .maybeSingle()
 
-  const { data: txRows, error: txErr } = await admin
-    .from('transactions')
-    .select('id, entry_number, transaction_date, narration, entry_type, balance')
-    .eq('account_id', accountId)
-    .order('transaction_date', { ascending: true })
-    .order('entry_number', { ascending: true })
-  if (txErr) throw new Error(txErr.message)
-
   type Slim = {
     id: string
     entry_number: number
@@ -296,7 +288,23 @@ async function buildLedgerPayload(
     balance: number | string
   }
 
-  const rows = (txRows ?? []) as Slim[]
+  // Paginate past PostgREST’s default ~1000-row cap. Oldest-first without
+  // paging drops current-month rows on busy accounts (e.g. Cash in Pocket).
+  const TX_PAGE = 1000
+  const rows: Slim[] = []
+  for (let from = 0; ; from += TX_PAGE) {
+    const { data: txRows, error: txErr } = await admin
+      .from('transactions')
+      .select('id, entry_number, transaction_date, narration, entry_type, balance')
+      .eq('account_id', accountId)
+      .order('transaction_date', { ascending: true })
+      .order('entry_number', { ascending: true })
+      .range(from, from + TX_PAGE - 1)
+    if (txErr) throw new Error(txErr.message)
+    const page = (txRows ?? []) as Slim[]
+    rows.push(...page)
+    if (page.length < TX_PAGE) break
+  }
   let running = 0
   const withRunning = rows.map((r) => {
     const entryType = normalizeEntryType(r.entry_type)

@@ -1,7 +1,7 @@
 # App version
 
-**Current version:** 1.2.0  
-**Released:** 2026-11-05
+**Current version:** 1.2.1  
+**Released:** 2026-11-06
 
 See the full [Changelog](./CHANGELOG.md).
 

@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react'
 import TransactionMobileCard from '@/components/TransactionMobileCard'
+import ScrollToTopButton from '@/components/ScrollToTopButton'
 import {
   FormModalBody,
   FormModalFooter,
@@ -32,7 +33,11 @@ import {
   type LedgerExportFormat,
   type LedgerLine,
 } from '@/lib/ledgerExport'
-import { formatDisplayDate, formatDisplayDateTime } from '@/lib/localDate'
+import {
+  formatDisplayDate,
+  formatDisplayDateTime,
+  localYmd,
+} from '@/lib/localDate'
 import { formatMoney } from '@/lib/money'
 
 type ShareMeta = {
@@ -117,10 +122,7 @@ const menuButtonClass =
   'flex w-full min-w-0 max-w-full items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-left shadow-sm transition active:scale-[0.99] hover:border-primary-200 hover:bg-primary-50/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-primary-700 dark:hover:bg-primary-950/40'
 
 function currentMonthPrefix(): string {
-  const d = new Date()
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  return `${y}-${m}`
+  return localYmd().slice(0, 7)
 }
 
 function currentMonthLabel(): string {
@@ -130,6 +132,10 @@ function currentMonthLabel(): string {
   })
 }
 
+function txnMonthKey(transactionDate: string): string {
+  return String(transactionDate ?? '').trim().slice(0, 7)
+}
+
 /** Balance carried into the month (closing of prior period). */
 function monthOpeningBalance(
   allRows: { transactionDate: string; runningBalance: number }[],
@@ -137,7 +143,7 @@ function monthOpeningBalance(
 ): number {
   let prior: number | null = null
   for (const row of allRows) {
-    if (row.transactionDate.startsWith(monthPrefix)) break
+    if (txnMonthKey(row.transactionDate) === monthPrefix) break
     prior = row.runningBalance
   }
   return prior ?? 0
@@ -450,8 +456,8 @@ export default function SharedLedgerPage() {
   const logoUrl = String(ledger.logoUrl ?? '').trim()
   const allRows = ledger.transactions
   const monthPrefix = currentMonthPrefix()
-  const monthRows = allRows.filter((t) =>
-    t.transactionDate.startsWith(monthPrefix)
+  const monthRows = allRows.filter(
+    (t) => txnMonthKey(t.transactionDate) === monthPrefix
   )
   const monthOpenBal = monthOpeningBalance(allRows, monthPrefix)
   const lastTxn = allRows.length > 0 ? allRows[allRows.length - 1]! : null
@@ -1278,6 +1284,7 @@ export default function SharedLedgerPage() {
             <span className="shrink-0">{rows.length} entries</span>
           </footer>
         </div>
+        <ScrollToTopButton dock="page" />
       </main>
     )
   }

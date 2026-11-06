@@ -1,6 +1,6 @@
 /**
- * Opens a same-gesture browser tab with a branded progress UI while PDFs /
- * message text are prepared, then navigates that tab to WhatsApp.
+ * Opens a same-gesture browser tab with a branded progress UI while the
+ * message (and secure ledger link) are prepared, then navigates to WhatsApp.
  * Avoids a blank white tab and keeps popup blockers happy.
  */
 

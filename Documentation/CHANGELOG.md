@@ -2,6 +2,18 @@
 
 All notable changes to Accounting Ledger are documented here.
 
+## [1.2.1] — 2026-11-06
+
+### Added
+- Shared full / current-month ledger: **Back to top** button (scroll progress ring) after scrolling down the long statement.
+
+### Fixed
+- **Send message** no longer generates/archives a ledger PDF before opening WhatsApp — only creates the secure preview link, so the prep step is much faster.
+- Shared **Current month ledger** missed recent entries on busy accounts (1000+ rows) because the share unlock query hit PostgREST’s row cap; it now pages through the full ledger.
+
+### Changed
+- Shared ledger WhatsApp / messenger **link preview** now shows a branded card matching the preview home (account name, valid-until, account-details layout) instead of the generic app / PDF card. Balance and phone stay PIN-gated.
+
 ## [1.2.0] — 2026-11-05
 
 ### Added

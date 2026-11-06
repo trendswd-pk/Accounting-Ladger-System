@@ -420,7 +420,7 @@ export default function AccountsPage() {
       let ledgerExpires = ''
 
       if (accountMessageIncludeLedgerUrl) {
-        bump(15, 'Creating secure ledger link…')
+        bump(20, 'Creating secure ledger link…')
         try {
           const share = await createLedgerShare(row.id)
           ledgerUrl = share.url
@@ -434,22 +434,9 @@ export default function AccountsPage() {
               : 'Could not create secure ledger link.'
           )
         }
-
-        // Still archive a PDF in Documents for internal records (best-effort).
-        bump(45, 'Saving ledger PDF copy…')
-        try {
-          await saveAccountLedgerPdfToDocuments(row, {
-            currency,
-            businessName,
-            logoUrl,
-          })
-          setDocsNonce((n) => n + 1)
-        } catch {
-          /* PDF archive optional when interactive link exists */
-        }
       }
 
-      bump(78, 'Composing message…')
+      bump(70, 'Composing message…')
       let text = fillMessageTemplate(
         template,
         accountMessageVars(row, {
