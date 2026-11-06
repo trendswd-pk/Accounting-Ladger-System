@@ -23,6 +23,7 @@ import {
   hashLedgerPin,
   LEDGER_SHARE_LOCK_MINUTES,
   MAX_LEDGER_SHARE_PIN_ATTEMPTS,
+  normalizeLedgerShareTtlHours,
   verifyLedgerPin,
 } from '@/lib/ledgerShareCrypto'
 import { signedTransactionAmount } from '@/lib/transactions'
@@ -33,6 +34,7 @@ export type CreatedLedgerShare = {
   pin: string
   url: string
   expiresAt: string
+  requirePin: boolean
 }
 
 export function formatShareExpiryLabel(iso: string): string {
@@ -44,11 +46,11 @@ export function buildShareAccessFooter(opts: {
   pin: string
   expiresAt: string
 }): string {
-  return [
-    `Ledger preview: ${opts.url}`,
-    `Access code: ${opts.pin}`,
-    `Valid until: ${formatShareExpiryLabel(opts.expiresAt)}`,
-  ].join('\n')
+  const lines = [`Ledger preview: ${opts.url}`]
+  const pin = String(opts.pin ?? '').trim()
+  if (pin) lines.push(`Access code: ${pin}`)
+  lines.push(`Valid until: ${formatShareExpiryLabel(opts.expiresAt)}`)
+  return lines.join('\n')
 }
 
 export async function createLedgerShare(
@@ -58,17 +60,22 @@ export async function createLedgerShare(
   const account = getStoredAccounts().find((a) => a.id === accountId)
   if (!account) throw new Error('Account not found.')
 
+  const settings = getStoredSettings()
+  const requirePin = settings?.ledgerShareRequirePin !== false
+  const ttl = normalizeLedgerShareTtlHours(
+    settings?.ledgerShareTtlHours ?? DEFAULT_LEDGER_SHARE_TTL_HOURS
+  )
+
   const token = generateLedgerShareToken()
-  const pin = generateLedgerPin()
-  const expiresAt = new Date(
-    Date.now() + DEFAULT_LEDGER_SHARE_TTL_HOURS * 60 * 60 * 1000
-  ).toISOString()
+  const pin = requirePin ? generateLedgerPin() : ''
+  const expiresAt = new Date(Date.now() + ttl * 60 * 60 * 1000).toISOString()
 
   const row: DemoLedgerShare = {
     id: newId('ls'),
     token,
     accountId,
-    pinHash: hashLedgerPin(pin, token),
+    pinHash: requirePin ? hashLedgerPin(pin, token) : '',
+    requirePin,
     expiresAt,
     failedAttempts: 0,
     lockedUntil: null,
@@ -83,6 +90,7 @@ export async function createLedgerShare(
     pin,
     url: `${origin}/share/ledger/${encodeURIComponent(token)}`,
     expiresAt,
+    requirePin,
   }
 }
 
@@ -95,6 +103,7 @@ export async function fetchLedgerShareMeta(token: string) {
   const expired = new Date(share.expiresAt).getTime() <= Date.now()
   const locked =
     !!share.lockedUntil && new Date(share.lockedUntil).getTime() > Date.now()
+  const requirePin = share.requirePin !== false && Boolean(share.pinHash)
   return {
     token,
     accountName: account?.name ?? 'Account',
@@ -102,6 +111,7 @@ export async function fetchLedgerShareMeta(token: string) {
     expiresAt: share.expiresAt,
     expired,
     locked,
+    requirePin,
   }
 }
 
@@ -119,32 +129,37 @@ export async function unlockLedgerShareDemo(token: string, pin: string) {
     ;(err as Error & { status?: number }).status = 410
     throw err
   }
-  if (
-    share.lockedUntil &&
-    new Date(share.lockedUntil).getTime() > Date.now()
-  ) {
-    const err = new Error('Too many attempts. Try again later.')
-    ;(err as Error & { status?: number }).status = 429
-    throw err
-  }
-  if (!verifyLedgerPin(pin, token, share.pinHash)) {
-    const attempts = share.failedAttempts + 1
-    const patch: Partial<DemoLedgerShare> = { failedAttempts: attempts }
-    if (attempts >= MAX_LEDGER_SHARE_PIN_ATTEMPTS) {
-      patch.lockedUntil = new Date(
-        Date.now() + LEDGER_SHARE_LOCK_MINUTES * 60 * 1000
-      ).toISOString()
-      patch.failedAttempts = 0
+
+  const requirePin = share.requirePin !== false && Boolean(share.pinHash)
+
+  if (requirePin) {
+    if (
+      share.lockedUntil &&
+      new Date(share.lockedUntil).getTime() > Date.now()
+    ) {
+      const err = new Error('Too many attempts. Try again later.')
+      ;(err as Error & { status?: number }).status = 429
+      throw err
     }
-    updateLedgerShareByToken(token, patch)
-    const left = Math.max(0, MAX_LEDGER_SHARE_PIN_ATTEMPTS - attempts)
-    const err = new Error(
-      left > 0
-        ? `Incorrect code. ${left} attempt${left === 1 ? '' : 's'} left.`
-        : 'Too many attempts. Try again later.'
-    )
-    ;(err as Error & { status?: number }).status = 401
-    throw err
+    if (!verifyLedgerPin(pin, token, share.pinHash)) {
+      const attempts = share.failedAttempts + 1
+      const patch: Partial<DemoLedgerShare> = { failedAttempts: attempts }
+      if (attempts >= MAX_LEDGER_SHARE_PIN_ATTEMPTS) {
+        patch.lockedUntil = new Date(
+          Date.now() + LEDGER_SHARE_LOCK_MINUTES * 60 * 1000
+        ).toISOString()
+        patch.failedAttempts = 0
+      }
+      updateLedgerShareByToken(token, patch)
+      const left = Math.max(0, MAX_LEDGER_SHARE_PIN_ATTEMPTS - attempts)
+      const err = new Error(
+        left > 0
+          ? `Incorrect code. ${left} attempt${left === 1 ? '' : 's'} left.`
+          : 'Too many attempts. Try again later.'
+      )
+      ;(err as Error & { status?: number }).status = 401
+      throw err
+    }
   }
 
   updateLedgerShareByToken(token, { failedAttempts: 0, lockedUntil: null })
@@ -222,7 +237,6 @@ export async function unlockLedgerShareDemo(token: string, pin: string) {
     currency,
     logoUrl: settings?.logoUrl ?? null,
     expiresAt: share.expiresAt,
-    // Chronological like the ledger PDF statement.
     transactions: withRunning,
     banks,
   }

@@ -51,6 +51,7 @@ type ShareMeta = {
   expiresAt: string
   expired: boolean
   locked: boolean
+  requirePin?: boolean
 }
 
 type Attachment = {
@@ -305,37 +306,50 @@ export default function DemoSharedLedgerPage() {
     }
   }, [meta])
 
-  const unlock = useCallback(async () => {
-    if (!token) return
-    setUnlocking(true)
-    setUnlockError(null)
-    try {
-      const data = await unlockLedgerShareDemo(token, pin)
-      setLedger(data as LedgerPayload)
-      setView('home')
-      setReturnView('home')
-      setDetailTxn(null)
-      setExportOpen(false)
-      setQrPreview(null)
-      if (typeof window !== 'undefined') {
-        history.replaceState(
-          {
-            __shareLedger: true,
-            view: 'home',
-            returnView: 'home',
-            txnId: null,
-            overlay: null,
-          } satisfies ShareHist,
-          '',
-          window.location.href
+  const unlock = useCallback(
+    async (pinOverride?: string) => {
+      if (!token) return
+      setUnlocking(true)
+      setUnlockError(null)
+      try {
+        const data = await unlockLedgerShareDemo(
+          token,
+          pinOverride !== undefined ? pinOverride : pin
         )
+        setLedger(data as LedgerPayload)
+        setView('home')
+        setReturnView('home')
+        setDetailTxn(null)
+        setExportOpen(false)
+        setQrPreview(null)
+        if (typeof window !== 'undefined') {
+          history.replaceState(
+            {
+              __shareLedger: true,
+              view: 'home',
+              returnView: 'home',
+              txnId: null,
+              overlay: null,
+            } satisfies ShareHist,
+            '',
+            window.location.href
+          )
+        }
+      } catch (err) {
+        setUnlockError(
+          err instanceof Error ? err.message : 'Could not unlock. Try again.'
+        )
+      } finally {
+        setUnlocking(false)
       }
-    } catch {
-      setUnlockError('Could not unlock. Try again.')
-    } finally {
-      setUnlocking(false)
-    }
-  }, [token, pin])
+    },
+    [token, pin]
+  )
+
+  useEffect(() => {
+    if (!meta || ledger || meta.expired || meta.requirePin !== false) return
+    void unlock('')
+  }, [meta, ledger, unlock])
 
   if (metaLoading) {
     return (
@@ -371,6 +385,22 @@ export default function DemoSharedLedgerPage() {
   }
 
   if (!ledger) {
+    if (meta.requirePin === false) {
+      return (
+        <main className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-950 p-6">
+          <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-lg dark:border-gray-700 dark:bg-gray-800">
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-[3px] border-primary-100 border-t-primary-600" />
+            <p className="text-sm text-brand-stone dark:text-gray-300">
+              Opening ledger preview…
+            </p>
+            {unlockError ? (
+              <p className="mt-3 text-sm text-red-700">{unlockError}</p>
+            ) : null}
+          </div>
+        </main>
+      )
+    }
+
     return (
       <main className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-950 px-4 py-10">
         <div className="w-full max-w-sm rounded-2xl border border-brand-pistachio bg-white p-6 shadow-xl dark:border-gray-700 dark:bg-gray-800">

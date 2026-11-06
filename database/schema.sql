@@ -187,6 +187,9 @@ CREATE TABLE IF NOT EXISTS public.app_settings (
   account_message_include_ledger_url BOOLEAN NOT NULL DEFAULT true,
   transaction_message_include_pdf_url BOOLEAN NOT NULL DEFAULT true,
   transaction_message_include_ledger_url BOOLEAN NOT NULL DEFAULT true,
+  ledger_share_require_pin BOOLEAN NOT NULL DEFAULT true,
+  ledger_share_ttl_hours INTEGER NOT NULL DEFAULT 24
+    CHECK (ledger_share_ttl_hours >= 1 AND ledger_share_ttl_hours <= 720),
   cash_savings_cash_type_ids UUID[] NOT NULL DEFAULT '{}',
   cash_savings_account_type_ids UUID[] NOT NULL DEFAULT '{}',
   payable_receivable_cash_type_ids UUID[] NOT NULL DEFAULT '{}',
@@ -221,6 +224,10 @@ ALTER TABLE public.app_settings
 ALTER TABLE public.app_settings
   ADD COLUMN IF NOT EXISTS transaction_message_include_ledger_url BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE public.app_settings
+  ADD COLUMN IF NOT EXISTS ledger_share_require_pin BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE public.app_settings
+  ADD COLUMN IF NOT EXISTS ledger_share_ttl_hours INTEGER NOT NULL DEFAULT 24;
+ALTER TABLE public.app_settings
   ADD COLUMN IF NOT EXISTS cash_savings_cash_type_ids UUID[] NOT NULL DEFAULT '{}';
 ALTER TABLE public.app_settings
   ADD COLUMN IF NOT EXISTS cash_savings_account_type_ids UUID[] NOT NULL DEFAULT '{}';
@@ -237,6 +244,17 @@ BEGIN
     ALTER TABLE public.app_settings
       ADD CONSTRAINT app_settings_default_entry_mode_check
       CHECK (default_entry_mode IN ('normal', 'transfer'));
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'app_settings_ledger_share_ttl_hours_check'
+  ) THEN
+    ALTER TABLE public.app_settings
+      ADD CONSTRAINT app_settings_ledger_share_ttl_hours_check
+      CHECK (ledger_share_ttl_hours >= 1 AND ledger_share_ttl_hours <= 720);
   END IF;
 END $$;
 
@@ -545,6 +563,8 @@ AS $$
         'account_message_include_ledger_url', COALESCE(s.account_message_include_ledger_url, true),
         'transaction_message_include_pdf_url', COALESCE(s.transaction_message_include_pdf_url, true),
         'transaction_message_include_ledger_url', COALESCE(s.transaction_message_include_ledger_url, true),
+        'ledger_share_require_pin', COALESCE(s.ledger_share_require_pin, true),
+        'ledger_share_ttl_hours', COALESCE(s.ledger_share_ttl_hours, 24),
         'cash_savings_cash_type_ids', COALESCE(to_jsonb(s.cash_savings_cash_type_ids), '[]'::jsonb),
         'cash_savings_account_type_ids', COALESCE(to_jsonb(s.cash_savings_account_type_ids), '[]'::jsonb),
         'payable_receivable_cash_type_ids', COALESCE(to_jsonb(s.payable_receivable_cash_type_ids), '[]'::jsonb),
@@ -570,6 +590,8 @@ AS $$
       'account_message_include_ledger_url', true,
       'transaction_message_include_pdf_url', true,
       'transaction_message_include_ledger_url', true,
+      'ledger_share_require_pin', true,
+      'ledger_share_ttl_hours', 24,
       'cash_savings_cash_type_ids', '[]'::jsonb,
       'cash_savings_account_type_ids', '[]'::jsonb,
       'payable_receivable_cash_type_ids', '[]'::jsonb,
@@ -712,12 +734,16 @@ CREATE TABLE IF NOT EXISTS public.ledger_shares (
   token TEXT NOT NULL,
   account_id UUID NOT NULL REFERENCES public.accounts (id) ON DELETE CASCADE,
   pin_hash TEXT NOT NULL,
+  require_pin BOOLEAN NOT NULL DEFAULT true,
   expires_at TIMESTAMPTZ NOT NULL,
   failed_attempts INTEGER NOT NULL DEFAULT 0,
   locked_until TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT ledger_shares_token_unique UNIQUE (token)
 );
+
+ALTER TABLE public.ledger_shares
+  ADD COLUMN IF NOT EXISTS require_pin BOOLEAN NOT NULL DEFAULT true;
 
 CREATE INDEX IF NOT EXISTS idx_ledger_shares_account_id
   ON public.ledger_shares (account_id);

@@ -255,6 +255,8 @@ export function buildNorthlineSeed(): {
     accountMessageIncludeLedgerUrl: true,
     transactionMessageIncludePdfUrl: false,
     transactionMessageIncludeLedgerUrl: true,
+    ledgerShareRequirePin: true,
+    ledgerShareTtlHours: 24,
     cashSavingsCashTypeIds: ['ct-cash', 'ct-savings'],
     cashSavingsAccountTypeIds: ['at-cash', 'at-savings'],
     payableReceivableCashTypeIds: ['ct-owned'],

@@ -6,6 +6,8 @@ All notable changes to Accounting Ledger are documented here.
 
 ### Added
 - Shared full / current-month ledger: **Back to top** button (scroll progress ring) after scrolling down the long statement.
+- Settings → **Ledger preview link**: toggle **Require PIN** and choose link expiry (1 hour–30 days). New WhatsApp shares use these; when PIN is off the recipient opens the ledger without a code. Requires `database/migrations/2026-11-06_ledger_share_pin_ttl_settings.sql`.
+- Settings → Ledger preview link controls sit on one compact row (PIN + Expires).
 
 ### Fixed
 - **Send message** no longer generates/archives a ledger PDF before opening WhatsApp — only creates the secure preview link, so the prep step is much faster.

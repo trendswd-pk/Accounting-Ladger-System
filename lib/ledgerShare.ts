@@ -9,6 +9,7 @@ export type CreatedLedgerShare = {
   pin: string
   url: string
   expiresAt: string
+  requirePin: boolean
 }
 
 export function formatShareExpiryLabel(iso: string): string {
@@ -20,11 +21,11 @@ export function buildShareAccessFooter(opts: {
   pin: string
   expiresAt: string
 }): string {
-  return [
-    `Ledger preview: ${opts.url}`,
-    `Access code: ${opts.pin}`,
-    `Valid until: ${formatShareExpiryLabel(opts.expiresAt)}`,
-  ].join('\n')
+  const lines = [`Ledger preview: ${opts.url}`]
+  const pin = String(opts.pin ?? '').trim()
+  if (pin) lines.push(`Access code: ${pin}`)
+  lines.push(`Valid until: ${formatShareExpiryLabel(opts.expiresAt)}`)
+  return lines.join('\n')
 }
 
 export async function createLedgerShare(accountId: string): Promise<CreatedLedgerShare> {
@@ -37,10 +38,12 @@ export async function createLedgerShare(accountId: string): Promise<CreatedLedge
   if (!res.ok) {
     throw new Error(data.error || 'Could not create ledger share link.')
   }
+  const pin = String(data.pin ?? '')
   return {
     token: String(data.token ?? ''),
-    pin: String(data.pin ?? ''),
+    pin,
     url: String(data.url ?? ''),
     expiresAt: String(data.expiresAt ?? ''),
+    requirePin: data.requirePin !== false && Boolean(pin),
   }
 }

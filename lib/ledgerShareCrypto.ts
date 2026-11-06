@@ -38,5 +38,32 @@ export function generateLedgerShareToken(): string {
 }
 
 export const DEFAULT_LEDGER_SHARE_TTL_HOURS = 24
+export const MIN_LEDGER_SHARE_TTL_HOURS = 1
+export const MAX_LEDGER_SHARE_TTL_HOURS = 720 // 30 days
 export const MAX_LEDGER_SHARE_PIN_ATTEMPTS = 5
 export const LEDGER_SHARE_LOCK_MINUTES = 30
+
+/** Presets shown in Settings → Ledger preview link. */
+export const LEDGER_SHARE_TTL_OPTIONS: ReadonlyArray<{
+  hours: number
+  label: string
+}> = [
+  { hours: 1, label: '1 hour' },
+  { hours: 6, label: '6 hours' },
+  { hours: 12, label: '12 hours' },
+  { hours: 24, label: '24 hours' },
+  { hours: 48, label: '2 days' },
+  { hours: 72, label: '3 days' },
+  { hours: 168, label: '7 days' },
+  { hours: 336, label: '14 days' },
+  { hours: 720, label: '30 days' },
+]
+
+export function normalizeLedgerShareTtlHours(value: unknown): number {
+  const n = Math.round(Number(value))
+  if (!Number.isFinite(n)) return DEFAULT_LEDGER_SHARE_TTL_HOURS
+  return Math.max(
+    MIN_LEDGER_SHARE_TTL_HOURS,
+    Math.min(MAX_LEDGER_SHARE_TTL_HOURS, n)
+  )
+}

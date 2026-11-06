@@ -7,6 +7,10 @@ import {
   normalizeMessageNote,
   upgradeLedgerPreviewMessageTemplate,
 } from '@/lib/messageTemplates'
+import {
+  DEFAULT_LEDGER_SHARE_TTL_HOURS,
+  normalizeLedgerShareTtlHours,
+} from '@/lib/ledgerShareCrypto'
 import { recordRequestDeduped } from '@/lib/requestProfiler'
 import type { ThemePreference } from '@/lib/theme'
 import { requireDemoUser } from '@/lib/demoAuth'
@@ -50,6 +54,10 @@ export type AppSettings = {
   transactionMessageIncludePdfUrl: boolean
   /** When true, Transaction Send message creates interactive ledger preview link + PIN. */
   transactionMessageIncludeLedgerUrl: boolean
+  /** When true, new ledger preview links require a 4-digit access code. */
+  ledgerShareRequirePin: boolean
+  /** Hours until a new ledger preview link expires (1–720). */
+  ledgerShareTtlHours: number
   cashSavingsCashTypeIds: string[]
   cashSavingsAccountTypeIds: string[]
   /** Shared filter for Payable (−) and Receivable (+) pages/cards. */
@@ -73,6 +81,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   accountMessageIncludeLedgerUrl: true,
   transactionMessageIncludePdfUrl: false,
   transactionMessageIncludeLedgerUrl: true,
+  ledgerShareRequirePin: true,
+  ledgerShareTtlHours: DEFAULT_LEDGER_SHARE_TTL_HOURS,
   cashSavingsCashTypeIds: [],
   cashSavingsAccountTypeIds: [],
   payableReceivableCashTypeIds: [],
@@ -94,6 +104,8 @@ type DbRow = {
   account_message_include_ledger_url?: boolean | null
   transaction_message_include_pdf_url?: boolean | null
   transaction_message_include_ledger_url?: boolean | null
+  ledger_share_require_pin?: boolean | null
+  ledger_share_ttl_hours?: number | null
   cash_savings_cash_type_ids?: unknown
   cash_savings_account_type_ids?: unknown
   payable_receivable_cash_type_ids?: unknown
@@ -163,6 +175,10 @@ function withIdDefaults(settings: AppSettings): AppSettings {
     transactionMessageIncludePdfUrl: settings.transactionMessageIncludePdfUrl !== false,
     transactionMessageIncludeLedgerUrl:
       settings.transactionMessageIncludeLedgerUrl !== false,
+    ledgerShareRequirePin: settings.ledgerShareRequirePin !== false,
+    ledgerShareTtlHours: normalizeLedgerShareTtlHours(
+      settings.ledgerShareTtlHours ?? DEFAULT_LEDGER_SHARE_TTL_HOURS
+    ),
     cashSavingsCashTypeIds: settings.cashSavingsCashTypeIds ?? [],
     cashSavingsAccountTypeIds: settings.cashSavingsAccountTypeIds ?? [],
     payableReceivableCashTypeIds: settings.payableReceivableCashTypeIds ?? [],
@@ -194,6 +210,10 @@ export function mapAppSettingsRow(row: DbRow): AppSettings {
     transactionMessageIncludePdfUrl: row.transaction_message_include_pdf_url !== false,
     transactionMessageIncludeLedgerUrl:
       row.transaction_message_include_ledger_url !== false,
+    ledgerShareRequirePin: row.ledger_share_require_pin !== false,
+    ledgerShareTtlHours: normalizeLedgerShareTtlHours(
+      row.ledger_share_ttl_hours ?? DEFAULT_LEDGER_SHARE_TTL_HOURS
+    ),
     cashSavingsCashTypeIds: normalizeUuidIdList(row.cash_savings_cash_type_ids),
     cashSavingsAccountTypeIds: normalizeUuidIdList(row.cash_savings_account_type_ids),
     payableReceivableCashTypeIds: firstNonEmptyIdList(
@@ -304,6 +324,8 @@ export type AppSettingsPatch = Partial<
     | 'accountMessageIncludeLedgerUrl'
     | 'transactionMessageIncludePdfUrl'
     | 'transactionMessageIncludeLedgerUrl'
+    | 'ledgerShareRequirePin'
+    | 'ledgerShareTtlHours'
     | 'cashSavingsCashTypeIds'
     | 'cashSavingsAccountTypeIds'
     | 'payableReceivableCashTypeIds'
@@ -347,6 +369,14 @@ export async function saveAppSettings(input: AppSettingsPatch): Promise<AppSetti
   const next: AppSettings = {
     ...current,
     ...input,
+    ledgerShareRequirePin:
+      input.ledgerShareRequirePin !== undefined
+        ? Boolean(input.ledgerShareRequirePin)
+        : current.ledgerShareRequirePin,
+    ledgerShareTtlHours:
+      input.ledgerShareTtlHours !== undefined
+        ? normalizeLedgerShareTtlHours(input.ledgerShareTtlHours)
+        : current.ledgerShareTtlHours,
     cashSavingsCashTypeIds:
       input.cashSavingsCashTypeIds ?? current.cashSavingsCashTypeIds,
     cashSavingsAccountTypeIds:

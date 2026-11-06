@@ -32,6 +32,7 @@ import {
   importTransactionsFromCsvFile,
   type ImportProgress,
 } from '@/lib/dataImportExport'
+import { LEDGER_SHARE_TTL_OPTIONS } from '@/lib/ledgerShareCrypto'
 import {
   ACCOUNT_MESSAGE_VARS,
   TRANSACTION_MESSAGE_VARS,
@@ -140,15 +141,30 @@ function SettingRow({
   description,
   htmlFor,
   children,
+  /** Keep label + controls on one row on mobile (Theme, toggles, …). */
+  inline = false,
 }: {
   label: string
   description?: string
   htmlFor?: string
   children: React.ReactNode
+  inline?: boolean
 }) {
   return (
-    <div className="flex flex-col gap-3 border-b border-gray-200 px-4 py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between sm:gap-6 dark:border-gray-700">
-      <div className="min-w-0 flex-1 text-left sm:max-w-sm lg:max-w-md">
+    <div
+      className={`flex border-b border-gray-200 px-4 py-4 last:border-b-0 dark:border-gray-700 ${
+        inline
+          ? 'flex-row items-center justify-between gap-3 sm:gap-6'
+          : 'flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6'
+      }`}
+    >
+      <div
+        className={`min-w-0 text-left ${
+          inline
+            ? 'shrink-0'
+            : 'flex-1 sm:max-w-sm lg:max-w-md'
+        }`}
+      >
         <div className="flex items-center gap-1.5">
           {htmlFor ? (
             <label
@@ -165,7 +181,13 @@ function SettingRow({
           {description ? <InfoHint label={label}>{description}</InfoHint> : null}
         </div>
       </div>
-      <div className="flex w-full shrink-0 justify-end sm:w-auto sm:min-w-[14rem] sm:max-w-xl">
+      <div
+        className={`flex shrink-0 justify-end ${
+          inline
+            ? 'w-auto'
+            : 'w-full sm:w-auto sm:min-w-[14rem] sm:max-w-xl'
+        }`}
+      >
         {children}
       </div>
     </div>
@@ -547,7 +569,7 @@ function BrandAssetField({
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+    <div className="flex min-w-0 flex-row items-center justify-between gap-3 sm:gap-4">
       <div className="flex shrink-0 items-center gap-1.5">
         <label htmlFor={id} className="text-sm font-medium text-gray-900 dark:text-gray-100">
           {label}
@@ -658,6 +680,12 @@ export default function SettingsPage() {
   )
   const [transactionMessageIncludeLedgerUrl, setTransactionMessageIncludeLedgerUrl] =
     useState(DEFAULT_APP_SETTINGS.transactionMessageIncludeLedgerUrl)
+  const [ledgerShareRequirePin, setLedgerShareRequirePin] = useState(
+    DEFAULT_APP_SETTINGS.ledgerShareRequirePin
+  )
+  const [ledgerShareTtlHours, setLedgerShareTtlHours] = useState(
+    DEFAULT_APP_SETTINGS.ledgerShareTtlHours
+  )
   const [messageEditor, setMessageEditor] = useState<'account' | 'transaction' | null>(null)
   const [cashSavingsCashTypeIds, setCashSavingsCashTypeIds] = useState<string[]>(
     () => DEFAULT_APP_SETTINGS.cashSavingsCashTypeIds
@@ -742,6 +770,8 @@ export default function SettingsPage() {
         setAccountMessageIncludeLedgerUrl(settings.accountMessageIncludeLedgerUrl)
         setTransactionMessageIncludePdfUrl(settings.transactionMessageIncludePdfUrl)
         setTransactionMessageIncludeLedgerUrl(settings.transactionMessageIncludeLedgerUrl)
+        setLedgerShareRequirePin(settings.ledgerShareRequirePin)
+        setLedgerShareTtlHours(settings.ledgerShareTtlHours)
         applyThemePreference(settings.theme)
 
         const pickSavedOrDefault = (
@@ -840,6 +870,8 @@ export default function SettingsPage() {
         accountMessageIncludeLedgerUrl,
         transactionMessageIncludePdfUrl,
         transactionMessageIncludeLedgerUrl,
+        ledgerShareRequirePin,
+        ledgerShareTtlHours,
         cashSavingsCashTypeIds,
         cashSavingsAccountTypeIds,
         payableReceivableCashTypeIds,
@@ -859,6 +891,8 @@ export default function SettingsPage() {
       setAccountMessageIncludeLedgerUrl(saved.accountMessageIncludeLedgerUrl)
       setTransactionMessageIncludePdfUrl(saved.transactionMessageIncludePdfUrl)
       setTransactionMessageIncludeLedgerUrl(saved.transactionMessageIncludeLedgerUrl)
+      setLedgerShareRequirePin(saved.ledgerShareRequirePin)
+      setLedgerShareTtlHours(saved.ledgerShareTtlHours)
       setCashSavingsCashTypeIds(saved.cashSavingsCashTypeIds)
       setCashSavingsAccountTypeIds(saved.cashSavingsAccountTypeIds)
       setPayableReceivableCashTypeIds(saved.payableReceivableCashTypeIds)
@@ -999,8 +1033,12 @@ export default function SettingsPage() {
             </select>
           </SettingRow>
 
-          <SettingRow label="Theme" description="App appearance preference.">
-            <div className="flex flex-wrap justify-end gap-2">
+          <SettingRow
+            label="Theme"
+            description="App appearance preference."
+            inline
+          >
+            <div className="flex flex-nowrap justify-end gap-2">
               {(['light', 'dark'] as const).map((option) => (
                 <button
                   key={option}
@@ -1009,7 +1047,7 @@ export default function SettingsPage() {
                     setTheme(option)
                     applyThemePreference(option)
                   }}
-                  className={`rounded-md border px-4 py-2 text-sm font-medium capitalize transition-colors ${
+                  className={`rounded-md border px-3 py-1.5 text-sm font-medium capitalize transition-colors sm:px-4 sm:py-2 ${
                     theme === option
                       ? 'border-primary-600 bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300'
                       : 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700'
@@ -1025,7 +1063,7 @@ export default function SettingsPage() {
             label="Default transaction entry mode"
             description="Pre-selected when you open Add Transaction. You can still switch on the form."
           >
-            <div className="flex flex-wrap justify-end gap-2">
+            <div className="flex w-full flex-wrap items-center justify-center gap-2 sm:w-auto sm:justify-end">
               {(
                 [
                   { id: 'normal' as const, label: 'Normal Entry' },
@@ -1104,8 +1142,8 @@ export default function SettingsPage() {
             label="Account import & export"
             description="Import CSV: name, phone, account_type, cash_type. Export includes current balance. Types match by name or code; duplicate names are skipped on import."
           >
-            <div className="flex w-full flex-col items-end gap-1">
-              <div className="flex flex-wrap items-center justify-end gap-2">
+            <div className="flex w-full flex-col items-center gap-1 sm:items-end">
+              <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
                 <input
                   ref={accountFileRef}
                   type="file"
@@ -1203,8 +1241,8 @@ export default function SettingsPage() {
             label="Transaction import & export"
             description="CSV columns: transaction_date (YYYY-MM-DD), account_name, narration, entry_type (credit/debit), amount. Import matches accounts by name."
           >
-            <div className="flex w-full flex-col items-end gap-1">
-              <div className="flex flex-wrap items-center justify-end gap-2">
+            <div className="flex w-full flex-col items-center gap-1 sm:items-end">
+              <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
                 <input
                   ref={transactionFileRef}
                   type="file"
@@ -1326,6 +1364,72 @@ export default function SettingsPage() {
                   ? 'Edit transaction'
                   : 'Transaction message'}
               </button>
+            </div>
+          </SettingRow>
+
+          <SettingRow
+            label="Ledger preview link"
+            description="PIN and expiry for new WhatsApp ledger preview links. Existing links keep the settings they were created with."
+          >
+            <div className="flex w-full flex-wrap items-center justify-center gap-x-4 gap-y-2 sm:w-auto sm:justify-end">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600 dark:text-gray-300">
+                  PIN
+                </span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={ledgerShareRequirePin}
+                  aria-label={
+                    ledgerShareRequirePin
+                      ? 'PIN required enabled'
+                      : 'PIN required disabled'
+                  }
+                  disabled={saving || loading}
+                  onClick={() => setLedgerShareRequirePin((v) => !v)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50 ${
+                    ledgerShareRequirePin
+                      ? 'bg-primary-600'
+                      : 'bg-gray-300 dark:bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                      ledgerShareRequirePin ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+              <div
+                className="hidden h-5 w-px bg-gray-200 dark:bg-gray-600 sm:block"
+                aria-hidden
+              />
+              <label className="flex items-center gap-2">
+                <span className="shrink-0 text-sm text-gray-600 dark:text-gray-300">
+                  Expires
+                </span>
+                <select
+                  value={ledgerShareTtlHours}
+                  disabled={saving || loading}
+                  onChange={(e) =>
+                    setLedgerShareTtlHours(Number(e.target.value))
+                  }
+                  className={`${inputClass} !w-[7.75rem] !min-w-0 shrink-0 py-1.5 sm:!w-[7.75rem]`}
+                >
+                  {LEDGER_SHARE_TTL_OPTIONS.map((opt) => (
+                    <option key={opt.hours} value={opt.hours}>
+                      {opt.label}
+                    </option>
+                  ))}
+                  {!LEDGER_SHARE_TTL_OPTIONS.some(
+                    (o) => o.hours === ledgerShareTtlHours
+                  ) ? (
+                    <option value={ledgerShareTtlHours}>
+                      {ledgerShareTtlHours} hours
+                    </option>
+                  ) : null}
+                </select>
+              </label>
             </div>
           </SettingRow>
         </div>

@@ -24,6 +24,8 @@ export type DemoLedgerShare = {
   token: string
   accountId: string
   pinHash: string
+  /** When false, recipients open the link without a PIN. */
+  requirePin: boolean
   expiresAt: string
   failedAttempts: number
   lockedUntil: string | null

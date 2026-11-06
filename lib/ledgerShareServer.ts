@@ -5,6 +5,7 @@ import {
   hashLedgerPin,
   LEDGER_SHARE_LOCK_MINUTES,
   MAX_LEDGER_SHARE_PIN_ATTEMPTS,
+  normalizeLedgerShareTtlHours,
   verifyLedgerPin,
 } from '@/lib/ledgerShareCrypto'
 import { publicAppOrigin } from '@/lib/shortLinks'
@@ -19,6 +20,8 @@ export type LedgerShareMeta = {
   expiresAt: string
   expired: boolean
   locked: boolean
+  /** When false, the recipient opens the ledger without entering a PIN. */
+  requirePin: boolean
 }
 
 export type LedgerShareAttachment = {
@@ -73,12 +76,13 @@ export type LedgerSharePayload = {
 export async function createLedgerShareForAccount(
   accountId: string,
   req: Request,
-  opts?: { ttlHours?: number }
+  opts?: { ttlHours?: number; requirePin?: boolean }
 ): Promise<{
   token: string
   pin: string
   url: string
   expiresAt: string
+  requirePin: boolean
 }> {
   const admin = getSupabaseAdmin()
   const id = String(accountId ?? '').trim()
@@ -92,24 +96,57 @@ export async function createLedgerShareForAccount(
   if (accErr) throw new Error(accErr.message)
   if (!account) throw new Error('Account not found.')
 
-  const ttl = Math.max(
-    1,
-    Math.min(168, opts?.ttlHours ?? DEFAULT_LEDGER_SHARE_TTL_HOURS)
+  const { data: settings } = await admin
+    .from('app_settings')
+    .select('ledger_share_require_pin, ledger_share_ttl_hours')
+    .eq('id', 1)
+    .maybeSingle()
+
+  const requirePin =
+    opts?.requirePin !== undefined
+      ? Boolean(opts.requirePin)
+      : settings?.ledger_share_require_pin !== false
+  const ttl = normalizeLedgerShareTtlHours(
+    opts?.ttlHours ??
+      settings?.ledger_share_ttl_hours ??
+      DEFAULT_LEDGER_SHARE_TTL_HOURS
   )
+
   const token = generateLedgerShareToken()
-  const pin = generateLedgerPin()
-  const pinHash = hashLedgerPin(pin, token)
+  const pin = requirePin ? generateLedgerPin() : ''
+  const pinHash = requirePin ? hashLedgerPin(pin, token) : ''
   const expiresAt = new Date(Date.now() + ttl * 60 * 60 * 1000).toISOString()
 
   const { error } = await admin.from('ledger_shares').insert({
     token,
     account_id: id,
     pin_hash: pinHash,
+    require_pin: requirePin,
     expires_at: expiresAt,
     failed_attempts: 0,
     locked_until: null,
   })
-  if (error) throw new Error(error.message)
+  if (error) {
+    // Older DBs without require_pin: retry without the column.
+    if (/require_pin/i.test(error.message) && /does not exist|Could not find/i.test(error.message)) {
+      if (!requirePin) {
+        throw new Error(
+          'PIN-optional shares need database/migrations/2026-11-06_ledger_share_pin_ttl_settings.sql.'
+        )
+      }
+      const retry = await admin.from('ledger_shares').insert({
+        token,
+        account_id: id,
+        pin_hash: pinHash,
+        expires_at: expiresAt,
+        failed_attempts: 0,
+        locked_until: null,
+      })
+      if (retry.error) throw new Error(retry.error.message)
+    } else {
+      throw new Error(error.message)
+    }
+  }
 
   const origin = publicAppOrigin(req)
   return {
@@ -117,6 +154,7 @@ export async function createLedgerShareForAccount(
     pin,
     url: `${origin}/share/ledger/${encodeURIComponent(token)}`,
     expiresAt,
+    requirePin,
   }
 }
 
@@ -127,17 +165,46 @@ export async function getLedgerShareMeta(
   const t = String(token ?? '').trim()
   if (!t) return null
 
-  const { data, error } = await admin
-    .from('ledger_shares')
-    .select('token, account_id, expires_at, locked_until, accounts ( name )')
-    .eq('token', t)
-    .maybeSingle()
-  if (error || !data) return null
+  let data: {
+    token: string
+    account_id: string
+    expires_at: string
+    locked_until: string | null
+    require_pin?: boolean | null
+    accounts:
+      | { name: string }
+      | { name: string }[]
+      | null
+  } | null = null
 
-  const accounts = data.accounts as
-    | { name: string }
-    | { name: string }[]
-    | null
+  {
+    const first = await admin
+      .from('ledger_shares')
+      .select(
+        'token, account_id, expires_at, locked_until, require_pin, accounts ( name )'
+      )
+      .eq('token', t)
+      .maybeSingle()
+    if (
+      first.error &&
+      /require_pin/i.test(first.error.message) &&
+      /does not exist|Could not find/i.test(first.error.message)
+    ) {
+      const fallback = await admin
+        .from('ledger_shares')
+        .select('token, account_id, expires_at, locked_until, accounts ( name )')
+        .eq('token', t)
+        .maybeSingle()
+      if (fallback.error || !fallback.data) return null
+      data = { ...fallback.data, require_pin: true }
+    } else if (first.error || !first.data) {
+      return null
+    } else {
+      data = first.data
+    }
+  }
+
+  const accounts = data.accounts
   const accountName = Array.isArray(accounts)
     ? accounts[0]?.name ?? 'Account'
     : accounts?.name ?? 'Account'
@@ -154,6 +221,7 @@ export async function getLedgerShareMeta(
     ? new Date(String(data.locked_until)).getTime()
     : 0
   const locked = lockedUntil > Date.now()
+  const requirePin = data.require_pin !== false
 
   return {
     token: t,
@@ -162,6 +230,7 @@ export async function getLedgerShareMeta(
     expiresAt,
     expired,
     locked,
+    requirePin,
   }
 }
 
@@ -173,20 +242,48 @@ export async function unlockLedgerShare(
   const t = String(token ?? '').trim()
   const p = String(pin ?? '').trim()
   if (!t) return { ok: false, error: 'Invalid link.', status: 404 }
-  if (!/^\d{4}$/.test(p)) {
-    return { ok: false, error: 'Enter the 4-digit access code.', status: 400 }
+
+  type ShareRow = {
+    id: string
+    token: string
+    account_id: string
+    pin_hash: string
+    require_pin?: boolean | null
+    expires_at: string
+    failed_attempts: number | null
+    locked_until: string | null
   }
 
-  const { data: share, error } = await admin
-    .from('ledger_shares')
-    .select(
-      'id, token, account_id, pin_hash, expires_at, failed_attempts, locked_until'
-    )
-    .eq('token', t)
-    .maybeSingle()
-
-  if (error || !share) {
-    return { ok: false, error: 'Link not found.', status: 404 }
+  let share: ShareRow | null = null
+  {
+    const first = await admin
+      .from('ledger_shares')
+      .select(
+        'id, token, account_id, pin_hash, require_pin, expires_at, failed_attempts, locked_until'
+      )
+      .eq('token', t)
+      .maybeSingle()
+    if (
+      first.error &&
+      /require_pin/i.test(first.error.message) &&
+      /does not exist|Could not find/i.test(first.error.message)
+    ) {
+      const fallback = await admin
+        .from('ledger_shares')
+        .select(
+          'id, token, account_id, pin_hash, expires_at, failed_attempts, locked_until'
+        )
+        .eq('token', t)
+        .maybeSingle()
+      if (fallback.error || !fallback.data) {
+        return { ok: false, error: 'Link not found.', status: 404 }
+      }
+      share = { ...fallback.data, require_pin: true }
+    } else if (first.error || !first.data) {
+      return { ok: false, error: 'Link not found.', status: 404 }
+    } else {
+      share = first.data
+    }
   }
 
   if (new Date(String(share.expires_at)).getTime() <= Date.now()) {
@@ -197,35 +294,43 @@ export async function unlockLedgerShare(
     }
   }
 
-  const lockedUntil = share.locked_until
-    ? new Date(String(share.locked_until)).getTime()
-    : 0
-  if (lockedUntil > Date.now()) {
-    return {
-      ok: false,
-      error: 'Too many attempts. Try again later.',
-      status: 429,
-    }
-  }
+  const requirePin = share.require_pin !== false && Boolean(share.pin_hash)
 
-  if (!verifyLedgerPin(p, t, String(share.pin_hash))) {
-    const attempts = (Number(share.failed_attempts) || 0) + 1
-    const patch: Record<string, unknown> = { failed_attempts: attempts }
-    if (attempts >= MAX_LEDGER_SHARE_PIN_ATTEMPTS) {
-      patch.locked_until = new Date(
-        Date.now() + LEDGER_SHARE_LOCK_MINUTES * 60 * 1000
-      ).toISOString()
-      patch.failed_attempts = 0
+  if (requirePin) {
+    if (!/^\d{4}$/.test(p)) {
+      return { ok: false, error: 'Enter the 4-digit access code.', status: 400 }
     }
-    await admin.from('ledger_shares').update(patch).eq('id', share.id)
-    const left = Math.max(0, MAX_LEDGER_SHARE_PIN_ATTEMPTS - attempts)
-    return {
-      ok: false,
-      error:
-        left > 0
-          ? `Incorrect code. ${left} attempt${left === 1 ? '' : 's'} left.`
-          : 'Too many attempts. Try again later.',
-      status: 401,
+
+    const lockedUntil = share.locked_until
+      ? new Date(String(share.locked_until)).getTime()
+      : 0
+    if (lockedUntil > Date.now()) {
+      return {
+        ok: false,
+        error: 'Too many attempts. Try again later.',
+        status: 429,
+      }
+    }
+
+    if (!verifyLedgerPin(p, t, String(share.pin_hash))) {
+      const attempts = (Number(share.failed_attempts) || 0) + 1
+      const patch: Record<string, unknown> = { failed_attempts: attempts }
+      if (attempts >= MAX_LEDGER_SHARE_PIN_ATTEMPTS) {
+        patch.locked_until = new Date(
+          Date.now() + LEDGER_SHARE_LOCK_MINUTES * 60 * 1000
+        ).toISOString()
+        patch.failed_attempts = 0
+      }
+      await admin.from('ledger_shares').update(patch).eq('id', share.id)
+      const left = Math.max(0, MAX_LEDGER_SHARE_PIN_ATTEMPTS - attempts)
+      return {
+        ok: false,
+        error:
+          left > 0
+            ? `Incorrect code. ${left} attempt${left === 1 ? '' : 's'} left.`
+            : 'Too many attempts. Try again later.',
+        status: 401,
+      }
     }
   }
 
