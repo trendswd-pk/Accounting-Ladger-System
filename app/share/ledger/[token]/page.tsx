@@ -222,6 +222,27 @@ export default function SharedLedgerPage() {
     return () => window.removeEventListener('popstate', onPop)
   }, [applyShareHist])
 
+  // Escape closes QR / export the same way as the close button and system Back.
+  useEffect(() => {
+    if (!qrPreview && !exportOpen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.preventDefault()
+      const state = window.history.state
+      if (
+        isShareHist(state) &&
+        (state.overlay === 'qr' || state.overlay === 'export')
+      ) {
+        window.history.back()
+        return
+      }
+      setQrPreview(null)
+      setExportOpen(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [qrPreview, exportOpen])
+
   const copyText = useCallback(async (key: string, value: string) => {
     const text = String(value ?? '').trim()
     if (!text || text === '—') return
