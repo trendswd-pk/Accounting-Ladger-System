@@ -34,6 +34,7 @@ All notable changes to Accounting Ledger are documented here.
 - Account and Transaction WhatsApp messages use one **Ledger preview link** (PIN-gated share). Separate Transaction PDF / Account ledger PDF toggles removed.
 - Shared ledger bank details: tap account number / IBAN / branch / SWIFT to **copy** to clipboard.
 - Account / Transaction message templates auto-upgrade: after the note, footer is **Ledger preview URL + access code + valid until** (legacy PDF link lines removed).
+- Shared ledger: phone **system back** now steps within the preview (txn → list/menu, close QR/export) instead of leaving the share link.
 
 ## [1.1.2] — 2026-11-05
 

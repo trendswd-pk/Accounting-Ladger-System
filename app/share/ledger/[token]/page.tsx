@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useParams } from 'next/navigation'
 import {
   ArrowLeft,
@@ -94,6 +94,25 @@ type LedgerPayload = {
 
 type ShareView = 'home' | 'full' | 'month' | 'banks' | 'txn'
 
+/** Browser history payload so mobile system-back stays inside the share UI. */
+type ShareHist = {
+  __shareLedger: true
+  view: ShareView
+  returnView: Exclude<ShareView, 'txn'>
+  txnId: string | null
+  overlay: 'export' | 'qr' | null
+  qrUrl?: string
+  qrBank?: string
+}
+
+function isShareHist(value: unknown): value is ShareHist {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    (value as ShareHist).__shareLedger === true
+  )
+}
+
 const menuButtonClass =
   'flex w-full min-w-0 max-w-full items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-left shadow-sm transition active:scale-[0.99] hover:border-primary-200 hover:bg-primary-50/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-primary-700 dark:hover:bg-primary-950/40'
 
@@ -153,6 +172,48 @@ export default function SharedLedgerPage() {
     bankName: string
   } | null>(null)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
+  const ledgerRef = useRef<LedgerPayload | null>(null)
+
+  useEffect(() => {
+    ledgerRef.current = ledger
+  }, [ledger])
+
+  const applyShareHist = useCallback((s: ShareHist) => {
+    setView(s.view)
+    setReturnView(s.returnView || 'home')
+    setExportOpen(s.overlay === 'export')
+    if (s.overlay === 'qr' && s.qrUrl) {
+      setQrPreview({ url: s.qrUrl, bankName: s.qrBank || 'Bank' })
+    } else {
+      setQrPreview(null)
+    }
+    if (s.view === 'txn' && s.txnId) {
+      const txn =
+        ledgerRef.current?.transactions.find((t) => t.id === s.txnId) ?? null
+      setDetailTxn(txn)
+    } else {
+      setDetailTxn(null)
+    }
+  }, [])
+
+  useEffect(() => {
+    const onPop = (e: PopStateEvent) => {
+      if (isShareHist(e.state)) {
+        applyShareHist(e.state)
+        return
+      }
+      // Back past our in-app stack: clear overlays; stay on home if unlocked.
+      setExportOpen(false)
+      setQrPreview(null)
+      if (ledgerRef.current) {
+        setView('home')
+        setDetailTxn(null)
+        setReturnView('home')
+      }
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [applyShareHist])
 
   const copyText = useCallback(async (key: string, value: string) => {
     const text = String(value ?? '').trim()
@@ -264,6 +325,23 @@ export default function SharedLedgerPage() {
       }
       setLedger(data as LedgerPayload)
       setView('home')
+      setReturnView('home')
+      setDetailTxn(null)
+      setExportOpen(false)
+      setQrPreview(null)
+      if (typeof window !== 'undefined') {
+        history.replaceState(
+          {
+            __shareLedger: true,
+            view: 'home',
+            returnView: 'home',
+            txnId: null,
+            overlay: null,
+          } satisfies ShareHist,
+          '',
+          window.location.href
+        )
+      }
     } catch {
       setUnlockError('Could not unlock. Try again.')
     } finally {
@@ -381,19 +459,80 @@ export default function SharedLedgerPage() {
   // Balance due from account holder (business receivable) → they can pay via our banks.
   const showBankButton = ledger.account.balance > 0 && banks.length > 0
 
+  const pushShareHist = (s: ShareHist) => {
+    history.pushState(s, '', window.location.href)
+  }
+
+  const openShareView = (next: Exclude<ShareView, 'txn'>) => {
+    setView(next)
+    setDetailTxn(null)
+    setExportOpen(false)
+    setQrPreview(null)
+    pushShareHist({
+      __shareLedger: true,
+      view: next,
+      returnView: next,
+      txnId: null,
+      overlay: null,
+    })
+  }
+
   const openTxn = (txn: Txn) => {
-    setReturnView(view === 'txn' ? returnView : (view as Exclude<ShareView, 'txn'>))
+    const parent =
+      view === 'txn' ? returnView : (view as Exclude<ShareView, 'txn'>)
+    setReturnView(parent)
     setDetailTxn(txn)
     setView('txn')
+    setExportOpen(false)
+    setQrPreview(null)
+    pushShareHist({
+      __shareLedger: true,
+      view: 'txn',
+      returnView: parent,
+      txnId: txn.id,
+      overlay: null,
+    })
   }
 
   const goBack = () => {
-    if (view === 'txn') {
-      setView(returnView)
-      setDetailTxn(null)
-      return
+    if (qrPreview || exportOpen || view !== 'home') {
+      history.back()
     }
-    setView('home')
+  }
+
+  const openExportModal = () => {
+    if (exporting) return
+    setExportOpen(true)
+    pushShareHist({
+      __shareLedger: true,
+      view,
+      returnView: view === 'txn' ? returnView : (view as Exclude<ShareView, 'txn'>),
+      txnId: detailTxn?.id ?? null,
+      overlay: 'export',
+    })
+  }
+
+  const closeExportModal = () => {
+    if (exportOpen) history.back()
+    else setExportOpen(false)
+  }
+
+  const openQrPreview = (url: string, bankName: string) => {
+    setQrPreview({ url, bankName })
+    pushShareHist({
+      __shareLedger: true,
+      view,
+      returnView: view === 'txn' ? returnView : (view as Exclude<ShareView, 'txn'>),
+      txnId: detailTxn?.id ?? null,
+      overlay: 'qr',
+      qrUrl: url,
+      qrBank: bankName,
+    })
+  }
+
+  const closeQrPreview = () => {
+    if (qrPreview) history.back()
+    else setQrPreview(null)
   }
 
   const handleExportLedger = async () => {
@@ -425,7 +564,7 @@ export default function SharedLedgerPage() {
           logoUrl: ledger.logoUrl,
         }
       )
-      setExportOpen(false)
+      closeExportModal()
     } catch {
       /* ignore — browser may block download */
     } finally {
@@ -706,23 +845,21 @@ export default function SharedLedgerPage() {
                   title: 'Full ledger details',
                   subtitle: `All ${allRows.length} entries`,
                   icon: <BookOpen className="h-5 w-5" aria-hidden />,
-                  onClick: () => setView('full'),
+                  onClick: () => openShareView('full'),
                 })}
 
                 {menuBtn({
                   title: 'Current month ledger',
                   subtitle: `${currentMonthLabel()} · ${monthRows.length} entries · Before month ${formatMoney(monthOpenBal, currency)}`,
                   icon: <CalendarRange className="h-5 w-5" aria-hidden />,
-                  onClick: () => setView('month'),
+                  onClick: () => openShareView('month'),
                 })}
 
                 {menuBtn({
                   title: exporting ? 'Exporting…' : 'Export ledger',
                   subtitle: 'PDF, Excel, or CSV download',
                   icon: <Download className="h-5 w-5" aria-hidden />,
-                  onClick: () => {
-                    if (!exporting) setExportOpen(true)
-                  },
+                  onClick: () => openExportModal(),
                 })}
 
                 {showBankButton
@@ -730,7 +867,7 @@ export default function SharedLedgerPage() {
                       title: 'Bank details',
                       subtitle: 'Pay using our bank account / QR',
                       icon: <Building2 className="h-5 w-5" aria-hidden />,
-                      onClick: () => setView('banks'),
+                      onClick: () => openShareView('banks'),
                       accent: true,
                     })
                   : null}
@@ -743,7 +880,7 @@ export default function SharedLedgerPage() {
           <div
             className={formModalOverlayClass}
             onClick={() => {
-              if (!exporting) setExportOpen(false)
+              if (!exporting) closeExportModal()
             }}
             role="dialog"
             aria-modal="true"
@@ -757,7 +894,7 @@ export default function SharedLedgerPage() {
                 titleId="share-export-ledger-title"
                 title="Export ledger"
                 onClose={() => {
-                  if (!exporting) setExportOpen(false)
+                  if (!exporting) closeExportModal()
                 }}
               />
               <FormModalBody>
@@ -819,7 +956,7 @@ export default function SharedLedgerPage() {
               <FormModalFooter>
                 <button
                   type="button"
-                  onClick={() => setExportOpen(false)}
+                  onClick={() => closeExportModal()}
                   disabled={exporting}
                   className={formModalSecondaryButtonClass}
                 >
@@ -1220,10 +1357,10 @@ export default function SharedLedgerPage() {
                   <button
                     type="button"
                     onClick={() =>
-                      setQrPreview({
-                        url: bank.qrCodeUrl!,
-                        bankName: bank.bankName || 'Bank',
-                      })
+                      openQrPreview(
+                        bank.qrCodeUrl!,
+                        bank.bankName || 'Bank'
+                      )
                     }
                     className="mt-auto flex min-h-[14.75rem] w-full shrink-0 flex-col items-center justify-center border-t border-gray-200 bg-gray-50 px-4 py-4 text-center transition hover:bg-primary-50/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 dark:border-gray-700 dark:bg-gray-900/50 dark:hover:bg-primary-950/30"
                     aria-label={`Open ${bank.bankName || 'bank'} QR full screen`}
@@ -1266,7 +1403,7 @@ export default function SharedLedgerPage() {
             </div>
             <button
               type="button"
-              onClick={() => setQrPreview(null)}
+              onClick={() => closeQrPreview()}
               className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
               aria-label="Close QR"
             >
