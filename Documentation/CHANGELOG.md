@@ -14,6 +14,7 @@ All notable changes to Accounting Ledger are documented here.
 - **Send message** no longer generates/archives a ledger PDF before opening WhatsApp — only creates the secure preview link, so the prep step is much faster.
 - Shared **Current month ledger** missed recent entries on busy accounts (1000+ rows) because the share unlock query hit PostgREST’s row cap; it now pages through the full ledger.
 - Shared ledger full-screen bank **QR** closes with **Escape** (and system Back / history, same as the close button) — not only the X control.
+- Account search fields (dashboard / transaction forms) no longer clear the selected account when the input is focused again — the name stays and stays editable.
 
 ### Changed
 - Shared ledger WhatsApp / messenger **link preview** now shows a branded card matching the preview home (account name, valid-until, account-details layout) instead of the generic app / PDF card. Balance and phone stay PIN-gated.

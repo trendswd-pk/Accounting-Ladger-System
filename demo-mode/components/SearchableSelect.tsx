@@ -57,8 +57,10 @@ export default function SearchableSelect({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return options
+    // Just opened with the current label still in the field — show full list to browse.
+    if (selected && query === selected.label) return options
     return options.filter((o) => o.label.toLowerCase().includes(q))
-  }, [options, query])
+  }, [options, query, selected])
 
   const close = () => {
     setOpen(false)
@@ -111,7 +113,8 @@ export default function SearchableSelect({
 
   const openWithHighlight = () => {
     setOpen(true)
-    setQuery('')
+    // Keep the selected label visible and editable (do not blank on re-focus).
+    setQuery(selected?.label ?? '')
     const selectedIndex = value
       ? options.findIndex((o) => o.value === value)
       : 0
@@ -192,9 +195,13 @@ export default function SearchableSelect({
             setQuery(next)
             setOpen(true)
             setHighlight(0)
-            if (value) onChange('')
+            // Clear selection once the user edits away from the selected label.
+            if (value && next !== selected?.label) onChange('')
           }}
-          onFocus={openWithHighlight}
+          onFocus={() => {
+            openWithHighlight()
+            requestAnimationFrame(() => inputRef.current?.select())
+          }}
           onKeyDown={onInputKeyDown}
           className={`${className} pr-16`}
         />
