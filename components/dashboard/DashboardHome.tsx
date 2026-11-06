@@ -25,9 +25,14 @@ import {
 import {
   fetchTransactions,
   getCachedTransactions,
+  expenseSpendAmount,
   signedTransactionAmount,
   type TransactionRecord,
 } from '@/lib/transactions'
+import {
+  dashboardExpensePeriodLabel,
+  dashboardExpensePeriodRange,
+} from '@/lib/dashboardExpensePeriod'
 import {
   isCashInPocketAccount,
   isCashSavingsAccount,
@@ -128,6 +133,11 @@ export default function DashboardHome() {
     useState<string[]>(
       () => getCachedAppSettings()?.payableReceivableAccountTypeIds ?? []
     )
+  const [dashboardExpensePeriod, setDashboardExpensePeriod] = useState(
+    () =>
+      getCachedAppSettings()?.dashboardExpensePeriod ??
+      DEFAULT_APP_SETTINGS.dashboardExpensePeriod
+  )
   const [infoOpen, setInfoOpen] = useState(false)
   const [txnModalOpen, setTxnModalOpen] = useState(false)
 
@@ -226,6 +236,7 @@ export default function DashboardHome() {
           ? prev
           : s.payableReceivableAccountTypeIds
       )
+      setDashboardExpensePeriod(s.dashboardExpensePeriod)
     })
   }, [])
 
@@ -271,7 +282,28 @@ export default function DashboardHome() {
     () => sumBalances(receivableAccounts),
     [receivableAccounts]
   )
-  const expenseBalance = useMemo(() => sumBalances(expenseAccounts), [expenseAccounts])
+  const expensePeriodRange = useMemo(
+    () => dashboardExpensePeriodRange(todayYmd, dashboardExpensePeriod),
+    [todayYmd, dashboardExpensePeriod]
+  )
+  const expenseBalance = useMemo(() => {
+    if (!expensePeriodRange) return sumBalances(expenseAccounts)
+    const ids = new Set(expenseAccounts.map((a) => a.id))
+    let sum = 0
+    for (const tx of transactions) {
+      if (!ids.has(tx.accountId)) continue
+      const d = tx.transactionDate.slice(0, 10)
+      if (d < expensePeriodRange.from || d > expensePeriodRange.to) continue
+      sum += expenseSpendAmount(tx)
+    }
+    return sum
+  }, [expenseAccounts, expensePeriodRange, transactions])
+  const expenseCardLabel = expensePeriodRange
+    ? `Expenses · ${dashboardExpensePeriodLabel(dashboardExpensePeriod)}`
+    : 'Expenses'
+  const expenseCardHref = expensePeriodRange
+    ? `/transactions?dateFrom=${encodeURIComponent(expensePeriodRange.from)}&dateTo=${encodeURIComponent(expensePeriodRange.to)}&expenseOnly=1&from=${encodeURIComponent('/')}`
+    : '/expenses'
   const investBalance = useMemo(() => sumBalances(investAccounts), [investAccounts])
 
   const todayIso = todayYmd
@@ -379,11 +411,11 @@ export default function DashboardHome() {
       href: '/investment',
     },
     {
-      name: 'Expenses',
+      name: expenseCardLabel,
       value: ready ? formatMoney(expenseBalance, currency) : '—',
       icon: Receipt,
       valueClassName: ready ? balanceColorClass(expenseBalance) : undefined,
-      href: '/expenses',
+      href: expenseCardHref,
     },
     {
       name: 'Today Expense',

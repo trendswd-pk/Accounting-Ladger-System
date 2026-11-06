@@ -8,6 +8,7 @@ All notable changes to Accounting Ledger are documented here.
 - Shared full / current-month ledger: **Back to top** button (scroll progress ring) after scrolling down the long statement.
 - Settings → **Ledger preview link**: toggle **Require PIN** and choose link expiry (1 hour–30 days). New WhatsApp shares use these; when PIN is off the recipient opens the ledger without a code. Requires `database/migrations/2026-11-06_ledger_share_pin_ttl_settings.sql`.
 - Settings → Ledger preview link controls sit on one compact row (PIN + Expires).
+- Settings → **Dashboard expenses period**: calendar windows for the Dashboard Expenses card — All time, Current week, Current month, Last 3 months, Last 6 months, Current year (not rolling day counts). Requires `database/migrations/2026-11-06_dashboard_expense_period.sql`.
 
 ### Fixed
 - **Send message** no longer generates/archives a ledger PDF before opening WhatsApp — only creates the secure preview link, so the prep step is much faster.
@@ -15,6 +16,7 @@ All notable changes to Accounting Ledger are documented here.
 
 ### Changed
 - Shared ledger WhatsApp / messenger **link preview** now shows a branded card matching the preview home (account name, valid-until, account-details layout) instead of the generic app / PDF card. Balance and phone stay PIN-gated.
+- Sidebar **Expenses** / **Settings** submenus open on hover and close when the pointer leaves (desktop); chevron tap still toggles on touch.
 
 ## [1.2.0] — 2026-11-05
 

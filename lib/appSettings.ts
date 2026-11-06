@@ -8,6 +8,11 @@ import {
   upgradeLedgerPreviewMessageTemplate,
 } from '@/lib/messageTemplates'
 import {
+  DEFAULT_DASHBOARD_EXPENSE_PERIOD,
+  normalizeDashboardExpensePeriod,
+  type DashboardExpensePeriod,
+} from '@/lib/dashboardExpensePeriod'
+import {
   DEFAULT_LEDGER_SHARE_TTL_HOURS,
   normalizeLedgerShareTtlHours,
 } from '@/lib/ledgerShareCrypto'
@@ -56,6 +61,11 @@ export type AppSettings = {
   ledgerShareRequirePin: boolean
   /** Hours until a new ledger preview link expires (1–720). */
   ledgerShareTtlHours: number
+  /**
+   * Dashboard Expenses card calendar window.
+   * `all` uses account balances; other values sum expense transactions in range.
+   */
+  dashboardExpensePeriod: DashboardExpensePeriod
   cashSavingsCashTypeIds: string[]
   cashSavingsAccountTypeIds: string[]
   /** Shared filter for Payable (−) and Receivable (+) pages/cards. */
@@ -81,6 +91,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   transactionMessageIncludeLedgerUrl: true,
   ledgerShareRequirePin: true,
   ledgerShareTtlHours: DEFAULT_LEDGER_SHARE_TTL_HOURS,
+  dashboardExpensePeriod: DEFAULT_DASHBOARD_EXPENSE_PERIOD,
   cashSavingsCashTypeIds: [],
   cashSavingsAccountTypeIds: [],
   payableReceivableCashTypeIds: [],
@@ -104,6 +115,8 @@ type DbRow = {
   transaction_message_include_ledger_url?: boolean | null
   ledger_share_require_pin?: boolean | null
   ledger_share_ttl_hours?: number | null
+  dashboard_expense_period?: string | null
+  dashboard_expense_period_days?: number | null
   cash_savings_cash_type_ids?: unknown
   cash_savings_account_type_ids?: unknown
   payable_receivable_cash_type_ids?: unknown
@@ -177,6 +190,9 @@ function withIdDefaults(settings: AppSettings): AppSettings {
     ledgerShareTtlHours: normalizeLedgerShareTtlHours(
       settings.ledgerShareTtlHours ?? DEFAULT_LEDGER_SHARE_TTL_HOURS
     ),
+    dashboardExpensePeriod: normalizeDashboardExpensePeriod(
+      settings.dashboardExpensePeriod ?? DEFAULT_DASHBOARD_EXPENSE_PERIOD
+    ),
     cashSavingsCashTypeIds: settings.cashSavingsCashTypeIds ?? [],
     cashSavingsAccountTypeIds: settings.cashSavingsAccountTypeIds ?? [],
     payableReceivableCashTypeIds: settings.payableReceivableCashTypeIds ?? [],
@@ -211,6 +227,11 @@ export function mapAppSettingsRow(row: DbRow): AppSettings {
     ledgerShareRequirePin: row.ledger_share_require_pin !== false,
     ledgerShareTtlHours: normalizeLedgerShareTtlHours(
       row.ledger_share_ttl_hours ?? DEFAULT_LEDGER_SHARE_TTL_HOURS
+    ),
+    dashboardExpensePeriod: normalizeDashboardExpensePeriod(
+      row.dashboard_expense_period ??
+        row.dashboard_expense_period_days ??
+        DEFAULT_DASHBOARD_EXPENSE_PERIOD
     ),
     cashSavingsCashTypeIds: normalizeUuidIdList(row.cash_savings_cash_type_ids),
     cashSavingsAccountTypeIds: normalizeUuidIdList(row.cash_savings_account_type_ids),
@@ -327,6 +348,7 @@ export type AppSettingsPatch = Partial<
     | 'transactionMessageIncludeLedgerUrl'
     | 'ledgerShareRequirePin'
     | 'ledgerShareTtlHours'
+    | 'dashboardExpensePeriod'
     | 'cashSavingsCashTypeIds'
     | 'cashSavingsAccountTypeIds'
     | 'payableReceivableCashTypeIds'

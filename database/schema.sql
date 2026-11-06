@@ -190,6 +190,11 @@ CREATE TABLE IF NOT EXISTS public.app_settings (
   ledger_share_require_pin BOOLEAN NOT NULL DEFAULT true,
   ledger_share_ttl_hours INTEGER NOT NULL DEFAULT 24
     CHECK (ledger_share_ttl_hours >= 1 AND ledger_share_ttl_hours <= 720),
+  dashboard_expense_period TEXT NOT NULL DEFAULT 'all'
+    CHECK (dashboard_expense_period IN (
+      'all', 'week', 'month', 'months_3', 'months_6', 'year'
+    )),
+  dashboard_expense_period_days INTEGER NOT NULL DEFAULT 0,
   cash_savings_cash_type_ids UUID[] NOT NULL DEFAULT '{}',
   cash_savings_account_type_ids UUID[] NOT NULL DEFAULT '{}',
   payable_receivable_cash_type_ids UUID[] NOT NULL DEFAULT '{}',
@@ -228,6 +233,10 @@ ALTER TABLE public.app_settings
 ALTER TABLE public.app_settings
   ADD COLUMN IF NOT EXISTS ledger_share_ttl_hours INTEGER NOT NULL DEFAULT 24;
 ALTER TABLE public.app_settings
+  ADD COLUMN IF NOT EXISTS dashboard_expense_period TEXT NOT NULL DEFAULT 'all';
+ALTER TABLE public.app_settings
+  ADD COLUMN IF NOT EXISTS dashboard_expense_period_days INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE public.app_settings
   ADD COLUMN IF NOT EXISTS cash_savings_cash_type_ids UUID[] NOT NULL DEFAULT '{}';
 ALTER TABLE public.app_settings
   ADD COLUMN IF NOT EXISTS cash_savings_account_type_ids UUID[] NOT NULL DEFAULT '{}';
@@ -255,6 +264,21 @@ BEGIN
     ALTER TABLE public.app_settings
       ADD CONSTRAINT app_settings_ledger_share_ttl_hours_check
       CHECK (ledger_share_ttl_hours >= 1 AND ledger_share_ttl_hours <= 720);
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'app_settings_dashboard_expense_period_check'
+  ) THEN
+    ALTER TABLE public.app_settings
+      ADD CONSTRAINT app_settings_dashboard_expense_period_check
+      CHECK (
+        dashboard_expense_period IN (
+          'all', 'week', 'month', 'months_3', 'months_6', 'year'
+        )
+      );
   END IF;
 END $$;
 
@@ -565,6 +589,8 @@ AS $$
         'transaction_message_include_ledger_url', COALESCE(s.transaction_message_include_ledger_url, true),
         'ledger_share_require_pin', COALESCE(s.ledger_share_require_pin, true),
         'ledger_share_ttl_hours', COALESCE(s.ledger_share_ttl_hours, 24),
+        'dashboard_expense_period', COALESCE(s.dashboard_expense_period, 'all'),
+        'dashboard_expense_period_days', COALESCE(s.dashboard_expense_period_days, 0),
         'cash_savings_cash_type_ids', COALESCE(to_jsonb(s.cash_savings_cash_type_ids), '[]'::jsonb),
         'cash_savings_account_type_ids', COALESCE(to_jsonb(s.cash_savings_account_type_ids), '[]'::jsonb),
         'payable_receivable_cash_type_ids', COALESCE(to_jsonb(s.payable_receivable_cash_type_ids), '[]'::jsonb),
@@ -592,6 +618,8 @@ AS $$
       'transaction_message_include_ledger_url', true,
       'ledger_share_require_pin', true,
       'ledger_share_ttl_hours', 24,
+      'dashboard_expense_period', 'all',
+      'dashboard_expense_period_days', 0,
       'cash_savings_cash_type_ids', '[]'::jsonb,
       'cash_savings_account_type_ids', '[]'::jsonb,
       'payable_receivable_cash_type_ids', '[]'::jsonb,

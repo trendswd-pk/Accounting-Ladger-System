@@ -195,6 +195,10 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
     setOpenMenu((prev) => (prev === path ? null : path))
   }
 
+  const canHoverExpand = () =>
+    typeof window !== 'undefined' &&
+    window.matchMedia('(hover: hover) and (pointer: fine)').matches
+
   return (
     <>
       <div
@@ -262,7 +266,15 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
                 : pathname === item.path || pathname.startsWith(item.path + '/')
 
               return (
-                <li key={item.path}>
+                <li
+                  key={item.path}
+                  onMouseEnter={() => {
+                    if (hasSubItems && canHoverExpand()) setOpenMenu(item.path)
+                  }}
+                  onMouseLeave={() => {
+                    if (hasSubItems && canHoverExpand()) setOpenMenu(null)
+                  }}
+                >
                   <div
                     className={`flex items-center justify-between px-6 py-3 text-gray-700 transition-colors hover:bg-primary-50 hover:text-primary-600 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-primary-400 ${
                       isActive && !hasSubItems

@@ -32,6 +32,7 @@ import {
   importTransactionsFromCsvFile,
   type ImportProgress,
 } from '@/lib/dataImportExport'
+import { DASHBOARD_EXPENSE_PERIOD_OPTIONS } from '@/lib/dashboardExpensePeriod'
 import { LEDGER_SHARE_TTL_OPTIONS } from '@/lib/ledgerShareCrypto'
 import {
   ACCOUNT_MESSAGE_VARS,
@@ -154,14 +155,14 @@ function SettingRow({
     <div
       className={`flex border-b border-gray-200 px-4 py-4 last:border-b-0 dark:border-gray-700 ${
         inline
-          ? 'flex-row items-center justify-between gap-3 sm:gap-6'
+          ? 'min-w-0 flex-row items-center justify-between gap-2 sm:gap-6'
           : 'flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6'
       }`}
     >
       <div
         className={`min-w-0 text-left ${
           inline
-            ? 'shrink-0'
+            ? 'min-w-0 flex-1 truncate sm:flex-none sm:max-w-[12rem]'
             : 'flex-1 sm:max-w-sm lg:max-w-md'
         }`}
       >
@@ -182,9 +183,9 @@ function SettingRow({
         </div>
       </div>
       <div
-        className={`flex shrink-0 justify-end ${
+        className={`flex min-w-0 justify-end ${
           inline
-            ? 'w-auto'
+            ? 'shrink-0'
             : 'w-full sm:w-auto sm:min-w-[14rem] sm:max-w-xl'
         }`}
       >
@@ -686,6 +687,9 @@ export default function SettingsPage() {
   const [ledgerShareTtlHours, setLedgerShareTtlHours] = useState(
     DEFAULT_APP_SETTINGS.ledgerShareTtlHours
   )
+  const [dashboardExpensePeriod, setDashboardExpensePeriod] = useState(
+    DEFAULT_APP_SETTINGS.dashboardExpensePeriod
+  )
   const [messageEditor, setMessageEditor] = useState<'account' | 'transaction' | null>(null)
   const [cashSavingsCashTypeIds, setCashSavingsCashTypeIds] = useState<string[]>(
     () => DEFAULT_APP_SETTINGS.cashSavingsCashTypeIds
@@ -772,6 +776,7 @@ export default function SettingsPage() {
         setTransactionMessageIncludeLedgerUrl(settings.transactionMessageIncludeLedgerUrl)
         setLedgerShareRequirePin(settings.ledgerShareRequirePin)
         setLedgerShareTtlHours(settings.ledgerShareTtlHours)
+        setDashboardExpensePeriod(settings.dashboardExpensePeriod)
         applyThemePreference(settings.theme)
 
         const pickSavedOrDefault = (
@@ -872,6 +877,7 @@ export default function SettingsPage() {
         transactionMessageIncludeLedgerUrl,
         ledgerShareRequirePin,
         ledgerShareTtlHours,
+        dashboardExpensePeriod,
         cashSavingsCashTypeIds,
         cashSavingsAccountTypeIds,
         payableReceivableCashTypeIds,
@@ -893,6 +899,7 @@ export default function SettingsPage() {
       setTransactionMessageIncludeLedgerUrl(saved.transactionMessageIncludeLedgerUrl)
       setLedgerShareRequirePin(saved.ledgerShareRequirePin)
       setLedgerShareTtlHours(saved.ledgerShareTtlHours)
+      setDashboardExpensePeriod(saved.dashboardExpensePeriod)
       setCashSavingsCashTypeIds(saved.cashSavingsCashTypeIds)
       setCashSavingsAccountTypeIds(saved.cashSavingsAccountTypeIds)
       setPayableReceivableCashTypeIds(saved.payableReceivableCashTypeIds)
@@ -1345,7 +1352,7 @@ export default function SettingsPage() {
             label="Send messages"
             description="Templates for WhatsApp send on Accounts and Transactions. Use {{variables}} for name, balance, amount, and more."
           >
-            <div className="flex flex-wrap justify-end gap-2">
+            <div className="flex w-full flex-wrap items-center justify-center gap-2 sm:w-auto sm:justify-end">
               <button
                 type="button"
                 className={actionBtnClass}
@@ -1430,6 +1437,32 @@ export default function SettingsPage() {
                   ) : null}
                 </select>
               </label>
+            </div>
+          </SettingRow>
+
+          <SettingRow
+            label="Expenses period"
+            description="Calendar window for the Dashboard Expenses card. All time uses account balances; other options sum expense transactions in the current week, month, year, or last 3 / 6 months."
+          >
+            <div className="flex w-full justify-center sm:w-auto sm:justify-end">
+              <select
+                id="dashboardExpensePeriod"
+                value={dashboardExpensePeriod}
+                disabled={saving || loading}
+                onChange={(e) =>
+                  setDashboardExpensePeriod(
+                    e.target.value as typeof dashboardExpensePeriod
+                  )
+                }
+                aria-label="Expenses period"
+                className={`${inputClass} !w-full max-w-[12rem] !min-w-0 py-1.5 sm:!w-[11rem] sm:max-w-none`}
+              >
+                {DASHBOARD_EXPENSE_PERIOD_OPTIONS.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </SettingRow>
         </div>

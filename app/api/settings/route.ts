@@ -7,6 +7,7 @@ import {
   normalizeOptionalUrl,
   normalizeUuidIdList,
 } from '@/lib/appSettings'
+import { normalizeDashboardExpensePeriod } from '@/lib/dashboardExpensePeriod'
 import { normalizeLedgerShareTtlHours } from '@/lib/ledgerShareCrypto'
 import {
   DEFAULT_MESSAGE_NOTE_MINUS,
@@ -43,6 +44,8 @@ type RpcSettings = {
   transaction_message_include_ledger_url?: boolean | null
   ledger_share_require_pin?: boolean | null
   ledger_share_ttl_hours?: number | null
+  dashboard_expense_period?: string | null
+  dashboard_expense_period_days?: number | null
   cash_savings_cash_type_ids?: unknown
   cash_savings_account_type_ids?: unknown
   payable_receivable_cash_type_ids?: unknown
@@ -64,6 +67,9 @@ function isMissingRpc(error: { message?: string; code?: string } | null): boolea
 }
 
 const COLUMN_SETS = [
+  'business_name, currency, theme, default_entry_mode, logo_url, favicon_url, account_message_template, transaction_message_template, message_note_plus, message_note_minus, message_note_zero, account_message_include_ledger_url, transaction_message_include_pdf_url, transaction_message_include_ledger_url, ledger_share_require_pin, ledger_share_ttl_hours, dashboard_expense_period, dashboard_expense_period_days, cash_savings_cash_type_ids, cash_savings_account_type_ids, payable_receivable_cash_type_ids, payable_receivable_account_type_ids, updated_at',
+  'business_name, currency, theme, default_entry_mode, logo_url, favicon_url, account_message_template, transaction_message_template, message_note_plus, message_note_minus, message_note_zero, account_message_include_ledger_url, transaction_message_include_pdf_url, transaction_message_include_ledger_url, ledger_share_require_pin, ledger_share_ttl_hours, dashboard_expense_period, cash_savings_cash_type_ids, cash_savings_account_type_ids, payable_receivable_cash_type_ids, payable_receivable_account_type_ids, updated_at',
+  'business_name, currency, theme, default_entry_mode, logo_url, favicon_url, account_message_template, transaction_message_template, message_note_plus, message_note_minus, message_note_zero, account_message_include_ledger_url, transaction_message_include_pdf_url, transaction_message_include_ledger_url, ledger_share_require_pin, ledger_share_ttl_hours, dashboard_expense_period_days, cash_savings_cash_type_ids, cash_savings_account_type_ids, payable_receivable_cash_type_ids, payable_receivable_account_type_ids, updated_at',
   'business_name, currency, theme, default_entry_mode, logo_url, favicon_url, account_message_template, transaction_message_template, message_note_plus, message_note_minus, message_note_zero, account_message_include_ledger_url, transaction_message_include_pdf_url, transaction_message_include_ledger_url, ledger_share_require_pin, ledger_share_ttl_hours, cash_savings_cash_type_ids, cash_savings_account_type_ids, payable_receivable_cash_type_ids, payable_receivable_account_type_ids, updated_at',
   'business_name, currency, theme, default_entry_mode, logo_url, favicon_url, account_message_template, transaction_message_template, message_note_plus, message_note_minus, message_note_zero, account_message_include_ledger_url, transaction_message_include_pdf_url, transaction_message_include_ledger_url, cash_savings_cash_type_ids, cash_savings_account_type_ids, payable_receivable_cash_type_ids, payable_receivable_account_type_ids, updated_at',
   'business_name, currency, theme, default_entry_mode, logo_url, favicon_url, account_message_template, transaction_message_template, message_note_plus, message_note_minus, message_note_zero, account_message_include_ledger_url, transaction_message_include_pdf_url, cash_savings_cash_type_ids, cash_savings_account_type_ids, payable_receivable_cash_type_ids, payable_receivable_account_type_ids, updated_at',
@@ -226,6 +232,11 @@ export async function PATCH(request: Request) {
         body.ledgerShareTtlHours
       )
     }
+    if (body.dashboardExpensePeriod !== undefined) {
+      patch.dashboard_expense_period = normalizeDashboardExpensePeriod(
+        body.dashboardExpensePeriod
+      )
+    }
     for (const key of ID_LIST_PATCH_KEYS) {
       if (body[key.body] !== undefined) {
         patch[key.column] = normalizeUuidIdList(body[key.body])
@@ -270,6 +281,18 @@ export async function PATCH(request: Request) {
           {
             error:
               'Ledger share settings columns missing. Run database/migrations/2026-11-06_ledger_share_pin_ttl_settings.sql in your database.',
+          },
+          500
+        )
+      }
+      if (
+        /dashboard_expense_period/i.test(error.message) &&
+        /does not exist|Could not find/i.test(error.message)
+      ) {
+        return json(
+          {
+            error:
+              'Dashboard expense period column missing. Run database/migrations/2026-11-06_dashboard_expense_period.sql in your database.',
           },
           500
         )
