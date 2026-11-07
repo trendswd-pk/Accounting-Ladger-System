@@ -769,49 +769,54 @@ export default function SharedLedgerPage() {
     }
   }
 
-  const shellHeader = (opts?: { back?: boolean; subtitle?: string }) => (
-    <header className="flex min-w-0 items-center justify-between gap-2 rounded-b-xl bg-primary-600 px-4 py-3.5 text-white sm:gap-3 sm:px-8 sm:py-4">
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        {opts?.back ? (
-          <button
-            type="button"
-            onClick={goBack}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
-            aria-label="Back"
-          >
-            <ArrowLeft className="h-5 w-5" aria-hidden />
-          </button>
-        ) : null}
-        <div className="min-w-0">
-          {logoUrl && !opts?.back ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={logoUrl}
-              alt={ledger.businessName}
-              className="h-8 max-w-[120px] object-contain sm:h-9 sm:max-w-[160px]"
-            />
-          ) : (
-            <p className="truncate text-sm font-bold tracking-tight sm:text-base">
-              {opts?.subtitle || ledger.businessName}
-            </p>
-          )}
+  const shellHeader = (opts?: { back?: boolean; subtitle?: string }) => {
+    const left = formatRemainingCountdown(ledger.expiresAt, nowMs)
+    const expiryLabel =
+      left === 'Expired'
+        ? 'Link expired'
+        : `Link expiry in ${left.replace(/ left$/, '')}`
+    return (
+      <header className="flex min-w-0 items-center justify-between gap-2 rounded-b-xl bg-primary-600 px-4 py-3.5 text-white sm:gap-3 sm:px-8 sm:py-4">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          {opts?.back ? (
+            <button
+              type="button"
+              onClick={goBack}
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+              aria-label="Back"
+            >
+              <ArrowLeft className="h-5 w-5" aria-hidden />
+            </button>
+          ) : null}
+          <div className="min-w-0">
+            {logoUrl && !opts?.back ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoUrl}
+                alt={ledger.businessName}
+                className="h-8 max-w-[120px] object-contain sm:h-9 sm:max-w-[160px]"
+              />
+            ) : (
+              <p className="truncate text-sm font-bold tracking-tight sm:text-base">
+                {opts?.subtitle || ledger.businessName}
+              </p>
+            )}
+          </div>
         </div>
-      </div>
-      <div className="min-w-0 max-w-[52%] shrink text-right">
-        <p className="truncate text-sm font-bold tracking-tight text-red-400 sm:text-base">
-          {ledger.account.name || 'Account'}
-        </p>
-        <p className="mt-0.5 text-[10px] leading-snug text-primary-100 sm:text-[11px]">
-          <span className="block truncate">
-            Valid until {formatDisplayDateTime(ledger.expiresAt)}
-          </span>
-          <span className="mt-0.5 block tabular-nums" aria-live="polite">
-            {formatRemainingCountdown(ledger.expiresAt, nowMs)}
-          </span>
-        </p>
-      </div>
-    </header>
-  )
+        <div className="min-w-0 max-w-[52%] shrink text-right">
+          <p className="truncate text-sm font-bold tracking-tight text-red-400 sm:text-base">
+            {ledger.account.name || 'Account'}
+          </p>
+          <p
+            className="mt-0.5 truncate text-[10px] tabular-nums text-primary-100 sm:text-[11px]"
+            aria-live="polite"
+          >
+            {expiryLabel}
+          </p>
+        </div>
+      </header>
+    )
+  }
 
   const renderTxnList = (rows: Txn[], emptyLabel: string) => (
     <>
