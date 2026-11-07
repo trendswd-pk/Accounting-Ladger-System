@@ -1,8 +1,8 @@
 {
   "site": "Accounting Ledger Documentation",
   "base_url": "https://trendswd.com/projects/Accounting-Ladger-System/doc",
-  "version": "1.2.1",
-  "version_date": "2026-11-06",
+  "version": "1.2.2",
+  "version_date": "2026-11-07",
   "navigation": [
     { "title": "Home", "path": "/docs", "file": "index.md" },
     {

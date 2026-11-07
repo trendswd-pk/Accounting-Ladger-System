@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useParams } from 'next/navigation'
 import {
   ArrowLeft,
+  ArrowRight,
   BookOpen,
   Building2,
   CalendarRange,
@@ -40,6 +41,7 @@ import {
 import {
   formatDisplayDate,
   formatDisplayDateTime,
+  formatRemainingCountdown,
   localYmd,
 } from '@/lib/localDate'
 import { formatMoney } from '@/lib/money'
@@ -102,7 +104,7 @@ type LedgerPayload = {
   banks?: ShareBank[]
 }
 
-type ShareView = 'home' | 'full' | 'month' | 'banks' | 'txn'
+type ShareView = 'home' | 'full' | 'month' | 'day' | 'banks' | 'txn'
 
 /** Browser history payload so mobile system-back stays inside the share UI. */
 type ShareHist = {
@@ -141,6 +143,10 @@ function txnMonthKey(transactionDate: string): string {
   return String(transactionDate ?? '').trim().slice(0, 7)
 }
 
+function txnDayKey(transactionDate: string): string {
+  return String(transactionDate ?? '').trim().slice(0, 10)
+}
+
 /** Balance carried into the month (closing of prior period). */
 function monthOpeningBalance(
   allRows: { transactionDate: string; runningBalance: number }[],
@@ -149,6 +155,19 @@ function monthOpeningBalance(
   let prior: number | null = null
   for (const row of allRows) {
     if (txnMonthKey(row.transactionDate) === monthPrefix) break
+    prior = row.runningBalance
+  }
+  return prior ?? 0
+}
+
+/** Balance carried into the calendar day (closing of prior period). */
+function dayOpeningBalance(
+  allRows: { transactionDate: string; runningBalance: number }[],
+  dayKey: string
+): number {
+  let prior: number | null = null
+  for (const row of allRows) {
+    if (txnDayKey(row.transactionDate) === dayKey) break
     prior = row.runningBalance
   }
   return prior ?? 0
@@ -183,11 +202,28 @@ export default function DemoSharedLedgerPage() {
     bankName: string
   } | null>(null)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
+  const [nowMs, setNowMs] = useState(() => Date.now())
   const ledgerRef = useRef<LedgerPayload | null>(null)
+  const txnTouchStartRef = useRef<{ x: number; y: number } | null>(null)
+  const returnViewRef = useRef(returnView)
+  const detailTxnRef = useRef(detailTxn)
 
   useEffect(() => {
     ledgerRef.current = ledger
   }, [ledger])
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 1000)
+    return () => window.clearInterval(id)
+  }, [])
+
+  useEffect(() => {
+    returnViewRef.current = returnView
+  }, [returnView])
+
+  useEffect(() => {
+    detailTxnRef.current = detailTxn
+  }, [detailTxn])
 
   const applyShareHist = useCallback((s: ShareHist) => {
     setView(s.view)
@@ -246,6 +282,73 @@ export default function DemoSharedLedgerPage() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [qrPreview, exportOpen])
+
+  // Arrow keys move between entries on the transaction detail page.
+  useEffect(() => {
+    if (view !== 'txn') return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+      const payload = ledgerRef.current
+      const current = detailTxnRef.current
+      if (!payload || !current) return
+      const parent = returnViewRef.current
+      const all = payload.transactions
+      const monthPrefix = localYmd().slice(0, 7)
+      const monthList = all.filter(
+        (t) => txnMonthKey(t.transactionDate) === monthPrefix
+      )
+      const today = localYmd()
+      const todayList = all.filter(
+        (t) => txnDayKey(t.transactionDate) === today
+      )
+      const latest = all.length > 0 ? all[all.length - 1]! : null
+      const focusDay =
+        todayList.length > 0
+          ? today
+          : latest
+            ? txnDayKey(latest.transactionDate)
+            : null
+      const dayList = focusDay
+        ? all.filter((t) => txnDayKey(t.transactionDate) === focusDay)
+        : []
+      const rows =
+        parent === 'month'
+          ? monthList
+          : parent === 'day'
+            ? dayList
+            : parent === 'full'
+              ? all
+              : dayList.length > 0
+                ? dayList
+                : all
+      const idx = rows.findIndex((t) => t.id === current.id)
+      if (idx < 0) return
+      const target =
+        e.key === 'ArrowLeft'
+          ? idx > 0
+            ? rows[idx - 1]
+            : null
+          : idx < rows.length - 1
+            ? rows[idx + 1]
+            : null
+      if (!target) return
+      e.preventDefault()
+      setDetailTxn(target)
+      history.replaceState(
+        {
+          __shareLedger: true,
+          view: 'txn',
+          returnView: parent,
+          txnId: target.id,
+          overlay: null,
+        } satisfies ShareHist,
+        '',
+        window.location.href
+      )
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [view])
 
   const copyText = useCallback(async (key: string, value: string) => {
     const text = String(value ?? '').trim()
@@ -494,6 +597,22 @@ export default function DemoSharedLedgerPage() {
   )
   const monthOpenBal = monthOpeningBalance(allRows, monthPrefix)
   const lastTxn = allRows.length > 0 ? allRows[allRows.length - 1]! : null
+  const todayYmd = localYmd()
+  const todayRows = allRows.filter(
+    (t) => txnDayKey(t.transactionDate) === todayYmd
+  )
+  // Prefer today when it has entries; otherwise the calendar day of the latest entry.
+  const dayKey =
+    todayRows.length > 0
+      ? todayYmd
+      : lastTxn
+        ? txnDayKey(lastTxn.transactionDate)
+        : null
+  const dayRows = dayKey
+    ? allRows.filter((t) => txnDayKey(t.transactionDate) === dayKey)
+    : []
+  const dayOpenBal = dayKey ? dayOpeningBalance(allRows, dayKey) : 0
+  const dayIsToday = dayKey === todayYmd
   const banks = ledger.banks ?? []
   // Balance due from account holder (business receivable) → they can pay via our banks.
   const showBankButton = ledger.account.balance > 0 && banks.length > 0
@@ -531,6 +650,29 @@ export default function DemoSharedLedgerPage() {
       txnId: txn.id,
       overlay: null,
     })
+  }
+
+  /** Prev/next within detail: replace history so system Back still exits to the list. */
+  const showAdjacentTxn = (txn: Txn) => {
+    setDetailTxn(txn)
+    history.replaceState(
+      {
+        __shareLedger: true,
+        view: 'txn',
+        returnView,
+        txnId: txn.id,
+        overlay: null,
+      } satisfies ShareHist,
+      '',
+      window.location.href
+    )
+  }
+
+  const txnDetailNavRows = (): Txn[] => {
+    if (returnView === 'month') return monthRows
+    if (returnView === 'day') return dayRows
+    if (returnView === 'full') return allRows
+    return dayRows.length > 0 ? dayRows : allRows
   }
 
   const goBack = () => {
@@ -643,8 +785,13 @@ export default function DemoSharedLedgerPage() {
         <p className="truncate text-sm font-bold tracking-tight text-red-400 sm:text-base">
           {ledger.account.name || 'Account'}
         </p>
-        <p className="mt-0.5 truncate text-[10px] text-primary-100 sm:text-[11px]">
-          Valid until {formatDisplayDateTime(ledger.expiresAt)}
+        <p className="mt-0.5 text-[10px] leading-snug text-primary-100 sm:text-[11px]">
+          <span className="block truncate">
+            Valid until {formatDisplayDateTime(ledger.expiresAt)}
+          </span>
+          <span className="mt-0.5 block tabular-nums" aria-live="polite">
+            {formatRemainingCountdown(ledger.expiresAt, nowMs)}
+          </span>
         </p>
       </div>
     </header>
@@ -811,9 +958,6 @@ export default function DemoSharedLedgerPage() {
 
   /* ---- HOME MENU ---- */
   if (view === 'home') {
-    const lastSigned =
-      lastTxn &&
-      (lastTxn.entryType === 'debit' ? -lastTxn.amount : lastTxn.amount)
     return (
       <main className="min-h-screen overflow-x-hidden bg-gray-50 dark:bg-gray-950 pb-[env(safe-area-inset-bottom)]">
         <div className="mx-auto w-full max-w-lg min-w-0 lg:max-w-3xl">
@@ -867,12 +1011,16 @@ export default function DemoSharedLedgerPage() {
               </section>
 
               <section className="min-w-0 space-y-2.5 lg:col-span-3">
-                {lastTxn && lastSigned != null
+                {dayKey && dayRows.length > 0
                   ? menuBtn({
-                      title: 'Last transaction',
-                      subtitle: `#${lastTxn.entryNumber} · ${formatDisplayDate(lastTxn.transactionDate)} · ${formatMoney(lastSigned, currency)}`,
+                      title: dayIsToday
+                        ? "Today's transactions"
+                        : 'Latest day transactions',
+                      subtitle: `${formatDisplayDate(dayKey)} · ${dayRows.length} ${
+                        dayRows.length === 1 ? 'entry' : 'entries'
+                      }`,
                       icon: <Receipt className="h-5 w-5" aria-hidden />,
-                      onClick: () => openTxn(lastTxn),
+                      onClick: () => openShareView('day'),
                     })
                   : (
                       <div className="rounded-2xl border border-dashed border-gray-200 bg-white px-4 py-5 text-center text-sm text-brand-stone dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
@@ -1020,6 +1168,15 @@ export default function DemoSharedLedgerPage() {
   /* ---- TRANSACTION DETAIL PAGE ---- */
   if (view === 'txn' && detailTxn) {
     const isDebit = detailTxn.entryType === 'debit'
+    const navRows = txnDetailNavRows()
+    const navIndex = navRows.findIndex((t) => t.id === detailTxn.id)
+    const prevTxn = navIndex > 0 ? navRows[navIndex - 1]! : null
+    const nextTxn =
+      navIndex >= 0 && navIndex < navRows.length - 1
+        ? navRows[navIndex + 1]!
+        : null
+    const canSwipeNav = Boolean(prevTxn || nextTxn)
+
     return (
       <main className="min-h-screen overflow-x-hidden bg-gray-50 dark:bg-gray-950 pb-[env(safe-area-inset-bottom)]">
         <div className="mx-auto w-full max-w-lg min-w-0 lg:max-w-2xl">
@@ -1028,7 +1185,27 @@ export default function DemoSharedLedgerPage() {
             subtitle: `Entry #${detailTxn.entryNumber}`,
           })}
           <div className="px-4 py-5 sm:px-6 sm:py-8">
-            <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <div
+              className="touch-pan-y overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800"
+              onTouchStart={(e) => {
+                if (!canSwipeNav) return
+                const t = e.changedTouches[0]
+                if (!t) return
+                txnTouchStartRef.current = { x: t.clientX, y: t.clientY }
+              }}
+              onTouchEnd={(e) => {
+                const start = txnTouchStartRef.current
+                txnTouchStartRef.current = null
+                if (!start || !canSwipeNav) return
+                const t = e.changedTouches[0]
+                if (!t) return
+                const dx = t.clientX - start.x
+                const dy = t.clientY - start.y
+                if (Math.abs(dx) < 56 || Math.abs(dx) <= Math.abs(dy)) return
+                if (dx < 0 && nextTxn) showAdjacentTxn(nextTxn)
+                else if (dx > 0 && prevTxn) showAdjacentTxn(prevTxn)
+              }}
+            >
               <div className="flex items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 px-4 py-3 sm:px-5 dark:border-gray-700 dark:bg-gray-900/50">
                 <p className="text-sm font-semibold text-brand-ink dark:text-gray-50">
                   Transaction details
@@ -1134,24 +1311,75 @@ export default function DemoSharedLedgerPage() {
                 </div>
               </dl>
             </div>
+
+            {canSwipeNav ? (
+              <>
+                <p className="mt-3 text-center text-[11px] text-brand-stone sm:hidden dark:text-gray-400">
+                  Swipe left or right for previous / next entry
+                </p>
+                <div className="mt-4 hidden items-center justify-between gap-3 sm:flex">
+                  <button
+                    type="button"
+                    disabled={!prevTxn}
+                    onClick={() => prevTxn && showAdjacentTxn(prevTxn)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-brand-ink shadow-sm transition hover:border-primary-200 hover:bg-primary-50/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-50 dark:hover:border-primary-700 dark:hover:bg-primary-950/40"
+                  >
+                    <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
+                    Previous
+                  </button>
+                  <span className="tabular-nums text-xs text-brand-stone dark:text-gray-400">
+                    {navIndex >= 0 ? navIndex + 1 : '—'} / {navRows.length}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={!nextTxn}
+                    onClick={() => nextTxn && showAdjacentTxn(nextTxn)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-brand-ink shadow-sm transition hover:border-primary-200 hover:bg-primary-50/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-50 dark:hover:border-primary-700 dark:hover:bg-primary-950/40"
+                  >
+                    Next
+                    <ArrowRight className="h-4 w-4 shrink-0" aria-hidden />
+                  </button>
+                </div>
+              </>
+            ) : null}
           </div>
         </div>
       </main>
     )
   }
 
-  /* ---- FULL / MONTH LEDGER (PDF-style statement) ---- */
-  if (view === 'full' || view === 'month') {
-    const rows = view === 'full' ? allRows : monthRows
+  /* ---- FULL / MONTH / DAY LEDGER (PDF-style statement) ---- */
+  if (view === 'full' || view === 'month' || view === 'day') {
     const isMonth = view === 'month'
-    const title = isMonth ? 'Current month ledger' : 'Account ledger'
+    const isDay = view === 'day'
+    const rows = isMonth ? monthRows : isDay ? dayRows : allRows
+    const periodOpenBal = isMonth ? monthOpenBal : isDay ? dayOpenBal : 0
+    const periodLabel = isMonth
+      ? currentMonthLabel()
+      : isDay && dayKey
+        ? formatDisplayDate(dayKey)
+        : ''
+    const title = isMonth
+      ? 'Current month ledger'
+      : isDay
+        ? dayIsToday
+          ? "Today's transactions"
+          : 'Latest day transactions'
+        : 'Account ledger'
     const closingBalance =
-      isMonth && rows.length > 0
+      (isMonth || isDay) && rows.length > 0
         ? rows[rows.length - 1]!.runningBalance
-        : isMonth
-          ? monthOpenBal
+        : isMonth || isDay
+          ? periodOpenBal
           : ledger.account.balance
     const exportedLabel = formatDisplayDate(new Date())
+    const emptyMessage = isMonth
+      ? 'No transactions this month.'
+      : isDay
+        ? dayIsToday
+          ? 'No transactions today.'
+          : 'No transactions on this day.'
+        : 'No transactions yet.'
 
     return (
       <main className="min-h-screen bg-[#525659] dark:bg-gray-950 px-0 py-0 pb-[env(safe-area-inset-bottom)] sm:px-3 sm:py-8">
@@ -1220,13 +1448,13 @@ export default function DemoSharedLedgerPage() {
                     {currency || '—'}
                   </dd>
                 </div>
-                {isMonth ? (
+                {isMonth || isDay ? (
                   <div className="flex gap-2">
                     <dt className="w-[5.75rem] shrink-0 text-brand-stone dark:text-gray-400 sm:w-[6.5rem]">
                       Opening bal.
                     </dt>
                     <dd className="font-semibold tabular-nums text-brand-ink dark:text-gray-50">
-                      {formatMoney(monthOpenBal, currency)}
+                      {formatMoney(periodOpenBal, currency)}
                     </dd>
                   </div>
                 ) : null}
@@ -1266,8 +1494,10 @@ export default function DemoSharedLedgerPage() {
                   </dt>
                   <dd className="font-semibold text-brand-ink dark:text-gray-50">
                     {isMonth
-                      ? `Month · ${currentMonthLabel()}`
-                      : 'Ledger statement'}
+                      ? `Month · ${periodLabel}`
+                      : isDay
+                        ? `Day · ${periodLabel}`
+                        : 'Ledger statement'}
                   </dd>
                 </div>
               </dl>
@@ -1279,26 +1509,21 @@ export default function DemoSharedLedgerPage() {
               Tap a row to open details
             </p>
 
-            {isMonth ? (
+            {isMonth || isDay ? (
               <div className="mb-3 flex items-center justify-between gap-3 rounded-md border border-gray-200 bg-white px-3 py-3 sm:px-4 dark:border-gray-700 dark:bg-gray-900/40">
                 <span className="text-sm font-semibold text-brand-ink dark:text-gray-50">
                   Opening balance
                   <span className="mt-0.5 block text-[11px] font-normal text-brand-stone dark:text-gray-400">
-                    Balance before {currentMonthLabel()}
+                    Balance before {periodLabel}
                   </span>
                 </span>
                 <span className="text-sm font-bold tabular-nums text-brand-ink dark:text-gray-50">
-                  {formatMoney(monthOpenBal, currency)}
+                  {formatMoney(periodOpenBal, currency)}
                 </span>
               </div>
             ) : null}
 
-            {renderTxnList(
-              rows,
-              isMonth
-                ? 'No transactions this month.'
-                : 'No transactions yet.'
-            )}
+            {renderTxnList(rows, emptyMessage)}
 
             <div className="mt-3 flex items-center justify-between gap-3 rounded-md border border-primary-200 bg-primary-50 px-3 py-3 sm:px-4 dark:border-primary-800/60 dark:bg-primary-950/40">
               <span className="text-sm font-bold text-primary-800 dark:text-primary-300">

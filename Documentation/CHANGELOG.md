@@ -2,6 +2,13 @@
 
 All notable changes to Accounting Ledger are documented here.
 
+## [1.2.2] — 2026-11-07
+
+### Changed
+- Shared ledger home menu: **Last transaction** is now **Today's transactions** (or **Latest day transactions**). It lists every entry on that calendar day — today when there are any, otherwise the date of the most recent entry. Tap a row for the same entry detail page.
+- Shared ledger **transaction detail**: desktop **Previous / Next** buttons (and arrow keys); on mobile, swipe left/right between entries in the current list. System Back still returns to the list.
+- Shared ledger header keeps **Valid until** datetime and adds a live **countdown** (seconds) until the link expires.
+
 ## [1.2.1] — 2026-11-06
 
 ### Added

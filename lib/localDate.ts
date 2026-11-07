@@ -76,6 +76,34 @@ export function formatDisplayDateTime(
   return `${datePart}, ${h}:${min} ${ampm}`
 }
 
+/**
+ * Live remaining time until an expiry instant.
+ * Examples: `2d 4h 03m 12s left`, `45m 08s left`, `Expired`.
+ */
+export function formatRemainingCountdown(
+  expiresAt: string | Date | null | undefined,
+  now: Date | number = Date.now()
+): string {
+  if (expiresAt == null || expiresAt === '') return '—'
+  const end =
+    expiresAt instanceof Date
+      ? expiresAt.getTime()
+      : new Date(String(expiresAt)).getTime()
+  if (Number.isNaN(end)) return '—'
+  const nowMs = typeof now === 'number' ? now : now.getTime()
+  const ms = end - nowMs
+  if (ms <= 0) return 'Expired'
+  const totalSec = Math.floor(ms / 1000)
+  const d = Math.floor(totalSec / 86400)
+  const h = Math.floor((totalSec % 86400) / 3600)
+  const m = Math.floor((totalSec % 3600) / 60)
+  const s = totalSec % 60
+  if (d > 0) return `${d}d ${h}h ${pad2(m)}m ${pad2(s)}s left`
+  if (h > 0) return `${h}h ${pad2(m)}m ${pad2(s)}s left`
+  if (m > 0) return `${m}m ${pad2(s)}s left`
+  return `${s}s left`
+}
+
 /** Browser / Node local calendar day as YYYY-MM-DD. */
 export function localYmd(date: Date = new Date()): string {
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`

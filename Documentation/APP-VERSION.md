@@ -1,12 +1,13 @@
 # App version
 
-**Current version:** 1.2.1  
-**Released:** 2026-11-06
+**Current version:** 1.2.2  
+**Released:** 2026-11-07
 
 See the full [Changelog](./CHANGELOG.md).
 
 ## This release includes
-- Secure interactive ledger preview links (PIN + 24h expiry) for account WhatsApp messages
+- Shared ledger menu: **Today's / Latest day transactions** lists every entry on that calendar day (today when present, otherwise the last entry’s date)
+- Secure interactive ledger preview links (PIN + configurable expiry) for account WhatsApp messages
 - Settings → **Bank details** (with bank QR upload; run bank_details SQL migrations)
 - Transactions **Print preview**: opens `/transactions/{id}/print` with Print + Download PDF
 - Dashboard Today/Yesterday expense cards roll over at local midnight (no UTC lag)
