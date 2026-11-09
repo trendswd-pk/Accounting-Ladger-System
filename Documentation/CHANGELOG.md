@@ -5,7 +5,9 @@ All notable changes to Accounting Ledger are documented here.
 ## [1.2.3] — 2026-11-09
 
 ### Changed
-- Mobile bottom nav: center **Trans.** tab is now a primary **Add transaction** (+) control. Tap navigates to Transactions and opens the add form.
+- Mobile bottom nav: center **Trans.** tab is now a primary **Add transaction** (+) control. Tap opens **`/newentry`**.
+- **Add transaction** is a dedicated page at **`/newentry`** (full page layout, not a popup card). Dashboard / Transactions Add and the mobile + control all go there; save or cancel returns to Transactions. Edit remains a modal on the Transactions list.
+- `/newentry` header: description lives in an **info** icon beside the title (mobile and desktop).
 
 ## [1.2.2] — 2026-11-07
 

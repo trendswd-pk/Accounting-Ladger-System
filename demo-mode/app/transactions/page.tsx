@@ -1,6 +1,7 @@
 'use client'
 
 import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   ArrowDown,
@@ -482,37 +483,6 @@ function TransactionsPageInner() {
       </div>
     ) : null
 
-  const openAdd = () => {
-    setFormError(null)
-    setEditingId(null)
-    setFormMode(defaultEntryMode)
-    setTransactionDate(todayISO())
-    setAccountId('')
-    setFromAccountId('')
-    setToAccountId('')
-    setNarration('')
-    setEntryType('')
-    setBalance('')
-    setPendingFiles([])
-    setModalOpen(true)
-    void loadAccounts().catch(() => {})
-    const cachedSettings = getCachedAppSettings()
-    if (cachedSettings) setDefaultEntryMode(cachedSettings.defaultEntryMode)
-  }
-
-  // Mobile bottom-nav “+” → /transactions?new=1 opens the add form, then cleans the URL.
-  useEffect(() => {
-    if (searchParams.get('new') !== '1') return
-    openAdd()
-    const qs = new URLSearchParams(searchParams.toString())
-    qs.delete('new')
-    const rest = qs.toString()
-    router.replace(rest ? `/transactions?${rest}` : '/transactions', {
-      scroll: false,
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to ?new=1
-  }, [searchParams, router])
-
   const openEdit = (row: TransactionRecord) => {
     setFormError(null)
     setEditingId(row.id)
@@ -896,21 +866,19 @@ function TransactionsPageInner() {
                 </span>
               ) : null}
             </button>
-            <button
-              type="button"
-              onClick={openAdd}
+            <Link
+              href="/newentry"
               className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 lg:hidden"
               aria-label="Add Transaction"
             >
               <Plus className="h-4 w-4" aria-hidden />
-            </button>
-            <button
-              type="button"
-              onClick={openAdd}
+            </Link>
+            <Link
+              href="/newentry"
               className="hidden h-10 items-center rounded-md bg-primary-600 px-4 text-sm font-medium leading-none text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 lg:inline-flex"
             >
               Add
-            </button>
+            </Link>
           </div>
         </div>
         <SoftSearchField
@@ -1244,7 +1212,7 @@ function TransactionsPageInner() {
                     colSpan={8}
                     className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
-                    No transactions yet. Click Add to create one.
+                    No transactions yet. Use Add to create one.
                   </td>
                 </tr>
               ) : filteredRows.length === 0 ? (

@@ -6,7 +6,7 @@
 See the full [Changelog](./CHANGELOG.md).
 
 ## This release includes
-- Mobile bottom nav center control: **Add transaction** (opens form on Transactions)
+- **`/newentry`** page for adding transactions; mobile bottom nav + control opens it
 - Shared ledger menu: **Today's / Latest day transactions** lists every entry on that calendar day
 - Secure interactive ledger preview links (PIN + configurable expiry) for account WhatsApp messages
 - Settings → **Bank details** (with bank QR upload; run bank_details SQL migrations)

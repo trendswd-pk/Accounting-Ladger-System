@@ -36,7 +36,8 @@ function activeTabIndex(pathname: string): number {
   if (pathname.startsWith('/accounts')) return 1
   // Center control is an action (add txn), not a destination tab.
   if (pathname.startsWith('/expenses')) return 3
-  if (pathname.startsWith('/transactions')) return -1
+  if (pathname.startsWith('/transactions') || pathname.startsWith('/newentry'))
+    return -1
   return 4
 }
 
@@ -46,7 +47,7 @@ type MobileBottomNavProps = {
 
 /**
  * Fixed mobile tab bar — full screen width, safe-area aware, soft active chip.
- * Center control opens Add Transaction (navigates to /transactions?new=1).
+ * Center control opens Add Transaction (navigates to /newentry).
  * Brand greens (color-scheme.mdc). Hidden from lg+.
  */
 export default function MobileBottomNav({ onOpenMenu }: MobileBottomNavProps) {
@@ -115,7 +116,7 @@ export default function MobileBottomNav({ onOpenMenu }: MobileBottomNavProps) {
               ) : tab.opensAddTxn ? (
                 <button
                   type="button"
-                  onClick={() => router.push('/transactions?new=1')}
+                  onClick={() => router.push('/newentry')}
                   className={`${itemClass} w-full`}
                   aria-label="Add transaction"
                 >

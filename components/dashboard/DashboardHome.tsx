@@ -16,7 +16,6 @@ import {
   TrendingUp,
   Wallet,
 } from 'lucide-react'
-import TransactionFormModal from '@/components/TransactionFormModal'
 import {
   fetchAccounts,
   getCachedAccounts,
@@ -139,7 +138,6 @@ export default function DashboardHome() {
       DEFAULT_APP_SETTINGS.dashboardExpensePeriod
   )
   const [infoOpen, setInfoOpen] = useState(false)
-  const [txnModalOpen, setTxnModalOpen] = useState(false)
 
   const loadSummary = useCallback(
     async (force: boolean) => {
@@ -504,32 +502,22 @@ export default function DashboardHome() {
             >
               Transactions
             </Link>
-            <button
-              type="button"
-              onClick={() => setTxnModalOpen(true)}
+            <Link
+              href="/newentry"
               className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 lg:hidden"
               aria-label="Add Transaction"
             >
               <Plus className="h-4 w-4" aria-hidden />
-            </button>
-            <button
-              type="button"
-              onClick={() => setTxnModalOpen(true)}
+            </Link>
+            <Link
+              href="/newentry"
               className="hidden h-10 items-center rounded-md bg-primary-600 px-4 text-sm font-medium leading-none text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 lg:inline-flex"
             >
               Add
-            </button>
+            </Link>
           </div>
         </div>
       </div>
-
-      <TransactionFormModal
-        open={txnModalOpen}
-        onClose={() => setTxnModalOpen(false)}
-        onSaved={() => {
-          void refreshDashboard()
-        }}
-      />
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {statCards.map((card) => {
