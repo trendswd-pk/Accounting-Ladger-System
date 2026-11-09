@@ -3,11 +3,13 @@
 import {
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronDown, X } from 'lucide-react'
 
 export type SearchableSelectOption = {
@@ -27,9 +29,12 @@ type SearchableSelectProps = {
   className?: string
 }
 
+type MenuPos = { top: number; left: number; width: number }
+
 /**
  * Combobox-style select: type to filter, click or keyboard to pick.
  * ArrowUp / ArrowDown move highlight; Enter selects; Escape closes.
+ * List opens in a portal so table / overflow parents do not clip it.
  */
 export default function SearchableSelect({
   id,
@@ -45,6 +50,8 @@ export default function SearchableSelect({
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [highlight, setHighlight] = useState(0)
+  const [menuPos, setMenuPos] = useState<MenuPos | null>(null)
+  const [mounted, setMounted] = useState(false)
   const rootRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
   const listRef = useRef<HTMLUListElement | null>(null)
@@ -66,7 +73,44 @@ export default function SearchableSelect({
     setOpen(false)
     setQuery('')
     setHighlight(0)
+    setMenuPos(null)
   }
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const updateMenuPos = () => {
+    const el = inputRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const gap = 4
+    const maxH = 208 // max-h-52
+    const spaceBelow = window.innerHeight - rect.bottom - gap
+    const spaceAbove = rect.top - gap
+    const openUp = spaceBelow < Math.min(maxH, 160) && spaceAbove > spaceBelow
+    const top = openUp
+      ? Math.max(8, rect.top - gap - Math.min(maxH, spaceAbove))
+      : rect.bottom + gap
+    setMenuPos({
+      top,
+      left: rect.left,
+      width: Math.max(rect.width, 160),
+    })
+  }
+
+  useLayoutEffect(() => {
+    if (!open) return
+    updateMenuPos()
+    const onReposition = () => updateMenuPos()
+    window.addEventListener('resize', onReposition)
+    // Capture scroll from nested overflow containers too.
+    window.addEventListener('scroll', onReposition, true)
+    return () => {
+      window.removeEventListener('resize', onReposition)
+      window.removeEventListener('scroll', onReposition, true)
+    }
+  }, [open])
 
   // Keep highlight in range when the filtered list changes.
   useEffect(() => {
@@ -89,7 +133,10 @@ export default function SearchableSelect({
   useEffect(() => {
     if (!open) return
     const onDoc = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) close()
+      const target = e.target as Node
+      if (rootRef.current?.contains(target)) return
+      if (listRef.current?.contains(target)) return
+      close()
     }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -171,6 +218,59 @@ export default function SearchableSelect({
     }
   }
 
+  const menu =
+    open && !disabled && mounted && menuPos ? (
+      <ul
+        ref={listRef}
+        id={listId}
+        role="listbox"
+        style={{
+          position: 'fixed',
+          top: menuPos.top,
+          left: menuPos.left,
+          width: menuPos.width,
+          zIndex: 80,
+        }}
+        className="max-h-52 overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-700"
+      >
+        {filtered.length === 0 ? (
+          <li className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+            {emptyMessage}
+          </li>
+        ) : (
+          filtered.map((opt, index) => {
+            const selectedOpt = opt.value === value
+            const isHighlight = index === highlight
+            return (
+              <li
+                key={opt.value}
+                id={optionId(index)}
+                role="option"
+                aria-selected={selectedOpt || isHighlight}
+              >
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  className={`flex w-full px-3 py-2 text-left text-sm ${
+                    isHighlight
+                      ? 'bg-primary-50 text-primary-800 dark:bg-primary-900/40 dark:text-primary-200'
+                      : selectedOpt
+                        ? 'bg-primary-50/60 text-primary-800 dark:bg-primary-900/25 dark:text-primary-200'
+                        : 'text-gray-900 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-600'
+                  }`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onMouseEnter={() => setHighlight(index)}
+                  onClick={() => pick(opt.value)}
+                >
+                  {opt.label}
+                </button>
+              </li>
+            )
+          })
+        )}
+      </ul>
+    ) : null
+
   return (
     <div ref={rootRef} className="relative">
       <div className="relative">
@@ -232,48 +332,7 @@ export default function SearchableSelect({
         </div>
       </div>
 
-      {open && !disabled ? (
-        <ul
-          ref={listRef}
-          id={listId}
-          role="listbox"
-          className="absolute z-50 mt-1 max-h-52 w-full overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-700"
-        >
-          {filtered.length === 0 ? (
-            <li className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">{emptyMessage}</li>
-          ) : (
-            filtered.map((opt, index) => {
-              const selectedOpt = opt.value === value
-              const isHighlight = index === highlight
-              return (
-                <li
-                  key={opt.value}
-                  id={optionId(index)}
-                  role="option"
-                  aria-selected={selectedOpt || isHighlight}
-                >
-                  <button
-                    type="button"
-                    tabIndex={-1}
-                    className={`flex w-full px-3 py-2 text-left text-sm ${
-                      isHighlight
-                        ? 'bg-primary-50 text-primary-800 dark:bg-primary-900/40 dark:text-primary-200'
-                        : selectedOpt
-                          ? 'bg-primary-50/60 text-primary-800 dark:bg-primary-900/25 dark:text-primary-200'
-                          : 'text-gray-900 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-600'
-                    }`}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onMouseEnter={() => setHighlight(index)}
-                    onClick={() => pick(opt.value)}
-                  >
-                    {opt.label}
-                  </button>
-                </li>
-              )
-            })
-          )}
-        </ul>
-      ) : null}
+      {menu ? createPortal(menu, document.body) : null}
     </div>
   )
 }

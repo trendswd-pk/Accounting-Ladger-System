@@ -153,7 +153,7 @@ export async function createTransactionRow(body: CreateBody) {
       if (body.items.length === 0) {
         return json({ error: 'At least one transaction is required.' }, 400)
       }
-      if (body.items.length > 20) {
+      if (body.items.length > 40) {
         return json({ error: 'Too many transactions in one request.' }, 400)
       }
       const rows: ParsedCreateRow[] = []

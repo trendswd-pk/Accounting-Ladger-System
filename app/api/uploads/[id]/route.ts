@@ -28,15 +28,28 @@ export async function DELETE(_request: Request, { params }: Ctx) {
   const admin = getSupabaseAdmin()
   const { data, error } = await admin
     .from('file_attachments')
-    .select('id, storage_key')
+    .select('id, storage_key, public_url')
     .eq('id', id)
     .maybeSingle()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   if (!data) return NextResponse.json({ error: 'Attachment not found.' }, { status: 404 })
 
-  if (isKeyUnderPrefix(r2, data.storage_key)) {
-    const delErr = await deleteR2Object(r2, data.storage_key)
+  const storageKey = String(data.storage_key ?? '').trim()
+  let sharedRefs = 0
+  if (storageKey) {
+    const { count, error: countError } = await admin
+      .from('file_attachments')
+      .select('id', { count: 'exact', head: true })
+      .eq('storage_key', storageKey)
+      .neq('id', id)
+    if (countError) return NextResponse.json({ error: countError.message }, { status: 500 })
+    sharedRefs = count ?? 0
+  }
+
+  // Shared multi/transfer links reuse storage_key — delete R2 only on the last ref.
+  if (sharedRefs === 0 && isKeyUnderPrefix(r2, storageKey)) {
+    const delErr = await deleteR2Object(r2, storageKey)
     if (delErr) return NextResponse.json({ error: delErr }, { status: 500 })
   }
 

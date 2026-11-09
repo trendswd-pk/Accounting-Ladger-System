@@ -294,6 +294,35 @@ export async function deleteUploadedFile(id: string): Promise<void> {
   }
 }
 
+/** Attach an already-uploaded file to more folders (same public URL, no re-upload). */
+export async function linkAttachmentToFolders(
+  attachmentId: string,
+  folders: string[]
+): Promise<FileAttachment[]> {
+  const id = String(attachmentId ?? '').trim()
+  const uniqueFolders = [
+    ...new Set(folders.map((f) => String(f ?? '').trim()).filter(Boolean)),
+  ]
+  if (!id || uniqueFolders.length === 0) return []
+
+  const res = await fetch('/api/uploads/link', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ attachmentId: id, folders: uniqueFolders }),
+  })
+  if (!res.ok) throw new Error(await readError(res, 'Could not link attachment.'))
+  const body = (await res.json()) as { attachments?: FileAttachment[] }
+  const items = body.attachments ?? []
+  for (const attachment of items) {
+    const prev = listCache.get(attachment.folder) ?? []
+    listCache.set(attachment.folder, [
+      attachment,
+      ...prev.filter((r) => r.id !== attachment.id),
+    ])
+  }
+  return items
+}
+
 /** Folder key used to group files under one transaction. */
 export function transactionAttachmentFolder(transactionId: string): string {
   return `transactions/${String(transactionId).trim()}`

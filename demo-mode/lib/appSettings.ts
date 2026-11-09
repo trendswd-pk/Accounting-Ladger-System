@@ -29,7 +29,7 @@ function coerceMessageTemplate(stored: unknown, fallback: string): string {
   return upgradeLedgerPreviewMessageTemplate(stored, fallback)
 }
 
-export type DefaultEntryMode = 'normal' | 'transfer'
+export type DefaultEntryMode = 'normal' | 'transfer' | 'multi'
 
 export type AppSettings = {
   businessName: string
@@ -139,7 +139,9 @@ type DbRow = {
 }
 
 export function normalizeDefaultEntryMode(value: unknown): DefaultEntryMode {
-  return value === 'transfer' ? 'transfer' : 'normal'
+  if (value === 'transfer') return 'transfer'
+  if (value === 'multi') return 'multi'
+  return 'normal'
 }
 
 export function normalizeUuidIdList(value: unknown): string[] {

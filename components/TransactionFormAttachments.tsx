@@ -5,6 +5,7 @@ import { FileText, Upload, X } from 'lucide-react'
 import TransactionDocumentsPanel from '@/components/TransactionDocumentsPanel'
 import {
   formatUploadSize,
+  linkAttachmentToFolders,
   UPLOAD_MAX_BYTES,
   uploadFileToR2,
   transactionAttachmentFolder,
@@ -20,6 +21,11 @@ type TransactionFormAttachmentsProps = {
   /** When editing an existing row, list/manage already-uploaded files. */
   existingTransactionId?: string | null
   inputId?: string
+  /**
+   * Transfer / Multi: files upload once and the same URL is linked on every
+   * saved ledger line.
+   */
+  shareAcrossEntries?: boolean
 }
 
 export default function TransactionFormAttachments({
@@ -28,6 +34,7 @@ export default function TransactionFormAttachments({
   disabled = false,
   existingTransactionId = null,
   inputId = 'txn-attachments',
+  shareAcrossEntries = false,
 }: TransactionFormAttachmentsProps) {
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [pickError, setPickError] = useState<string | null>(null)
@@ -107,7 +114,9 @@ export default function TransactionFormAttachments({
           onChange={(e) => addFiles(e.target.files)}
         />
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          Optional. Any type, multiple files (max 100MB each).
+          {shareAcrossEntries
+            ? 'Optional. Uploaded once — the same file link is attached to every entry in this save (max 100MB each).'
+            : 'Optional. Any type, multiple files (max 100MB each).'}
         </p>
       </div>
 
@@ -153,18 +162,30 @@ export default function TransactionFormAttachments({
   )
 }
 
-/** Upload staged files to one or more transaction folders (e.g. transfer debit + credit). */
+/**
+ * Upload staged files once, then attach the same public URLs to every transaction.
+ * Used by multi-entry / transfer so documents are not re-uploaded per line.
+ */
 export async function uploadPendingTransactionFiles(
   transactionIds: string[],
   files: File[]
 ): Promise<void> {
   const ids = transactionIds.map((id) => String(id).trim()).filter(Boolean)
   if (ids.length === 0 || files.length === 0) return
-  // Parallel uploads — save UX no longer awaits this path for closing the modal.
+
+  const primaryId = ids[0]!
+  const primaryFolder = transactionAttachmentFolder(primaryId)
+  const uploaded = await Promise.all(
+    files.map((file) => uploadFileToR2(file, { folder: primaryFolder }))
+  )
+
+  const otherFolders = ids
+    .slice(1)
+    .map((id) => transactionAttachmentFolder(id))
+    .filter((folder) => folder !== primaryFolder)
+  if (otherFolders.length === 0) return
+
   await Promise.all(
-    ids.flatMap((id) => {
-      const folder = transactionAttachmentFolder(id)
-      return files.map((file) => uploadFileToR2(file, { folder }))
-    })
+    uploaded.map((attachment) => linkAttachmentToFolders(attachment.id, otherFolders))
   )
 }

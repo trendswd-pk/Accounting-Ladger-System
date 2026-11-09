@@ -31,6 +31,19 @@ All notable changes to Accounting Ledger are documented here.
 - Remaining data-entry forms moved off popups onto pages: **Edit Transaction** (`/transactions/{id}/edit`), **Account Type** / **Cash Type** add & edit, **Bank Details** add & edit, and **Messages** account/transaction template editors. Confirm / export / delete dialogs stay as small overlays.
 - **Send message**: preparation loading stays in the same app window (overlay). When ready, WhatsApp opens — no second browser tab for the loading screen.
 - Desktop header menu: hovering out of the drawer (or onto the dimmed overlay) closes the sidebar again; hover still opens it from the menu button.
+- **Multi Transaction** entry mode on Add Transaction: journal-style grid (D/C, account, debit, credit) plus one shared required narration for every line. Rows save as separate ledger entries only when debit and credit totals match. Default mode selectable under Settings → Transactions.
+- Multi Transaction grid: entering a credit amount disables that row’s debit field (and debit disables credit) so only one side can be filled per line.
+- Multi Transaction rows tint by side — credit green / debit red — matching Normal Entry type colors.
+- Multi Transaction grid starts with **2** blank rows (add more with Add row as needed).
+- Database: `app_settings.default_entry_mode` check constraint now allows `multi` (migration `2026-11-09_default_entry_mode_multi.sql`).
+- Multi Transaction D/C column shows a single **D** or **C** badge for the active side (not both buttons).
+- Account dropdown on Multi Transaction (and other SearchableSelect fields) opens in a portal so the full list is not clipped inside the table row.
+- Multi Transaction: per-row short narration removed; one shared **Narration** field applies to all saved lines.
+- Multi Transaction / Transfer documents: files upload **once**; the same file URL is linked on every saved entry (no per-row re-upload). Requires migration `2026-11-09_file_attachments_shared_storage_key.sql`.
+- Add Transaction save button stays disabled until required fields are complete (including balanced Multi totals + narration).
+- Add Transaction: required markers (*) on Entry Mode and Multi grid Account / Debit / Credit headers.
+- Add Transaction Entry Mode: three equal buttons in one row on mobile (icon + short label); fuller labels on larger screens.
+- Multi Transaction on mobile: each line is a stacked card (account + debit/credit), with a compact totals bar; desktop keeps the journal table.
 
 ## [1.2.2] — 2026-11-07
 

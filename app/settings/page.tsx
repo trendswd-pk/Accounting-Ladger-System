@@ -49,7 +49,11 @@ export default function SettingsPage() {
       ?.label ?? settings.dashboardExpensePeriod
 
   const transactionsValue = [
-    settings.defaultEntryMode === 'transfer' ? 'Transfer' : 'Normal Entry',
+    settings.defaultEntryMode === 'transfer'
+      ? 'Transfer'
+      : settings.defaultEntryMode === 'multi'
+        ? 'Multi Transaction'
+        : 'Normal Entry',
     settings.floatingActionsShowLabels ? 'Labels on' : 'Labels off',
   ].join(' · ')
 

@@ -101,6 +101,7 @@ export default function TransactionsSettingsPage() {
               [
                 { id: 'normal' as const, label: 'Normal Entry' },
                 { id: 'transfer' as const, label: 'Transfer' },
+                { id: 'multi' as const, label: 'Multi Transaction' },
               ] as const
             ).map((option) => (
               <button

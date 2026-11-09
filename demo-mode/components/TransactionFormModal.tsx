@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Info } from 'lucide-react'
+import { ArrowLeftRight, FileEdit, Info, Plus, Rows3, Trash2 } from 'lucide-react'
 import {
   FormModalBody,
   FormModalFooter,
@@ -24,14 +24,29 @@ import {
 } from '@/lib/appSettings'
 import {
   createTransaction,
+  createTransactions,
   createTransfer,
   type TransactionEntryType,
+  type TransactionInput,
 } from '@/lib/transactions'
 
 const inputClass =
   'w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500'
 
+const multiCellClass =
+  'w-full min-w-0 rounded border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100'
+
 type FormMode = DefaultEntryMode
+
+type MultiLine = {
+  key: string
+  accountId: string
+  debit: string
+  credit: string
+}
+
+const MULTI_STARTER_ROWS = 2
+const MULTI_MAX_ROWS = 40
 
 function todayISO(): string {
   const d = new Date()
@@ -39,6 +54,36 @@ function todayISO(): string {
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
+}
+
+function newMultiLine(): MultiLine {
+  return {
+    key: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    accountId: '',
+    debit: '',
+    credit: '',
+  }
+}
+
+function starterMultiLines(count = MULTI_STARTER_ROWS): MultiLine[] {
+  return Array.from({ length: count }, () => newMultiLine())
+}
+
+function parseAmount(raw: string): number {
+  const n = Number(String(raw).trim())
+  if (!Number.isFinite(n) || n <= 0) return 0
+  return Math.abs(n)
+}
+
+function amountsMatch(a: number, b: number): boolean {
+  return Math.round(a * 100) === Math.round(b * 100)
+}
+
+function formatMoney(n: number): string {
+  return n.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
 }
 
 type TransactionFormModalProps = {
@@ -57,6 +102,9 @@ export default function TransactionFormModal({
 }: TransactionFormModalProps) {
   const isPage = presentation === 'page'
   const [accounts, setAccounts] = useState(() => getCachedAccounts() ?? [])
+  const [currency, setCurrency] = useState(
+    () => getCachedAppSettings()?.currency ?? DEFAULT_APP_SETTINGS.currency
+  )
   const [defaultEntryMode, setDefaultEntryMode] = useState<FormMode>(
     () => getCachedAppSettings()?.defaultEntryMode ?? DEFAULT_APP_SETTINGS.defaultEntryMode
   )
@@ -66,6 +114,8 @@ export default function TransactionFormModal({
   const [fromAccountId, setFromAccountId] = useState('')
   const [toAccountId, setToAccountId] = useState('')
   const [narration, setNarration] = useState('')
+  const [longNarration, setLongNarration] = useState('')
+  const [multiLines, setMultiLines] = useState<MultiLine[]>(() => starterMultiLines())
   const [entryType, setEntryType] = useState<TransactionEntryType | ''>('')
   const [balance, setBalance] = useState('')
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
@@ -77,6 +127,69 @@ export default function TransactionFormModal({
     () => accounts.map((a) => ({ value: a.id, label: a.name })),
     [accounts]
   )
+
+  const multiTotals = useMemo(() => {
+    let debit = 0
+    let credit = 0
+    let filled = 0
+    let validFilled = 0
+    for (const line of multiLines) {
+      const debitAmt = parseAmount(line.debit)
+      const creditAmt = parseAmount(line.credit)
+      debit += debitAmt
+      credit += creditAmt
+      const hasAny = Boolean(line.accountId) || debitAmt > 0 || creditAmt > 0
+      if (!hasAny) continue
+      filled += 1
+      if (
+        line.accountId &&
+        ((debitAmt > 0 && creditAmt <= 0) || (creditAmt > 0 && debitAmt <= 0))
+      ) {
+        validFilled += 1
+      }
+    }
+    return {
+      debit,
+      credit,
+      filled,
+      validFilled,
+      balanced: amountsMatch(debit, credit) && debit > 0,
+    }
+  }, [multiLines])
+
+  const canSubmit = useMemo(() => {
+    if (submitting) return false
+    if (!transactionDate.trim()) return false
+
+    if (formMode === 'multi') {
+      if (!longNarration.trim()) return false
+      if (multiTotals.validFilled < 2) return false
+      if (multiTotals.validFilled !== multiTotals.filled) return false
+      return multiTotals.balanced
+    }
+
+    if (!narration.trim()) return false
+    const balanceNum = Number(balance.trim())
+    if (!balance.trim() || !Number.isFinite(balanceNum) || balanceNum < 0) return false
+
+    if (formMode === 'transfer') {
+      return Boolean(fromAccountId && toAccountId && fromAccountId !== toAccountId)
+    }
+
+    return Boolean(accountId && (entryType === 'credit' || entryType === 'debit'))
+  }, [
+    submitting,
+    transactionDate,
+    formMode,
+    longNarration,
+    multiTotals,
+    narration,
+    balance,
+    fromAccountId,
+    toAccountId,
+    accountId,
+    entryType,
+  ])
 
   const loadAccounts = useCallback(async () => {
     const items = await fetchAccounts()
@@ -91,6 +204,8 @@ export default function TransactionFormModal({
     setFromAccountId('')
     setToAccountId('')
     setNarration('')
+    setLongNarration('')
+    setMultiLines(starterMultiLines())
     setEntryType('')
     setBalance('')
     setPendingFiles([])
@@ -105,6 +220,7 @@ export default function TransactionFormModal({
         const s = cached ?? (await fetchAppSettings())
         if (cancelled) return
         setDefaultEntryMode(s.defaultEntryMode)
+        setCurrency(s.currency || DEFAULT_APP_SETTINGS.currency)
         resetForm(s.defaultEntryMode)
       } catch {
         if (!cancelled) resetForm(defaultEntryMode)
@@ -128,12 +244,129 @@ export default function TransactionFormModal({
     setFormError(null)
   }
 
+  const updateMultiLine = (key: string, patch: Partial<MultiLine>) => {
+    setMultiLines((rows) => {
+      const next = rows.map((row) => (row.key === key ? { ...row, ...patch } : row))
+      const last = next[next.length - 1]
+      const lastUsed =
+        last &&
+        (last.accountId || parseAmount(last.debit) > 0 || parseAmount(last.credit) > 0)
+      if (lastUsed && next.length < MULTI_MAX_ROWS) {
+        return [...next, newMultiLine()]
+      }
+      return next
+    })
+  }
+
+  const removeMultiLine = (key: string) => {
+    setMultiLines((rows) => {
+      const next = rows.filter((row) => row.key !== key)
+      return next.length >= 2 ? next : starterMultiLines(2)
+    })
+  }
+
+  const switchMode = (mode: FormMode) => {
+    setFormMode(mode)
+    setFormError(null)
+    setAccountId('')
+    setFromAccountId('')
+    setToAccountId('')
+    setEntryType('')
+    setBalance('')
+    setNarration('')
+    setLongNarration('')
+    setMultiLines(starterMultiLines())
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!transactionDate) {
       setFormError('Transaction date is required.')
       return
     }
+
+    if (formMode === 'multi') {
+      const longTrim = longNarration.trim()
+      if (!longTrim) {
+        setFormError('Narration is required.')
+        return
+      }
+
+      const prepared: TransactionInput[] = []
+      for (let i = 0; i < multiLines.length; i++) {
+        const line = multiLines[i]!
+        const debitAmt = parseAmount(line.debit)
+        const creditAmt = parseAmount(line.credit)
+        const hasAny =
+          Boolean(line.accountId) || debitAmt > 0 || creditAmt > 0
+
+        if (!hasAny) continue
+
+        if (!line.accountId) {
+          setFormError(`Row ${i + 1}: account is required.`)
+          return
+        }
+        if (debitAmt > 0 && creditAmt > 0) {
+          setFormError(`Row ${i + 1}: enter either debit or credit, not both.`)
+          return
+        }
+        if (debitAmt <= 0 && creditAmt <= 0) {
+          setFormError(`Row ${i + 1}: enter a debit or credit amount.`)
+          return
+        }
+
+        prepared.push({
+          transactionDate,
+          accountId: line.accountId,
+          narration: longTrim,
+          entryType: debitAmt > 0 ? 'debit' : 'credit',
+          balance: debitAmt > 0 ? debitAmt : creditAmt,
+        })
+      }
+
+      if (prepared.length < 2) {
+        setFormError('Add at least two lines (debit and credit) that balance.')
+        return
+      }
+
+      const debitTotal = prepared
+        .filter((p) => p.entryType === 'debit')
+        .reduce((sum, p) => sum + p.balance, 0)
+      const creditTotal = prepared
+        .filter((p) => p.entryType === 'credit')
+        .reduce((sum, p) => sum + p.balance, 0)
+
+      if (!amountsMatch(debitTotal, creditTotal)) {
+        setFormError(
+          `Debit and credit totals must match before saving (${formatMoney(debitTotal)} vs ${formatMoney(creditTotal)}).`
+        )
+        return
+      }
+      if (debitTotal <= 0) {
+        setFormError('Totals must be greater than zero.')
+        return
+      }
+
+      setSubmitting(true)
+      setFormError(null)
+      try {
+        const items = await createTransactions(prepared)
+        const uploadIds = items.map((item) => item.id)
+        const filesToUpload = pendingFiles
+        setPendingFiles([])
+        setSubmitting(false)
+        onClose()
+        onSaved?.()
+        if (filesToUpload.length > 0) {
+          void uploadPendingTransactionFiles(uploadIds, filesToUpload).catch(() => {})
+        }
+      } catch (err) {
+        setFormError(err instanceof Error ? err.message : 'Save failed')
+        setSubmitting(false)
+      }
+      return
+    }
+
     const narrationTrim = narration.trim()
     if (!narrationTrim) {
       setFormError('Narration is required.')
@@ -204,7 +437,6 @@ export default function TransactionFormModal({
       setSubmitting(false)
       onClose()
       onSaved?.()
-      // Files + any extra refresh stay off the critical save path.
       if (filesToUpload.length > 0) {
         void uploadPendingTransactionFiles(uploadIds, filesToUpload).catch(() => {})
       }
@@ -216,6 +448,424 @@ export default function TransactionFormModal({
 
   if (!isPage && !open) return null
 
+  const entryModeButtons = (
+    <div>
+      <span className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+        Entry Mode <span className="text-red-500">*</span>
+      </span>
+      <div
+        className="grid grid-cols-3 gap-2"
+        role="group"
+        aria-label="Entry mode"
+      >
+        {(
+          [
+            {
+              id: 'normal' as const,
+              label: 'Normal',
+              fullLabel: 'Normal Entry',
+              Icon: FileEdit,
+            },
+            {
+              id: 'transfer' as const,
+              label: 'Transfer',
+              fullLabel: 'Transfer',
+              Icon: ArrowLeftRight,
+            },
+            {
+              id: 'multi' as const,
+              label: 'Multi',
+              fullLabel: 'Multi Transaction',
+              Icon: Rows3,
+            },
+          ] as const
+        ).map((option) => {
+          const Icon = option.Icon
+          const selected = formMode === option.id
+          return (
+            <button
+              key={option.id}
+              type="button"
+              aria-pressed={selected}
+              aria-label={option.fullLabel}
+              title={option.fullLabel}
+              onClick={() => switchMode(option.id)}
+              className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-md border px-1.5 py-2 text-center transition-colors sm:flex-row sm:gap-2 sm:px-3 ${
+                selected
+                  ? 'border-primary-600 bg-primary-50 text-primary-800 dark:bg-primary-900/40 dark:text-primary-200'
+                  : 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700'
+              }`}
+            >
+              <Icon className="h-4 w-4 shrink-0" aria-hidden />
+              <span className="truncate text-[11px] font-medium leading-tight sm:text-sm">
+                <span className="sm:hidden">{option.label}</span>
+                <span className="hidden sm:inline">{option.fullLabel}</span>
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+
+  const dateField = (
+    <div>
+      <label
+        htmlFor="dash-txn-date"
+        className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+      >
+        Transaction Date <span className="text-red-500">*</span>
+      </label>
+      <input
+        id="dash-txn-date"
+        type="date"
+        required
+        value={transactionDate}
+        onChange={(e) => setTransactionDate(e.target.value)}
+        className={inputClass}
+      />
+    </div>
+  )
+
+  const amountInputClass = `${multiCellClass} text-right tabular-nums disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 dark:disabled:bg-gray-900/50 dark:disabled:text-gray-500`
+
+  const multiSideMeta = (line: MultiLine) => {
+    const debitAmt = parseAmount(line.debit)
+    const creditAmt = parseAmount(line.credit)
+    const side: 'D' | 'C' | '' =
+      debitAmt > 0 || (Boolean(line.debit.trim()) && !line.credit.trim())
+        ? 'D'
+        : creditAmt > 0 || (Boolean(line.credit.trim()) && !line.debit.trim())
+          ? 'C'
+          : ''
+    const tint =
+      side === 'D'
+        ? 'bg-red-50 dark:bg-red-900/25'
+        : side === 'C'
+          ? 'bg-primary-50 dark:bg-primary-900/25'
+          : 'bg-white dark:bg-gray-800/60'
+    const edge =
+      side === 'D'
+        ? 'border-l-red-500'
+        : side === 'C'
+          ? 'border-l-primary-600'
+          : 'border-l-transparent'
+    const badge =
+      side === 'D'
+        ? 'border-red-600 bg-red-50 text-red-800 dark:bg-red-900/40 dark:text-red-300'
+        : side === 'C'
+          ? 'border-primary-600 bg-primary-50 text-primary-800 dark:bg-primary-900/40 dark:text-primary-300'
+          : 'border-dashed border-gray-300 text-gray-400 dark:border-gray-600 dark:text-gray-500'
+    return { side, tint, edge, badge }
+  }
+
+  const multiTotalsBar = (
+    <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 dark:border-gray-700 dark:bg-gray-900/40">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300">
+        <span>
+          Totals ({currency})
+          {!multiTotals.balanced && multiTotals.debit + multiTotals.credit > 0 ? (
+            <span className="ml-2 font-medium text-red-600 dark:text-red-400">
+              Must match to save
+            </span>
+          ) : multiTotals.balanced ? (
+            <span className="ml-2 font-medium text-primary-700 dark:text-primary-400">
+              Balanced
+            </span>
+          ) : null}
+        </span>
+      </div>
+      <div className="mt-1.5 grid grid-cols-2 gap-2 text-sm font-semibold tabular-nums">
+        <div className="rounded-md bg-red-50 px-2.5 py-1.5 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+          <span className="block text-[10px] font-medium uppercase tracking-wide opacity-80">
+            Debit
+          </span>
+          {formatMoney(multiTotals.debit)}
+        </div>
+        <div className="rounded-md bg-primary-50 px-2.5 py-1.5 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400">
+          <span className="block text-[10px] font-medium uppercase tracking-wide opacity-80">
+            Credit
+          </span>
+          {formatMoney(multiTotals.credit)}
+        </div>
+      </div>
+    </div>
+  )
+
+  const multiGrid = (
+    <div className="space-y-3">
+      {/* Mobile: stacked entry cards */}
+      <div className="space-y-3 md:hidden">
+        {multiLines.map((line, index) => {
+          const { side, tint, edge, badge } = multiSideMeta(line)
+          return (
+            <div
+              key={line.key}
+              className={`rounded-xl border border-gray-200 border-l-4 p-3 shadow-sm dark:border-gray-700 ${tint} ${edge}`}
+            >
+              <div className="mb-2.5 flex items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span
+                    className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded text-xs font-semibold border ${badge}`}
+                    aria-label={
+                      side === 'D'
+                        ? `Row ${index + 1} debit`
+                        : side === 'C'
+                          ? `Row ${index + 1} credit`
+                          : `Row ${index + 1} side unset`
+                    }
+                  >
+                    {side || '—'}
+                  </span>
+                  <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    Line {index + 1}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeMultiLine(line.key)}
+                  className="rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+                  aria-label={`Remove row ${index + 1}`}
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
+
+              <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">
+                Account <span className="text-red-500">*</span>
+              </label>
+              <SearchableSelect
+                key={`multi-account-m-${line.key}`}
+                id={`dash-multi-account-m-${line.key}`}
+                value={line.accountId}
+                onChange={(id) => updateMultiLine(line.key, { accountId: id })}
+                options={accountOptions}
+                placeholder="Account…"
+                emptyMessage={accounts.length === 0 ? 'No accounts yet' : 'No matches'}
+                className={multiCellClass}
+              />
+
+              <div className="mt-2.5 grid grid-cols-2 gap-2">
+                <div>
+                  <label
+                    htmlFor={`dash-multi-debit-m-${line.key}`}
+                    className="mb-1 block text-xs font-medium text-red-700 dark:text-red-400"
+                  >
+                    Debit <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id={`dash-multi-debit-m-${line.key}`}
+                    type="number"
+                    inputMode="decimal"
+                    step="any"
+                    min="0"
+                    value={line.debit}
+                    disabled={Boolean(line.credit.trim())}
+                    onChange={(e) =>
+                      updateMultiLine(line.key, {
+                        debit: e.target.value,
+                        credit: e.target.value.trim() ? '' : line.credit,
+                      })
+                    }
+                    className={amountInputClass}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor={`dash-multi-credit-m-${line.key}`}
+                    className="mb-1 block text-xs font-medium text-primary-700 dark:text-primary-400"
+                  >
+                    Credit <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id={`dash-multi-credit-m-${line.key}`}
+                    type="number"
+                    inputMode="decimal"
+                    step="any"
+                    min="0"
+                    value={line.credit}
+                    disabled={Boolean(line.debit.trim())}
+                    onChange={(e) =>
+                      updateMultiLine(line.key, {
+                        credit: e.target.value,
+                        debit: e.target.value.trim() ? '' : line.debit,
+                      })
+                    }
+                    className={amountInputClass}
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+            </div>
+          )
+        })}
+        {multiTotalsBar}
+      </div>
+
+      {/* Desktop: journal table */}
+      <div className="hidden overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 md:block">
+        <table className="min-w-[36rem] w-full border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-300">
+              <th className="w-12 px-2 py-2">D/C</th>
+              <th className="min-w-[12rem] px-2 py-2">
+                Account <span className="text-red-500">*</span>
+              </th>
+              <th className="w-28 px-2 py-2 text-right">
+                Debit <span className="text-red-500">*</span>
+              </th>
+              <th className="w-28 px-2 py-2 text-right">
+                Credit <span className="text-red-500">*</span>
+              </th>
+              <th className="w-10 px-1 py-2">
+                <span className="sr-only">Remove</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            {multiLines.map((line, index) => {
+              const { side, tint, edge, badge } = multiSideMeta(line)
+              return (
+                <tr key={line.key} className={`${tint} border-l-2 ${edge}`}>
+                  <td className="px-2 py-1.5 align-middle">
+                    <span
+                      className={`inline-flex h-8 w-8 items-center justify-center rounded border text-xs font-semibold ${badge}`}
+                      aria-label={
+                        side === 'D'
+                          ? `Row ${index + 1} debit`
+                          : side === 'C'
+                            ? `Row ${index + 1} credit`
+                            : `Row ${index + 1} side unset`
+                      }
+                    >
+                      {side || '—'}
+                    </span>
+                  </td>
+                  <td className="px-2 py-1.5 align-middle">
+                    <SearchableSelect
+                      key={`multi-account-${line.key}`}
+                      id={`dash-multi-account-${line.key}`}
+                      value={line.accountId}
+                      onChange={(id) => updateMultiLine(line.key, { accountId: id })}
+                      options={accountOptions}
+                      placeholder="Account…"
+                      emptyMessage={accounts.length === 0 ? 'No accounts yet' : 'No matches'}
+                      className={multiCellClass}
+                    />
+                  </td>
+                  <td className="px-2 py-1.5 align-middle">
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      step="any"
+                      min="0"
+                      value={line.debit}
+                      disabled={Boolean(line.credit.trim())}
+                      onChange={(e) =>
+                        updateMultiLine(line.key, {
+                          debit: e.target.value,
+                          credit: e.target.value.trim() ? '' : line.credit,
+                        })
+                      }
+                      className={amountInputClass}
+                      placeholder="0.00"
+                      aria-label={`Row ${index + 1} debit`}
+                    />
+                  </td>
+                  <td className="px-2 py-1.5 align-middle">
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      step="any"
+                      min="0"
+                      value={line.credit}
+                      disabled={Boolean(line.debit.trim())}
+                      onChange={(e) =>
+                        updateMultiLine(line.key, {
+                          credit: e.target.value,
+                          debit: e.target.value.trim() ? '' : line.debit,
+                        })
+                      }
+                      className={amountInputClass}
+                      placeholder="0.00"
+                      aria-label={`Row ${index + 1} credit`}
+                    />
+                  </td>
+                  <td className="px-1 py-1.5 align-middle">
+                    <button
+                      type="button"
+                      onClick={() => removeMultiLine(line.key)}
+                      className="rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+                      aria-label={`Remove row ${index + 1}`}
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden />
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+          <tfoot>
+            <tr className="border-t border-gray-200 bg-gray-50 font-semibold dark:border-gray-700 dark:bg-gray-900/40">
+              <td colSpan={2} className="px-2 py-2 text-xs text-gray-600 dark:text-gray-300">
+                Totals ({currency})
+                {!multiTotals.balanced && multiTotals.debit + multiTotals.credit > 0 ? (
+                  <span className="ml-2 font-medium text-red-600 dark:text-red-400">
+                    Must match to save
+                  </span>
+                ) : multiTotals.balanced ? (
+                  <span className="ml-2 font-medium text-primary-700 dark:text-primary-400">
+                    Balanced
+                  </span>
+                ) : null}
+              </td>
+              <td className="px-2 py-2 text-right tabular-nums text-red-700 dark:text-red-400">
+                {formatMoney(multiTotals.debit)}
+              </td>
+              <td className="px-2 py-2 text-right tabular-nums text-primary-700 dark:text-primary-400">
+                {formatMoney(multiTotals.credit)}
+              </td>
+              <td />
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <button
+        type="button"
+        onClick={() =>
+          setMultiLines((rows) =>
+            rows.length >= MULTI_MAX_ROWS ? rows : [...rows, newMultiLine()]
+          )
+        }
+        disabled={multiLines.length >= MULTI_MAX_ROWS}
+        className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 md:w-auto"
+      >
+        <Plus className="h-4 w-4" aria-hidden />
+        Add row
+      </button>
+
+      <div>
+        <label
+          htmlFor="dash-txn-long-narration"
+          className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+        >
+          Narration <span className="text-red-500">*</span>
+        </label>
+        <textarea
+          id="dash-txn-long-narration"
+          required
+          rows={3}
+          value={longNarration}
+          onChange={(e) => setLongNarration(e.target.value)}
+          className={inputClass}
+          placeholder="Applies to every line in this multi entry…"
+        />
+      </div>
+    </div>
+  )
+
   const formFields = (
     <>
       {formError ? (
@@ -224,62 +874,12 @@ export default function TransactionFormModal({
         </div>
       ) : null}
       <div className="space-y-4">
-        <div>
-          <span className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Entry Mode
-          </span>
-          <div className="flex gap-2" role="group" aria-label="Entry mode">
-            {(
-              [
-                { id: 'normal', label: 'Normal Entry' },
-                { id: 'transfer', label: 'Transfer' },
-              ] as const
-            ).map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                aria-pressed={formMode === option.id}
-                onClick={() => {
-                  setFormMode(option.id)
-                  setFormError(null)
-                  if (option.id === 'transfer') {
-                    setAccountId('')
-                    setEntryType('')
-                  } else {
-                    setFromAccountId('')
-                    setToAccountId('')
-                  }
-                }}
-                className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
-                  formMode === option.id
-                    ? 'border-primary-600 bg-primary-50 text-primary-800 dark:bg-primary-900/40 dark:text-primary-200'
-                    : 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        {entryModeButtons}
+        {dateField}
 
-        <div>
-          <label
-            htmlFor="dash-txn-date"
-            className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-          >
-            Transaction Date <span className="text-red-500">*</span>
-          </label>
-          <input
-            id="dash-txn-date"
-            type="date"
-            required
-            value={transactionDate}
-            onChange={(e) => setTransactionDate(e.target.value)}
-            className={inputClass}
-          />
-        </div>
-
-        {formMode === 'transfer' ? (
+        {formMode === 'multi' ? (
+          multiGrid
+        ) : formMode === 'transfer' ? (
           <>
             <div>
               <label
@@ -360,77 +960,82 @@ export default function TransactionFormModal({
           </p>
         ) : null}
 
-        <div>
-          <label
-            htmlFor="dash-txn-narration"
-            className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-          >
-            Narration <span className="text-red-500">*</span>
-          </label>
-          <textarea
-            id="dash-txn-narration"
-            required
-            rows={3}
-            value={narration}
-            onChange={(e) => setNarration(e.target.value)}
-            className={inputClass}
-            placeholder="Enter details…"
-          />
-        </div>
-
-        {formMode === 'normal' ? (
-          <div>
-            <span className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Type <span className="text-red-500">*</span>
-            </span>
-            <div className="flex gap-2" role="group" aria-label="Entry type">
-              {(['credit', 'debit'] as const).map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  aria-pressed={entryType === option}
-                  onClick={() => setEntryType(option)}
-                  className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium capitalize transition-colors ${
-                    entryType === option
-                      ? option === 'credit'
-                        ? 'border-green-600 bg-green-50 text-green-800 dark:bg-green-900/40 dark:text-green-300'
-                        : 'border-red-600 bg-red-50 text-red-800 dark:bg-red-900/40 dark:text-red-300'
-                      : 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  {option}
-                </button>
-              ))}
+        {formMode !== 'multi' ? (
+          <>
+            <div>
+              <label
+                htmlFor="dash-txn-narration"
+                className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                Narration <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                id="dash-txn-narration"
+                required
+                rows={3}
+                value={narration}
+                onChange={(e) => setNarration(e.target.value)}
+                className={inputClass}
+                placeholder="Enter details…"
+              />
             </div>
-          </div>
-        ) : null}
 
-        <div>
-          <label
-            htmlFor="dash-txn-balance"
-            className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-          >
-            Balance <span className="text-red-500">*</span>
-          </label>
-          <input
-            id="dash-txn-balance"
-            type="number"
-            inputMode="decimal"
-            step="any"
-            min="0"
-            required
-            value={balance}
-            onChange={(e) => setBalance(e.target.value)}
-            className={inputClass}
-            placeholder="Enter amount"
-          />
-        </div>
+            {formMode === 'normal' ? (
+              <div>
+                <span className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Type <span className="text-red-500">*</span>
+                </span>
+                <div className="flex gap-2" role="group" aria-label="Entry type">
+                  {(['credit', 'debit'] as const).map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      aria-pressed={entryType === option}
+                      onClick={() => setEntryType(option)}
+                      className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium capitalize transition-colors ${
+                        entryType === option
+                          ? option === 'credit'
+                            ? 'border-green-600 bg-green-50 text-green-800 dark:bg-green-900/40 dark:text-green-300'
+                            : 'border-red-600 bg-red-50 text-red-800 dark:bg-red-900/40 dark:text-red-300'
+                          : 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            <div>
+              <label
+                htmlFor="dash-txn-balance"
+                className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                Balance <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="dash-txn-balance"
+                type="number"
+                inputMode="decimal"
+                step="any"
+                min="0"
+                required
+                value={balance}
+                onChange={(e) => setBalance(e.target.value)}
+                className={inputClass}
+                placeholder="Enter amount"
+              />
+            </div>
+          </>
+        ) : null}
 
         <TransactionFormAttachments
           inputId="dash-txn-attachments"
           files={pendingFiles}
           onChange={setPendingFiles}
           disabled={submitting}
+          shareAcrossEntries={formMode === 'transfer' || formMode === 'multi'}
         />
       </div>
     </>
@@ -473,9 +1078,10 @@ export default function TransactionFormModal({
                     <div
                       id="newentry-info-popover"
                       role="dialog"
-                      className="absolute left-0 top-full z-50 mt-2 w-64 max-w-[min(16rem,calc(100vw-2rem))] rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                      className="absolute left-0 top-full z-50 mt-2 w-72 max-w-[min(18rem,calc(100vw-2rem))] rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
                     >
-                      Create a ledger entry or transfer between accounts.
+                      Create a ledger entry, transfer, or multi-line journal. Multi saves
+                      only when debit and credit totals match.
                     </div>
                   </>
                 ) : null}
@@ -517,10 +1123,10 @@ export default function TransactionFormModal({
             </button>
             <button
               type="submit"
-              disabled={submitting}
+              disabled={!canSubmit}
               className="inline-flex h-10 items-center rounded-md bg-primary-600 px-4 text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {submitting ? 'Saving…' : 'Add'}
+              {submitting ? 'Saving…' : formMode === 'multi' ? 'Save entries' : 'Add'}
             </button>
           </div>
         </form>
@@ -535,7 +1141,11 @@ export default function TransactionFormModal({
       aria-modal="true"
       aria-labelledby="dashboard-transaction-modal-title"
     >
-      <div className={`${formModalPanelClass} max-w-md`}>
+      <div
+        className={`${formModalPanelClass} ${
+          formMode === 'multi' ? 'max-w-4xl' : 'max-w-md'
+        }`}
+      >
         <FormModalHeader
           titleId="dashboard-transaction-modal-title"
           title="Add Transaction"
@@ -562,10 +1172,10 @@ export default function TransactionFormModal({
           <button
             type="submit"
             form="dashboard-transaction-form"
-            disabled={submitting}
+            disabled={!canSubmit}
             className={formModalPrimaryButtonClass}
           >
-            {submitting ? 'Saving…' : 'Add'}
+            {submitting ? 'Saving…' : formMode === 'multi' ? 'Save entries' : 'Add'}
           </button>
         </FormModalFooter>
       </div>

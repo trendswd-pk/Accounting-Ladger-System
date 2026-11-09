@@ -148,6 +148,45 @@ export async function deleteUploadedFile(id: string): Promise<void> {
   setStoredUploads(getStoredUploads().filter((f) => f.id !== id))
 }
 
+/** Attach an already-uploaded file to more folders (same public URL, no re-upload). */
+export async function linkAttachmentToFolders(
+  attachmentId: string,
+  folders: string[]
+): Promise<FileAttachment[]> {
+  requireDemoUser()
+  const id = String(attachmentId ?? '').trim()
+  const uniqueFolders = [
+    ...new Set(folders.map((f) => String(f ?? '').trim()).filter(Boolean)),
+  ]
+  if (!id || uniqueFolders.length === 0) return []
+
+  const source = getStoredUploads().find((f) => f.id === id)
+  if (!source) throw new Error('Attachment not found.')
+
+  const created: FileAttachment[] = []
+  for (const folder of uniqueFolders) {
+    if (folder === source.folder) continue
+    const attachment: FileAttachment = {
+      ...source,
+      id: newId('file'),
+      folder,
+      createdAt: new Date().toISOString(),
+    }
+    created.push(attachment)
+  }
+  if (created.length > 0) {
+    setStoredUploads([...getStoredUploads(), ...created])
+    for (const attachment of created) {
+      const prev = listCache.get(attachment.folder) ?? []
+      listCache.set(attachment.folder, [
+        attachment,
+        ...prev.filter((r) => r.id !== attachment.id),
+      ])
+    }
+  }
+  return created
+}
+
 /** Folder key used to group files under one transaction. */
 export function transactionAttachmentFolder(transactionId: string): string {
   return `transactions/${String(transactionId).trim()}`

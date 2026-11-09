@@ -173,7 +173,7 @@ CREATE TABLE IF NOT EXISTS public.app_settings (
   currency TEXT NOT NULL DEFAULT 'PKR',
   theme TEXT NOT NULL DEFAULT 'dark' CHECK (theme IN ('light', 'dark')),
   default_entry_mode TEXT NOT NULL DEFAULT 'normal'
-    CHECK (default_entry_mode IN ('normal', 'transfer')),
+    CHECK (default_entry_mode IN ('normal', 'transfer', 'multi')),
   logo_url TEXT,
   favicon_url TEXT,
   account_message_template TEXT NOT NULL DEFAULT '',
@@ -255,9 +255,16 @@ BEGIN
   ) THEN
     ALTER TABLE public.app_settings
       ADD CONSTRAINT app_settings_default_entry_mode_check
-      CHECK (default_entry_mode IN ('normal', 'transfer'));
+      CHECK (default_entry_mode IN ('normal', 'transfer', 'multi'));
   END IF;
 END $$;
+
+-- Keep existing DBs in sync when re-running schema (widen check for multi).
+ALTER TABLE public.app_settings
+  DROP CONSTRAINT IF EXISTS app_settings_default_entry_mode_check;
+ALTER TABLE public.app_settings
+  ADD CONSTRAINT app_settings_default_entry_mode_check
+  CHECK (default_entry_mode IN ('normal', 'transfer', 'multi'));
 
 DO $$
 BEGIN
@@ -472,14 +479,21 @@ CREATE TABLE IF NOT EXISTS public.file_attachments (
   mime_type TEXT NOT NULL DEFAULT 'application/octet-stream',
   size_bytes BIGINT NOT NULL DEFAULT 0,
   folder TEXT NOT NULL DEFAULT '',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT file_attachments_storage_key_unique UNIQUE (storage_key)
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Shared storage_key is allowed so multi/transfer entries can reuse one R2 object.
+ALTER TABLE public.file_attachments
+  DROP CONSTRAINT IF EXISTS file_attachments_storage_key_unique;
 
 CREATE INDEX IF NOT EXISTS idx_file_attachments_created_at
   ON public.file_attachments (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_file_attachments_folder
   ON public.file_attachments (folder);
+CREATE INDEX IF NOT EXISTS idx_file_attachments_storage_key
+  ON public.file_attachments (storage_key);
+CREATE INDEX IF NOT EXISTS idx_file_attachments_public_url
+  ON public.file_attachments (public_url);
 
 ALTER TABLE public.file_attachments ENABLE ROW LEVEL SECURITY;
 
