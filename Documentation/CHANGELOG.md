@@ -30,6 +30,7 @@ All notable changes to Accounting Ledger are documented here.
 - **Add Account** / **Edit Account** are dedicated pages at **`/accounts/new`** and **`/accounts/{id}/edit`** (full page layout, not a popup). The account form popup is removed.
 - Remaining data-entry forms moved off popups onto pages: **Edit Transaction** (`/transactions/{id}/edit`), **Account Type** / **Cash Type** add & edit, **Bank Details** add & edit, and **Messages** account/transaction template editors. Confirm / export / delete dialogs stay as small overlays.
 - **Send message**: preparation loading stays in the same app window (overlay). When ready, WhatsApp opens — no second browser tab for the loading screen.
+- Desktop header menu: hovering out of the drawer (or onto the dimmed overlay) closes the sidebar again; hover still opens it from the menu button.
 
 ## [1.2.2] — 2026-11-07
 

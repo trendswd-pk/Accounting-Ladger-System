@@ -102,10 +102,19 @@ function isSubPathActive(pathname: string, sub: SubItem): boolean {
 type SidebarProps = {
   open?: boolean
   onClose?: () => void
+  /** Desktop hover bridge: pointer entered the drawer panel. */
+  onPanelMouseEnter?: () => void
+  /** Desktop hover bridge: pointer left the drawer panel. */
+  onPanelMouseLeave?: () => void
 }
 
 /** Off-canvas navigation drawer — same interaction model as Courier-Dashboard. */
-export default function Sidebar({ open = false, onClose }: SidebarProps) {
+export default function Sidebar({
+  open = false,
+  onClose,
+  onPanelMouseEnter,
+  onPanelMouseLeave,
+}: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const asideRef = useRef<HTMLElement>(null)
@@ -220,10 +229,16 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
           open ? 'opacity-100' : 'pointer-events-none opacity-0'
         }`}
         onClick={onClose}
+        onMouseEnter={() => {
+          // Leaving the panel onto the dimmed area closes on fine-pointer hover.
+          if (canHoverExpand()) onPanelMouseLeave?.()
+        }}
         aria-hidden
       />
       <aside
         ref={asideRef}
+        onMouseEnter={onPanelMouseEnter}
+        onMouseLeave={onPanelMouseLeave}
         className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] transform flex-col border-r border-gray-200 bg-white shadow-xl transition-transform duration-200 ease-out dark:border-gray-700 dark:bg-gray-800 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { BookOpen, Menu } from 'lucide-react'
@@ -31,6 +31,14 @@ const PREFETCH_ROUTES = [
   '/settings',
 ] as const
 
+/** Fine-pointer devices that support real hover (not touch). */
+function canHoverNav(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    window.matchMedia('(hover: hover) and (pointer: fine)').matches
+  )
+}
+
 export default function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -43,6 +51,33 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
     () => getCachedAppSettings()?.logoUrl ?? null
   )
   const mainScrollRef = useRef<HTMLElement | null>(null)
+  const navHoverCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clearNavHoverClose = useCallback(() => {
+    if (navHoverCloseTimer.current != null) {
+      clearTimeout(navHoverCloseTimer.current)
+      navHoverCloseTimer.current = null
+    }
+  }, [])
+
+  const scheduleNavHoverClose = useCallback(() => {
+    if (!canHoverNav()) return
+    clearNavHoverClose()
+    navHoverCloseTimer.current = setTimeout(() => {
+      setNavOpen(false)
+      navHoverCloseTimer.current = null
+    }, 160)
+  }, [clearNavHoverClose])
+
+  const openNavFromHover = useCallback(() => {
+    if (!canHoverNav()) return
+    clearNavHoverClose()
+    setNavOpen(true)
+  }, [clearNavHoverClose])
+
+  useEffect(() => {
+    return () => clearNavHoverClose()
+  }, [clearNavHoverClose])
   const isDev = process.env.NODE_ENV === 'development'
   const isLogin = pathname === '/login'
   /** Full-screen voucher print/preview — no app chrome. */
@@ -52,9 +87,10 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   const isPublicShare = !!pathname && pathname.startsWith('/share/')
 
   useEffect(() => {
+    clearNavHoverClose()
     setNavOpen(false)
     setProfilerOpen(false)
-  }, [pathname])
+  }, [pathname, clearNavHoverClose])
 
   useEffect(() => {
     return watchAppSettings((s) => {
@@ -97,19 +133,24 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
 
   return (
     <div className="flex h-screen flex-col bg-gray-50 dark:bg-gray-950">
-      <Sidebar open={navOpen} onClose={() => setNavOpen(false)} />
+      <Sidebar
+        open={navOpen}
+        onClose={() => {
+          clearNavHoverClose()
+          setNavOpen(false)
+        }}
+        onPanelMouseEnter={clearNavHoverClose}
+        onPanelMouseLeave={scheduleNavHoverClose}
+      />
       <header className="flex shrink-0 items-center gap-3 border-b border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-800">
         <button
           type="button"
-          onClick={() => setNavOpen(true)}
-          onMouseEnter={() => {
-            if (
-              typeof window !== 'undefined' &&
-              window.matchMedia('(hover: hover) and (pointer: fine)').matches
-            ) {
-              setNavOpen(true)
-            }
+          onClick={() => {
+            clearNavHoverClose()
+            setNavOpen(true)
           }}
+          onMouseEnter={openNavFromHover}
+          onMouseLeave={scheduleNavHoverClose}
           className="-ml-2 hidden shrink-0 rounded-md p-2 text-gray-700 hover:bg-primary-50 hover:text-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-300 dark:hover:bg-gray-700 lg:inline-flex"
           aria-label="Open menu"
         >
