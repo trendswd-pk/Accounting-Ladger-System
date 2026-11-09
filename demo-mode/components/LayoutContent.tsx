@@ -150,7 +150,10 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
         {children}
       </main>
       <MobileBottomNav onOpenMenu={() => setNavOpen(true)} />
-      <ScrollToTopButton scrollRef={mainScrollRef} pathname={pathname} />
+      {/* Detail pages are short — skip Back to top so the FAB can sit by the nav. */}
+      {!/^\/transactions\/[^/]+\/?$/.test(pathname) ? (
+        <ScrollToTopButton scrollRef={mainScrollRef} pathname={pathname} />
+      ) : null}
       {isDev ? (
         <RequestProfilerPanel
           open={profilerOpen}

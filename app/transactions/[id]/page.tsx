@@ -10,7 +10,19 @@ import {
   Loader2,
   MessageCircle,
   Pencil,
+  Printer,
+  Trash2,
 } from 'lucide-react'
+import FloatingActionsButton from '@/components/FloatingActionsButton'
+import {
+  FormModalBody,
+  FormModalFooter,
+  FormModalHeader,
+  formModalDangerButtonClass,
+  formModalOverlayClass,
+  formModalPanelClass,
+  formModalSecondaryButtonClass,
+} from '@/components/FormModal'
 import TransactionDocumentsPanel from '@/components/TransactionDocumentsPanel'
 import { WhatsAppPrepOverlay } from '@/components/WhatsAppPrepOverlay'
 import { fetchAccounts, getCachedAccounts } from '@/lib/accounts'
@@ -32,6 +44,7 @@ import {
   transactionMessageVars,
 } from '@/lib/messageTemplates'
 import {
+  deleteTransaction,
   fetchTransactions,
   getCachedTransactions,
   signedTransactionAmount,
@@ -108,6 +121,8 @@ export default function TransactionDetailPage() {
   const [waPrepPercent, setWaPrepPercent] = useState(0)
   const [waPrepLabel, setWaPrepLabel] = useState('Preparing…')
   const [sendError, setSendError] = useState<string | null>(null)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const [currency, setCurrency] = useState(
     () => getCachedAppSettings()?.currency ?? DEFAULT_APP_SETTINGS.currency
@@ -348,6 +363,22 @@ export default function TransactionDetailPage() {
     messageNoteZero,
   ])
 
+  const handleDelete = useCallback(async () => {
+    if (!row || deleting) return
+    setDeleting(true)
+    setSendError(null)
+    try {
+      await deleteTransaction(row.id)
+      setDeleteConfirmOpen(false)
+      router.push('/transactions')
+    } catch (err) {
+      setSendError(err instanceof Error ? err.message : 'Delete failed')
+      setDeleteConfirmOpen(false)
+    } finally {
+      setDeleting(false)
+    }
+  }, [row, deleting, router])
+
   if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center p-4 lg:p-8">
@@ -397,61 +428,48 @@ export default function TransactionDetailPage() {
           >
             {row.entryType}
           </span>
-          <div className="relative shrink-0">
-            <button
-              type="button"
-              onClick={() => setInfoOpen((v) => !v)}
-              className={`rounded-full p-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                infoOpen
-                  ? 'text-primary-600 dark:text-primary-400'
-                  : 'text-gray-400 hover:text-primary-600 dark:text-gray-500 dark:hover:text-primary-400'
-              }`}
-              aria-label="About this transaction"
-              aria-expanded={infoOpen}
-            >
-              <Info className="h-5 w-5" aria-hidden />
-            </button>
-            {infoOpen ? (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setInfoOpen(false)}
-                  aria-hidden
-                />
-                <div
-                  role="dialog"
-                  className="absolute left-0 top-full z-50 mt-2 w-64 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
-                >
-                  Entry #{row.entryNumber} — details and attachments.
-                </div>
-              </>
-            ) : null}
-          </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            onClick={() => void sendMessage()}
-            disabled={sendingMessage}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-            aria-label="Send message"
-            title="Send message"
-          >
-            {sendingMessage ? (
-              <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-            ) : (
-              <MessageCircle className="h-5 w-5" aria-hidden />
-            )}
-          </button>
-          <Link
-            href={`/transactions?edit=${encodeURIComponent(row.id)}`}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
-            aria-label="Edit"
-            title="Edit"
-          >
-            <Pencil className="h-5 w-5" aria-hidden />
-          </Link>
-        </div>
+        <FloatingActionsButton
+          ariaLabel="Transaction actions"
+          items={[
+            {
+              key: 'delete',
+              label: 'Delete',
+              icon: Trash2,
+              danger: true,
+              onClick: () => setDeleteConfirmOpen(true),
+            },
+            {
+              key: 'send',
+              label: sendingMessage ? 'Sending…' : 'Send message',
+              icon: MessageCircle,
+              disabled: sendingMessage,
+              onClick: () => {
+                void sendMessage()
+              },
+            },
+            {
+              key: 'pdf',
+              label: 'Print preview',
+              icon: Printer,
+              onClick: () => {
+                window.open(
+                  `/transactions/${encodeURIComponent(row.id)}/print`,
+                  '_blank',
+                  'noopener,noreferrer'
+                )
+              },
+            },
+            {
+              key: 'edit',
+              label: 'Edit',
+              icon: Pencil,
+              primary: true,
+              onClick: () =>
+                router.push(`/transactions?edit=${encodeURIComponent(row.id)}`),
+            },
+          ]}
+        />
       </div>
 
       {sendError ? (
@@ -482,9 +500,42 @@ export default function TransactionDetailPage() {
         }}
       >
         <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700 sm:px-6">
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-            Details
-          </h2>
+          <div className="flex min-w-0 items-center gap-2">
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              Details
+            </h2>
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setInfoOpen((v) => !v)}
+                className={`rounded-full p-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                  infoOpen
+                    ? 'text-primary-600 dark:text-primary-400'
+                    : 'text-gray-400 hover:text-primary-600 dark:text-gray-500 dark:hover:text-primary-400'
+                }`}
+                aria-label="About details"
+                aria-expanded={infoOpen}
+              >
+                <Info className="h-4 w-4" aria-hidden />
+              </button>
+              {infoOpen ? (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setInfoOpen(false)}
+                    aria-hidden
+                  />
+                  <div
+                    role="dialog"
+                    className="absolute left-0 top-full z-50 mt-2 w-64 max-w-[min(16rem,calc(100vw-2rem))] rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                  >
+                    Entry #{row.entryNumber} — date, narration, balance, and
+                    running balance for this transaction.
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </div>
         </div>
         <div className="px-4 py-4 sm:px-6">
           <dl className="space-y-3 text-sm">
@@ -582,6 +633,51 @@ export default function TransactionDetailPage() {
             </button>
           </div>
         </>
+      ) : null}
+
+      {deleteConfirmOpen ? (
+        <div
+          className={formModalOverlayClass}
+          onClick={() => !deleting && setDeleteConfirmOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-transaction-detail-title"
+        >
+          <div
+            className={`${formModalPanelClass} max-w-sm`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <FormModalHeader
+              titleId="delete-transaction-detail-title"
+              title="Delete Transaction?"
+              onClose={() => !deleting && setDeleteConfirmOpen(false)}
+            />
+            <FormModalBody>
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                This permanently removes the transaction. You can add it again
+                later if needed.
+              </p>
+            </FormModalBody>
+            <FormModalFooter>
+              <button
+                type="button"
+                onClick={() => void handleDelete()}
+                disabled={deleting}
+                className={formModalDangerButtonClass}
+              >
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmOpen(false)}
+                disabled={deleting}
+                className={formModalSecondaryButtonClass}
+              >
+                Cancel
+              </button>
+            </FormModalFooter>
+          </div>
+        </div>
       ) : null}
 
       <WhatsAppPrepOverlay

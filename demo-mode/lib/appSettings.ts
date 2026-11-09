@@ -68,6 +68,11 @@ export type AppSettings = {
    * `all` uses account balances; other values sum expense transactions in range.
    */
   dashboardExpensePeriod: DashboardExpensePeriod
+  /**
+   * When true, floating action speed-dials show text labels beside icons.
+   * Default false (icons only; `title` / `aria-label` still describe each action).
+   */
+  floatingActionsShowLabels: boolean
   cashSavingsCashTypeIds: string[]
   cashSavingsAccountTypeIds: string[]
   /** Shared filter for Payable (−) and Receivable (+) pages/cards. */
@@ -94,6 +99,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   ledgerShareRequirePin: true,
   ledgerShareTtlHours: DEFAULT_LEDGER_SHARE_TTL_HOURS,
   dashboardExpensePeriod: DEFAULT_DASHBOARD_EXPENSE_PERIOD,
+  floatingActionsShowLabels: false,
   cashSavingsCashTypeIds: [],
   cashSavingsAccountTypeIds: [],
   payableReceivableCashTypeIds: [],
@@ -119,6 +125,7 @@ type DbRow = {
   ledger_share_ttl_hours?: number | null
   dashboard_expense_period?: string | null
   dashboard_expense_period_days?: number | null
+  floating_actions_show_labels?: boolean | null
   cash_savings_cash_type_ids?: unknown
   cash_savings_account_type_ids?: unknown
   payable_receivable_cash_type_ids?: unknown
@@ -195,6 +202,7 @@ function withIdDefaults(settings: AppSettings): AppSettings {
     dashboardExpensePeriod: normalizeDashboardExpensePeriod(
       settings.dashboardExpensePeriod ?? DEFAULT_DASHBOARD_EXPENSE_PERIOD
     ),
+    floatingActionsShowLabels: settings.floatingActionsShowLabels === true,
     cashSavingsCashTypeIds: settings.cashSavingsCashTypeIds ?? [],
     cashSavingsAccountTypeIds: settings.cashSavingsAccountTypeIds ?? [],
     payableReceivableCashTypeIds: settings.payableReceivableCashTypeIds ?? [],
@@ -235,6 +243,7 @@ export function mapAppSettingsRow(row: DbRow): AppSettings {
         row.dashboard_expense_period_days ??
         DEFAULT_DASHBOARD_EXPENSE_PERIOD
     ),
+    floatingActionsShowLabels: row.floating_actions_show_labels === true,
     cashSavingsCashTypeIds: normalizeUuidIdList(row.cash_savings_cash_type_ids),
     cashSavingsAccountTypeIds: normalizeUuidIdList(row.cash_savings_account_type_ids),
     payableReceivableCashTypeIds: firstNonEmptyIdList(
@@ -348,6 +357,7 @@ export type AppSettingsPatch = Partial<
     | 'ledgerShareRequirePin'
     | 'ledgerShareTtlHours'
     | 'dashboardExpensePeriod'
+    | 'floatingActionsShowLabels'
     | 'cashSavingsCashTypeIds'
     | 'cashSavingsAccountTypeIds'
     | 'payableReceivableCashTypeIds'
@@ -403,6 +413,10 @@ export async function saveAppSettings(input: AppSettingsPatch): Promise<AppSetti
       input.dashboardExpensePeriod !== undefined
         ? normalizeDashboardExpensePeriod(input.dashboardExpensePeriod)
         : current.dashboardExpensePeriod,
+    floatingActionsShowLabels:
+      input.floatingActionsShowLabels !== undefined
+        ? Boolean(input.floatingActionsShowLabels)
+        : current.floatingActionsShowLabels === true,
     cashSavingsCashTypeIds:
       input.cashSavingsCashTypeIds ?? current.cashSavingsCashTypeIds,
     cashSavingsAccountTypeIds:

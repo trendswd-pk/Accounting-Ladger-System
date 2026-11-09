@@ -46,6 +46,7 @@ type RpcSettings = {
   ledger_share_ttl_hours?: number | null
   dashboard_expense_period?: string | null
   dashboard_expense_period_days?: number | null
+  floating_actions_show_labels?: boolean | null
   cash_savings_cash_type_ids?: unknown
   cash_savings_account_type_ids?: unknown
   payable_receivable_cash_type_ids?: unknown
@@ -67,6 +68,7 @@ function isMissingRpc(error: { message?: string; code?: string } | null): boolea
 }
 
 const COLUMN_SETS = [
+  'business_name, currency, theme, default_entry_mode, logo_url, favicon_url, account_message_template, transaction_message_template, message_note_plus, message_note_minus, message_note_zero, account_message_include_ledger_url, transaction_message_include_pdf_url, transaction_message_include_ledger_url, ledger_share_require_pin, ledger_share_ttl_hours, dashboard_expense_period, dashboard_expense_period_days, floating_actions_show_labels, cash_savings_cash_type_ids, cash_savings_account_type_ids, payable_receivable_cash_type_ids, payable_receivable_account_type_ids, updated_at',
   'business_name, currency, theme, default_entry_mode, logo_url, favicon_url, account_message_template, transaction_message_template, message_note_plus, message_note_minus, message_note_zero, account_message_include_ledger_url, transaction_message_include_pdf_url, transaction_message_include_ledger_url, ledger_share_require_pin, ledger_share_ttl_hours, dashboard_expense_period, dashboard_expense_period_days, cash_savings_cash_type_ids, cash_savings_account_type_ids, payable_receivable_cash_type_ids, payable_receivable_account_type_ids, updated_at',
   'business_name, currency, theme, default_entry_mode, logo_url, favicon_url, account_message_template, transaction_message_template, message_note_plus, message_note_minus, message_note_zero, account_message_include_ledger_url, transaction_message_include_pdf_url, transaction_message_include_ledger_url, ledger_share_require_pin, ledger_share_ttl_hours, dashboard_expense_period, cash_savings_cash_type_ids, cash_savings_account_type_ids, payable_receivable_cash_type_ids, payable_receivable_account_type_ids, updated_at',
   'business_name, currency, theme, default_entry_mode, logo_url, favicon_url, account_message_template, transaction_message_template, message_note_plus, message_note_minus, message_note_zero, account_message_include_ledger_url, transaction_message_include_pdf_url, transaction_message_include_ledger_url, ledger_share_require_pin, ledger_share_ttl_hours, dashboard_expense_period_days, cash_savings_cash_type_ids, cash_savings_account_type_ids, payable_receivable_cash_type_ids, payable_receivable_account_type_ids, updated_at',
@@ -237,6 +239,9 @@ export async function PATCH(request: Request) {
         body.dashboardExpensePeriod
       )
     }
+    if (body.floatingActionsShowLabels !== undefined) {
+      patch.floating_actions_show_labels = Boolean(body.floatingActionsShowLabels)
+    }
     for (const key of ID_LIST_PATCH_KEYS) {
       if (body[key.body] !== undefined) {
         patch[key.column] = normalizeUuidIdList(body[key.body])
@@ -293,6 +298,18 @@ export async function PATCH(request: Request) {
           {
             error:
               'Dashboard expense period column missing. Run database/migrations/2026-11-06_dashboard_expense_period.sql in your database.',
+          },
+          500
+        )
+      }
+      if (
+        /floating_actions_show_labels/i.test(error.message) &&
+        /does not exist|Could not find/i.test(error.message)
+      ) {
+        return json(
+          {
+            error:
+              'Floating actions labels column missing. Run database/migrations/2026-11-09_floating_actions_show_labels.sql in your database.',
           },
           500
         )

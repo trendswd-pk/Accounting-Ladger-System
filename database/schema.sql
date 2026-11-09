@@ -195,6 +195,7 @@ CREATE TABLE IF NOT EXISTS public.app_settings (
       'all', 'week', 'month', 'months_3', 'months_6', 'year'
     )),
   dashboard_expense_period_days INTEGER NOT NULL DEFAULT 0,
+  floating_actions_show_labels BOOLEAN NOT NULL DEFAULT false,
   cash_savings_cash_type_ids UUID[] NOT NULL DEFAULT '{}',
   cash_savings_account_type_ids UUID[] NOT NULL DEFAULT '{}',
   payable_receivable_cash_type_ids UUID[] NOT NULL DEFAULT '{}',
@@ -236,6 +237,8 @@ ALTER TABLE public.app_settings
   ADD COLUMN IF NOT EXISTS dashboard_expense_period TEXT NOT NULL DEFAULT 'all';
 ALTER TABLE public.app_settings
   ADD COLUMN IF NOT EXISTS dashboard_expense_period_days INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE public.app_settings
+  ADD COLUMN IF NOT EXISTS floating_actions_show_labels BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE public.app_settings
   ADD COLUMN IF NOT EXISTS cash_savings_cash_type_ids UUID[] NOT NULL DEFAULT '{}';
 ALTER TABLE public.app_settings
@@ -591,6 +594,7 @@ AS $$
         'ledger_share_ttl_hours', COALESCE(s.ledger_share_ttl_hours, 24),
         'dashboard_expense_period', COALESCE(s.dashboard_expense_period, 'all'),
         'dashboard_expense_period_days', COALESCE(s.dashboard_expense_period_days, 0),
+        'floating_actions_show_labels', COALESCE(s.floating_actions_show_labels, false),
         'cash_savings_cash_type_ids', COALESCE(to_jsonb(s.cash_savings_cash_type_ids), '[]'::jsonb),
         'cash_savings_account_type_ids', COALESCE(to_jsonb(s.cash_savings_account_type_ids), '[]'::jsonb),
         'payable_receivable_cash_type_ids', COALESCE(to_jsonb(s.payable_receivable_cash_type_ids), '[]'::jsonb),
@@ -620,6 +624,7 @@ AS $$
       'ledger_share_ttl_hours', 24,
       'dashboard_expense_period', 'all',
       'dashboard_expense_period_days', 0,
+      'floating_actions_show_labels', false,
       'cash_savings_cash_type_ids', '[]'::jsonb,
       'cash_savings_account_type_ids', '[]'::jsonb,
       'payable_receivable_cash_type_ids', '[]'::jsonb,

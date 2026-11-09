@@ -690,6 +690,9 @@ export default function SettingsPage() {
   const [dashboardExpensePeriod, setDashboardExpensePeriod] = useState(
     DEFAULT_APP_SETTINGS.dashboardExpensePeriod
   )
+  const [floatingActionsShowLabels, setFloatingActionsShowLabels] = useState(
+    DEFAULT_APP_SETTINGS.floatingActionsShowLabels
+  )
   const [messageEditor, setMessageEditor] = useState<'account' | 'transaction' | null>(null)
   const [cashSavingsCashTypeIds, setCashSavingsCashTypeIds] = useState<string[]>(
     () => DEFAULT_APP_SETTINGS.cashSavingsCashTypeIds
@@ -777,6 +780,7 @@ export default function SettingsPage() {
         setLedgerShareRequirePin(settings.ledgerShareRequirePin)
         setLedgerShareTtlHours(settings.ledgerShareTtlHours)
         setDashboardExpensePeriod(settings.dashboardExpensePeriod)
+        setFloatingActionsShowLabels(settings.floatingActionsShowLabels)
         applyThemePreference(settings.theme)
 
         const pickSavedOrDefault = (
@@ -878,6 +882,7 @@ export default function SettingsPage() {
         ledgerShareRequirePin,
         ledgerShareTtlHours,
         dashboardExpensePeriod,
+        floatingActionsShowLabels,
         cashSavingsCashTypeIds,
         cashSavingsAccountTypeIds,
         payableReceivableCashTypeIds,
@@ -900,6 +905,7 @@ export default function SettingsPage() {
       setLedgerShareRequirePin(saved.ledgerShareRequirePin)
       setLedgerShareTtlHours(saved.ledgerShareTtlHours)
       setDashboardExpensePeriod(saved.dashboardExpensePeriod)
+      setFloatingActionsShowLabels(saved.floatingActionsShowLabels)
       setCashSavingsCashTypeIds(saved.cashSavingsCashTypeIds)
       setCashSavingsAccountTypeIds(saved.cashSavingsAccountTypeIds)
       setPayableReceivableCashTypeIds(saved.payableReceivableCashTypeIds)
@@ -1091,6 +1097,36 @@ export default function SettingsPage() {
                 </button>
               ))}
             </div>
+          </SettingRow>
+
+          <SettingRow
+            label="Floating action labels"
+            description="Show text labels next to icons when a floating Actions button is open. Off by default (icons only)."
+            inline
+          >
+            <button
+              type="button"
+              role="switch"
+              aria-checked={floatingActionsShowLabels}
+              aria-label={
+                floatingActionsShowLabels
+                  ? 'Floating action labels shown'
+                  : 'Floating action labels hidden'
+              }
+              disabled={saving || loading}
+              onClick={() => setFloatingActionsShowLabels((v) => !v)}
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50 ${
+                floatingActionsShowLabels
+                  ? 'bg-primary-600'
+                  : 'bg-gray-300 dark:bg-gray-600'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                  floatingActionsShowLabels ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
           </SettingRow>
 
           <SettingRow
