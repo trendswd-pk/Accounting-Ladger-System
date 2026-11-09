@@ -21,7 +21,7 @@ import {
   LogOut,
   type LucideIcon,
 } from 'lucide-react'
-import { signOutDemo } from '@/lib/demoAuth'
+import { createClient } from '@/lib/supabase/client'
 import {
   DEFAULT_APP_SETTINGS,
   getCachedAppSettings,
@@ -79,8 +79,22 @@ const menuItems: MenuItem[] = [
   },
 ]
 
+const SETTINGS_SECTION_PATHS = [
+  '/settings/profile',
+  '/settings/account-type',
+  '/settings/cash-type',
+  '/settings/bank-details',
+] as const
+
 function isSubPathActive(pathname: string, sub: SubItem): boolean {
-  if (sub.path === '/settings') return pathname === '/settings'
+  // General hub + its detail pages (business, messages, …) — not other Settings sections.
+  if (sub.path === '/settings') {
+    if (pathname === '/settings') return true
+    if (!pathname.startsWith('/settings/')) return false
+    return !SETTINGS_SECTION_PATHS.some(
+      (p) => pathname === p || pathname.startsWith(`${p}/`)
+    )
+  }
   if (sub.path === '/expenses') return pathname === '/expenses'
   return pathname === sub.path || pathname.startsWith(sub.path + '/')
 }
@@ -172,7 +186,8 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
     if (signingOut) return
     setSigningOut(true)
     try {
-      signOutDemo()
+      const supabase = createClient()
+      await supabase.auth.signOut()
       onClose?.()
       router.replace('/login')
       router.refresh()

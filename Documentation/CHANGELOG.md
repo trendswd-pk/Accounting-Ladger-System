@@ -17,6 +17,7 @@ All notable changes to Accounting Ledger are documented here.
 - Transaction detail (mobile): floating Actions sits just above the bottom nav; **Back to top** is hidden on this short screen.
 - Floating Actions trigger icon: three-line menu (replaces three-dot).
 - Floating Actions on desktop: title-row toolbar — up to 5 actions as icon buttons in a row; more than 5 collapse to a dropdown. Mobile keeps the floating speed-dial.
+- Settings → **General**: hub list grouped by area — **Business**, **Dashboard**, **Transactions**, **Accounts**, **Messages**. Tap a row for that group’s settings; Save returns to the list.
 
 ## [1.2.2] — 2026-11-07
 

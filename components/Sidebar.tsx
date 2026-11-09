@@ -79,8 +79,22 @@ const menuItems: MenuItem[] = [
   },
 ]
 
+const SETTINGS_SECTION_PATHS = [
+  '/settings/profile',
+  '/settings/account-type',
+  '/settings/cash-type',
+  '/settings/bank-details',
+] as const
+
 function isSubPathActive(pathname: string, sub: SubItem): boolean {
-  if (sub.path === '/settings') return pathname === '/settings'
+  // General hub + its detail pages (business, messages, …) — not other Settings sections.
+  if (sub.path === '/settings') {
+    if (pathname === '/settings') return true
+    if (!pathname.startsWith('/settings/')) return false
+    return !SETTINGS_SECTION_PATHS.some(
+      (p) => pathname === p || pathname.startsWith(`${p}/`)
+    )
+  }
   if (sub.path === '/expenses') return pathname === '/expenses'
   return pathname === sub.path || pathname.startsWith(sub.path + '/')
 }
