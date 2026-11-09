@@ -27,19 +27,16 @@ import {
   formModalOverlayClass,
   formModalPanelClass,
   formModalPrimaryButtonClass,
-  formModalPrimaryIconButtonClass,
   formModalSecondaryButtonClass,
-  formModalSecondaryIconButtonClass,
 } from '@/components/FormModal'
 import SearchableSelect from '@/components/SearchableSelect'
 import { TablePaginationNav } from '@/components/TablePaginationNav'
-import TransactionDocumentsPanel from '@/components/TransactionDocumentsPanel'
 import TransactionFormAttachments, {
   uploadPendingTransactionFiles,
 } from '@/components/TransactionFormAttachments'
 import { isExpenseAccount } from '@/lib/accountFilters'
-import { formatDisplayDate } from '@/lib/localDate'
 import { fetchAccounts, getCachedAccounts, type AccountRecord } from '@/lib/accounts'
+import { formatDisplayDate } from '@/lib/localDate'
 import {
   DEFAULT_APP_SETTINGS,
   getCachedAppSettings,
@@ -168,16 +165,8 @@ function TransactionsPageInner() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
-  const [detailRow, setDetailRow] = useState<
-    (TransactionRecord & { runningBalance: number }) | null
-  >(null)
-  const [detailTab, setDetailTab] = useState<'details' | 'documents'>('details')
-  const [detailDocCount, setDetailDocCount] = useState(0)
-
-  const openDetail = (row: TransactionRecord & { runningBalance: number }) => {
-    setDetailTab('details')
-    setDetailDocCount(0)
-    setDetailRow(row)
+  const openDetail = (row: TransactionRecord) => {
+    router.push(`/transactions/${encodeURIComponent(row.id)}`)
   }
   const [currency, setCurrency] = useState(
     () => getCachedAppSettings()?.currency ?? DEFAULT_APP_SETTINGS.currency
@@ -498,6 +487,22 @@ function TransactionsPageInner() {
     setModalOpen(true)
     void loadAccounts().catch(() => {})
   }
+
+  // /transactions/[id] Edit → /transactions?edit={id} opens the edit modal.
+  useEffect(() => {
+    const editId = searchParams.get('edit')?.trim()
+    if (!editId || rows.length === 0) return
+    const row = rows.find((r) => r.id === editId)
+    if (!row) return
+    openEdit(row)
+    const qs = new URLSearchParams(searchParams.toString())
+    qs.delete('edit')
+    const rest = qs.toString()
+    router.replace(rest ? `/transactions?${rest}` : '/transactions', {
+      scroll: false,
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to ?edit=
+  }, [searchParams, rows, router])
 
   const closeModal = () => {
     if (submitting) return
@@ -1546,169 +1551,6 @@ function TransactionsPageInner() {
                 className={formModalPrimaryButtonClass}
               >
                 {submitting ? 'Saving…' : editingId ? 'Save' : 'Add'}
-              </button>
-            </FormModalFooter>
-          </div>
-        </div>
-      )}
-
-      {detailRow && (
-        <div
-          className={formModalOverlayClass}
-          onClick={() => setDetailRow(null)}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="transaction-detail-title"
-        >
-          <div className={`${formModalPanelClass} max-w-lg`} onClick={(e) => e.stopPropagation()}>
-            <FormModalHeader
-              titleId="transaction-detail-title"
-              title={
-                <span className="flex min-w-0 items-center gap-2">
-                  <span className="truncate">{detailRow.accountName}</span>
-                  <span
-                    className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium capitalize ${entryTypeBadgeClass(detailRow.entryType)}`}
-                  >
-                    {detailRow.entryType}
-                  </span>
-                </span>
-              }
-              onClose={() => setDetailRow(null)}
-            />
-            <FormModalBody>
-              <div
-                className="mb-4 flex gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-900/60"
-                role="tablist"
-                aria-label="Transaction sections"
-              >
-                {(
-                  [
-                    { id: 'details' as const, label: 'Details' },
-                    {
-                      id: 'documents' as const,
-                      label:
-                        detailDocCount > 0
-                          ? `Documents (${detailDocCount})`
-                          : 'Documents',
-                    },
-                  ] as const
-                ).map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={detailTab === tab.id}
-                    className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                      detailTab === tab.id
-                        ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100'
-                        : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
-                    }`}
-                    onClick={() => setDetailTab(tab.id)}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-
-              <div className={detailTab === 'details' ? '' : 'hidden'}>
-                <dl className="space-y-3 text-sm">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                        Transaction Date
-                      </dt>
-                      <dd className="mt-0.5 text-gray-900 dark:text-gray-100">
-                        {formatDisplayDate(detailRow.transactionDate)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                        SR.
-                      </dt>
-                      <dd className="mt-0.5 tabular-nums text-gray-900 dark:text-gray-100">
-                        {detailRow.entryNumber}
-                      </dd>
-                    </div>
-                  </div>
-                  <div>
-                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                      Narration
-                    </dt>
-                    <dd className="mt-0.5 whitespace-pre-wrap break-words text-gray-800 dark:text-gray-200">
-                      {detailRow.narration.trim() ? detailRow.narration : '—'}
-                    </dd>
-                  </div>
-                  <div className="grid grid-cols-2 items-start gap-3">
-                    <div>
-                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                        Balance
-                      </dt>
-                      <dd
-                        className={`mt-0.5 tabular-nums font-medium ${amountColorClass(detailRow.entryType)}`}
-                      >
-                        {detailRow.entryType === 'debit' ? '− ' : '+ '}
-                        {formatBalance(Math.abs(detailRow.balance))}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                        Running Balance
-                      </dt>
-                      <dd
-                        className={`mt-0.5 tabular-nums font-medium ${runningBalanceColorClass(detailRow.runningBalance)}`}
-                      >
-                        {formatBalance(detailRow.runningBalance)}
-                      </dd>
-                    </div>
-                  </div>
-                </dl>
-              </div>
-              {/* Prefetch while Details is open so Documents tab is ready instantly. */}
-              <TransactionDocumentsPanel
-                key={detailRow.id}
-                transactionId={detailRow.id}
-                active={detailTab === 'documents'}
-                onFilesChange={(items) => setDetailDocCount(items.length)}
-              />
-            </FormModalBody>
-            <FormModalFooter className="justify-center sm:justify-end">
-              <button
-                type="button"
-                onClick={() => void sendTransactionMessage(detailRow)}
-                disabled={sendingMessage}
-                className={formModalSecondaryIconButtonClass}
-                aria-label="Send message with ledger link"
-                title="Send message with ledger link"
-              >
-                {sendingMessage ? (
-                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-                ) : (
-                  <MessageCircle className="h-5 w-5" aria-hidden />
-                )}
-              </button>
-              {detailTab === 'details' ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const row = detailRow
-                    setDetailRow(null)
-                    openEdit(row)
-                  }}
-                  className={formModalPrimaryIconButtonClass}
-                  aria-label="Edit"
-                  title="Edit"
-                >
-                  <Pencil className="h-5 w-5" aria-hidden />
-                </button>
-              ) : null}
-              <button
-                type="button"
-                onClick={() => setDetailRow(null)}
-                className={formModalSecondaryIconButtonClass}
-                aria-label="Close"
-                title="Close"
-              >
-                <X className="h-5 w-5" aria-hidden />
               </button>
             </FormModalFooter>
           </div>

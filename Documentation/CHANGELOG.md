@@ -8,6 +8,9 @@ All notable changes to Accounting Ledger are documented here.
 - Mobile bottom nav: center **Trans.** tab is now a primary **Add transaction** (+) control. Tap opens **`/newentry`**.
 - **Add transaction** is a dedicated page at **`/newentry`** (full page layout, not a popup card). Dashboard / Transactions Add and the mobile + control all go there; save or cancel returns to Transactions. Edit remains a modal on the Transactions list.
 - `/newentry` header: description lives in an **info** icon beside the title (mobile and desktop).
+- Transaction **details** open at **`/transactions/{id}`** as a full page. Details and Documents show stacked on one page (no tabs). The old details popup is removed; Edit returns to the list with the edit form.
+- Transaction detail page: desktop **Previous / Next** (and arrow keys); mobile swipe left/right between entries — same pattern as the shared ledger preview.
+- Transaction detail **Documents** heading: upload hint moved into an **info** icon beside the title; **Upload files** sits on the right of the same title row.
 
 ## [1.2.2] — 2026-11-07
 

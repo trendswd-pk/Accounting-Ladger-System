@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { FileText, Trash2, Upload } from 'lucide-react'
+import { FileText, Info, Trash2, Upload } from 'lucide-react'
 import {
   accountAttachmentFolder,
   deleteUploadedFile,
@@ -30,6 +30,12 @@ type TransactionDocumentsPanelProps = {
   active?: boolean
   /** Empty-state copy; defaults based on account vs transaction. */
   emptyHint?: string
+  /** Hide the “Optional…” hint when headingInfo (or a parent) already covers it. */
+  hideHint?: boolean
+  /** Optional section title — upload button sits on the right of this row. */
+  heading?: string
+  /** Helper copy for an info icon beside `heading` (heading-info-icon rule). */
+  headingInfo?: string
 }
 
 function resolveFolder(props: {
@@ -52,9 +58,13 @@ export default function TransactionDocumentsPanel({
   onFilesChange,
   active = true,
   emptyHint,
+  hideHint = false,
+  heading,
+  headingInfo,
 }: TransactionDocumentsPanelProps) {
   const folder = resolveFolder({ folder: folderProp, accountId, transactionId })
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const [headingInfoOpen, setHeadingInfoOpen] = useState(false)
   const cached = folder ? getCachedUploadedFiles(folder) : []
   const [files, setFiles] = useState<FileAttachment[]>(() => cached ?? [])
   const [loading, setLoading] = useState(() => Boolean(folder) && cached == null)
@@ -178,38 +188,89 @@ export default function TransactionDocumentsPanel({
 
   if (!folder) return null
 
+  const uploadControl = (
+    <div className="shrink-0">
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        className="sr-only"
+        disabled={uploading}
+        onChange={(e) => {
+          void handleFiles(e.target.files)
+        }}
+      />
+      <button
+        type="button"
+        className={actionBtnClass}
+        disabled={uploading}
+        onClick={() => inputRef.current?.click()}
+      >
+        <Upload className="h-4 w-4" aria-hidden />
+        {uploading
+          ? progress != null
+            ? `Uploading ${progress}%`
+            : 'Uploading…'
+          : 'Upload files'}
+      </button>
+    </div>
+  )
+
   return (
     <div className={`space-y-3 ${active ? '' : 'hidden'}`} aria-hidden={!active}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-gray-500 dark:text-gray-400">
-          Optional. Any type, multiple files (max 100MB each).
-        </p>
-        <div>
-          <input
-            ref={inputRef}
-            type="file"
-            multiple
-            className="sr-only"
-            disabled={uploading}
-            onChange={(e) => {
-              void handleFiles(e.target.files)
-            }}
-          />
-          <button
-            type="button"
-            className={actionBtnClass}
-            disabled={uploading}
-            onClick={() => inputRef.current?.click()}
-          >
-            <Upload className="h-4 w-4" aria-hidden />
-            {uploading
-              ? progress != null
-                ? `Uploading ${progress}%`
-                : 'Uploading…'
-              : 'Upload files'}
-          </button>
+      {heading ? (
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              {heading}
+            </h2>
+            {headingInfo ? (
+              <div className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setHeadingInfoOpen((v) => !v)}
+                  className={`rounded-full p-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                    headingInfoOpen
+                      ? 'text-primary-600 dark:text-primary-400'
+                      : 'text-gray-400 hover:text-primary-600 dark:text-gray-500 dark:hover:text-primary-400'
+                  }`}
+                  aria-label="About documents"
+                  aria-expanded={headingInfoOpen}
+                >
+                  <Info className="h-4 w-4" aria-hidden />
+                </button>
+                {headingInfoOpen ? (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setHeadingInfoOpen(false)}
+                      aria-hidden
+                    />
+                    <div
+                      role="dialog"
+                      className="absolute left-0 top-full z-50 mt-2 w-64 max-w-[min(16rem,calc(100vw-2rem))] rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                    >
+                      {headingInfo}
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+          {uploadControl}
         </div>
-      </div>
+      ) : (
+        <div
+          className={`flex flex-wrap items-center gap-2 ${hideHint ? 'justify-end' : 'justify-between'}`}
+        >
+          {!hideHint ? (
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Optional. Any type, multiple files (max 100MB each).
+            </p>
+          ) : null}
+          {uploadControl}
+        </div>
+      )}
 
       {error ? (
         <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">

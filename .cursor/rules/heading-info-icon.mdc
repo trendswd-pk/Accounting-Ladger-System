@@ -1,0 +1,45 @@
+---
+description: Put heading subtitles / helper copy in an info icon beside the heading
+alwaysApply: true
+---
+
+# Heading details → info icon
+
+Do **not** place a subtitle, description, or helper line under page/section headings as always-visible body text when that copy only explains the heading.
+
+## Pattern
+
+1. Keep the **heading** (and badges / counts if needed) on one row.
+2. Put the explanatory copy in an **info** (`Info` from `lucide-react`) control **beside** the heading.
+3. On click/tap, show a small popover (same pattern as Transactions / `/newentry` / Documents).
+4. Apply on **mobile and desktop** unless the user explicitly asks for a visible subtitle.
+
+## Do
+
+```tsx
+<div className="flex min-w-0 items-center gap-2">
+  <h1 className="truncate text-2xl font-bold …">Add Transaction</h1>
+  <div className="relative shrink-0">
+    <button type="button" aria-label="About …" aria-expanded={infoOpen} …>
+      <Info className="h-5 w-5" aria-hidden />
+    </button>
+    {infoOpen ? (
+      <>
+        <div className="fixed inset-0 z-40" onClick={() => setInfoOpen(false)} aria-hidden />
+        <div role="dialog" className="absolute … z-50 …">
+          Create a ledger entry or transfer between accounts.
+        </div>
+      </>
+    ) : null}
+  </div>
+</div>
+```
+
+## Do not
+
+- Leave a permanent `mt-1 text-sm text-gray-500` subtitle under the title when an info popover would do.
+- Duplicate the same hint both under the heading **and** inside the section body (e.g. Documents) — prefer one info icon on the heading and `hideHint` / no inline helper.
+
+## Scope
+
+Page titles, section titles (Details / Documents / settings rows that act as headings), and similar UI chrome across `app/` and `demo-mode/`.
