@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { FileText, Info, Trash2, Upload } from 'lucide-react'
 import {
   accountAttachmentFolder,
@@ -14,8 +14,11 @@ import {
   type FileAttachment,
 } from '@/lib/uploads'
 
-const actionBtnClass =
-  'inline-flex h-9 items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
+/** Icon-only on mobile; icon + label from `sm`. */
+export const documentsActionBtnClass =
+  'inline-flex h-9 w-9 shrink-0 items-center justify-center gap-1.5 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 sm:w-auto sm:px-3 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
+
+const actionBtnClass = documentsActionBtnClass
 
 type TransactionDocumentsPanelProps = {
   /** Transaction attachments folder (transactions/{id}). */
@@ -36,6 +39,8 @@ type TransactionDocumentsPanelProps = {
   heading?: string
   /** Helper copy for an info icon beside `heading` (heading-info-icon rule). */
   headingInfo?: string
+  /** Extra controls left of Upload on the heading row (e.g. Save ledger PDF). */
+  headingActions?: ReactNode
 }
 
 function resolveFolder(props: {
@@ -61,6 +66,7 @@ export default function TransactionDocumentsPanel({
   hideHint = false,
   heading,
   headingInfo,
+  headingActions,
 }: TransactionDocumentsPanelProps) {
   const folder = resolveFolder({ folder: folderProp, accountId, transactionId })
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -188,6 +194,12 @@ export default function TransactionDocumentsPanel({
 
   if (!folder) return null
 
+  const uploadLabel = uploading
+    ? progress != null
+      ? `Uploading ${progress}%`
+      : 'Uploading…'
+    : 'Upload files'
+
   const uploadControl = (
     <div className="shrink-0">
       <input
@@ -205,14 +217,19 @@ export default function TransactionDocumentsPanel({
         className={actionBtnClass}
         disabled={uploading}
         onClick={() => inputRef.current?.click()}
+        aria-label={uploadLabel}
+        title={uploadLabel}
       >
-        <Upload className="h-4 w-4" aria-hidden />
-        {uploading
-          ? progress != null
-            ? `Uploading ${progress}%`
-            : 'Uploading…'
-          : 'Upload files'}
+        <Upload className="h-4 w-4 shrink-0" aria-hidden />
+        <span className="hidden sm:inline">{uploadLabel}</span>
       </button>
+    </div>
+  )
+
+  const headingToolbar = (
+    <div className="flex shrink-0 items-center gap-2">
+      {headingActions}
+      {uploadControl}
     </div>
   )
 
@@ -257,7 +274,7 @@ export default function TransactionDocumentsPanel({
               </div>
             ) : null}
           </div>
-          {uploadControl}
+          {headingToolbar}
         </div>
       ) : (
         <div
@@ -268,7 +285,7 @@ export default function TransactionDocumentsPanel({
               Optional. Any type, multiple files (max 100MB each).
             </p>
           ) : null}
-          {uploadControl}
+          {headingToolbar}
         </div>
       )}
 

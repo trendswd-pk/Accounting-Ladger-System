@@ -200,6 +200,7 @@ export function MessageTemplateModal({
   shareUrlOptions = [],
   onClose,
   onSave,
+  presentation = 'modal',
 }: {
   open: boolean
   title: string
@@ -212,7 +213,10 @@ export function MessageTemplateModal({
   onClose: () => void
   /** Persist to the server; modal stays open on error. */
   onSave: (next: string, payload: MessageTemplateSavePayload) => void | Promise<void>
+  /** `page` = full route layout; `modal` = overlay popup. */
+  presentation?: 'modal' | 'page'
 }) {
+  const isPage = presentation === 'page'
   const [draft, setDraft] = useState(value)
   const [notePlus, setNotePlus] = useState(notes.plus)
   const [noteMinus, setNoteMinus] = useState(notes.minus)
@@ -222,13 +226,14 @@ export function MessageTemplateModal({
   )
   const [savingTemplate, setSavingTemplate] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [infoOpen, setInfoOpen] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const shareUrlOptionsKey = shareUrlOptions
     .map((o) => `${o.key}:${o.enabled ? 1 : 0}`)
     .join('|')
 
   useEffect(() => {
-    if (!open) return
+    if (!isPage && !open) return
     setDraft(value)
     setNotePlus(notes.plus)
     setNoteMinus(notes.minus)
@@ -238,18 +243,18 @@ export function MessageTemplateModal({
     setSaveError(null)
     // shareUrlOptions identity changes every render; key tracks enabled values.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- shareUrlOptionsKey
-  }, [open, value, notes.plus, notes.minus, notes.zero, shareUrlOptionsKey])
+  }, [open, isPage, value, notes.plus, notes.minus, notes.zero, shareUrlOptionsKey])
 
   useEffect(() => {
-    if (!open) return
+    if (isPage || !open) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !savingTemplate) onClose()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [open, onClose, savingTemplate])
+  }, [open, isPage, onClose, savingTemplate])
 
-  if (!open) return null
+  if (!isPage && !open) return null
 
   const insertVariable = (key: string) => {
     const token = `{{${key}}}`
@@ -267,6 +272,265 @@ export function MessageTemplateModal({
       const pos = start + token.length
       el.setSelectionRange(pos, pos)
     })
+  }
+
+  const handleSaveClick = () => {
+    void (async () => {
+      setSavingTemplate(true)
+      setSaveError(null)
+      try {
+        await onSave(draft, {
+          plus: notePlus,
+          minus: noteMinus,
+          zero: noteZero,
+          ...(shareUrlOptions.length > 0
+            ? { shareUrlEnabled: { ...shareUrlAllowed } }
+            : {}),
+        })
+        onClose()
+      } catch (err) {
+        setSaveError(
+          err instanceof Error ? err.message : 'Could not save message template.'
+        )
+      } finally {
+        setSavingTemplate(false)
+      }
+    })()
+  }
+
+  const fields = (
+    <>
+      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        Insert variable
+      </p>
+      <div className="mb-3 flex flex-wrap gap-1.5">
+        {variables.map((v) => (
+          <button
+            key={v.key}
+            type="button"
+            onClick={() => insertVariable(v.key)}
+            className="rounded-md border border-gray-300 bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+          >
+            {`{{${v.key}}}`}
+          </button>
+        ))}
+      </div>
+      <label htmlFor="messageTemplateDraft" className="sr-only">
+        Message template
+      </label>
+      <textarea
+        ref={textareaRef}
+        id="messageTemplateDraft"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        className={messageTextareaClass}
+        placeholder="Write your message… click variables above to insert."
+        maxLength={4000}
+      />
+      <p className="mt-1.5 text-right text-[11px] text-gray-400">
+        {draft.length}/4000
+      </p>
+
+      <div className="mt-5 space-y-3 border-t border-gray-200 pt-4 dark:border-gray-700">
+        <div className="flex items-center gap-1.5">
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            Balance notes for {'{{note}}'}
+          </p>
+          <InfoHint label="Balance notes" placement="above">
+            Only the matching line is inserted into the message: plus (+), minus (−), or
+            zero balance — based on the account or running balance.
+          </InfoHint>
+        </div>
+        <div>
+          <label
+            htmlFor="messageNotePlus"
+            className="mb-1 block text-sm font-medium text-gray-800 dark:text-gray-200"
+          >
+            Plus (+) note
+          </label>
+          <input
+            id="messageNotePlus"
+            type="text"
+            value={notePlus}
+            onChange={(e) => setNotePlus(e.target.value)}
+            className={messageNoteInputClass}
+            maxLength={500}
+            placeholder="Shown when balance is positive"
+          />
+        </div>
+        <div>
+          <label
+            htmlFor="messageNoteMinus"
+            className="mb-1 block text-sm font-medium text-gray-800 dark:text-gray-200"
+          >
+            Minus (−) note
+          </label>
+          <input
+            id="messageNoteMinus"
+            type="text"
+            value={noteMinus}
+            onChange={(e) => setNoteMinus(e.target.value)}
+            className={messageNoteInputClass}
+            maxLength={500}
+            placeholder="Shown when balance is negative"
+          />
+        </div>
+        <div>
+          <label
+            htmlFor="messageNoteZero"
+            className="mb-1 block text-sm font-medium text-gray-800 dark:text-gray-200"
+          >
+            Zero / clear note
+          </label>
+          <input
+            id="messageNoteZero"
+            type="text"
+            value={noteZero}
+            onChange={(e) => setNoteZero(e.target.value)}
+            className={messageNoteInputClass}
+            maxLength={500}
+            placeholder="Shown when balance is zero"
+          />
+        </div>
+
+        {shareUrlOptions.length > 0 ? (
+          <div className="space-y-2">
+            {shareUrlOptions.map((opt) => {
+              const enabled = shareUrlAllowed[opt.key] !== false
+              return (
+                <div
+                  key={opt.key}
+                  className="flex items-center justify-between gap-3 rounded-md border border-gray-200 px-3 py-2.5 dark:border-gray-600"
+                >
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <p className="truncate text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {opt.title}
+                    </p>
+                    <InfoHint label={opt.title} placement="above">
+                      When enabled, Send message creates a PIN-gated ledger preview and
+                      fills{' '}
+                      <code className="rounded bg-gray-100 px-1 py-0.5 text-[11px] dark:bg-gray-700">
+                        {`{{${opt.variable}}}`}
+                      </code>{' '}
+                      (plus access code and expiry).
+                    </InfoHint>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={enabled}
+                    aria-label={
+                      enabled ? `${opt.title} enabled` : `${opt.title} disabled`
+                    }
+                    onClick={() =>
+                      setShareUrlAllowed((prev) => ({
+                        ...prev,
+                        [opt.key]: !enabled,
+                      }))
+                    }
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
+                      enabled ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                        enabled ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        ) : null}
+      </div>
+    </>
+  )
+
+  if (isPage) {
+    return (
+      <div className="w-full p-4 lg:p-8">
+        <div className="mb-4 flex items-center justify-between gap-3 lg:mb-6">
+          <div className="flex min-w-0 items-center gap-2">
+            <h1
+              id="message-template-title"
+              className="truncate text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100 lg:text-3xl"
+            >
+              {title}
+            </h1>
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setInfoOpen((v) => !v)}
+                className={`rounded-full p-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                  infoOpen
+                    ? 'text-primary-600 dark:text-primary-400'
+                    : 'text-gray-400 hover:text-primary-600 dark:text-gray-500 dark:hover:text-primary-400'
+                }`}
+                aria-label={`About ${title}`}
+                aria-expanded={infoOpen}
+              >
+                <Info className="h-5 w-5" aria-hidden />
+              </button>
+              {infoOpen ? (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setInfoOpen(false)}
+                    aria-hidden
+                  />
+                  <div
+                    role="dialog"
+                    className="absolute left-0 top-full z-50 mt-2 w-72 max-w-[min(18rem,calc(100vw-2rem))] rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                  >
+                    {description}
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={savingTemplate}
+            className="inline-flex h-10 shrink-0 items-center rounded-md border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+          >
+            Cancel
+          </button>
+        </div>
+        {saveError ? (
+          <p className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">
+            {saveError}
+          </p>
+        ) : null}
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800/90">
+          <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700 sm:px-6">
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              Template
+            </h2>
+          </div>
+          <div className="px-4 py-4 sm:px-6">{fields}</div>
+          <div className="flex flex-wrap justify-end gap-2 border-t border-gray-200 px-4 py-3 dark:border-gray-700 sm:px-6">
+            <button
+              type="button"
+              className={formModalSecondaryButtonClass}
+              onClick={onClose}
+              disabled={savingTemplate}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={formModalPrimaryButtonClass}
+              disabled={savingTemplate}
+              onClick={handleSaveClick}
+            >
+              {savingTemplate ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -289,154 +553,7 @@ export function MessageTemplateModal({
           titleId="message-template-title"
           onClose={onClose}
         />
-        <FormModalBody>
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-            Insert variable
-          </p>
-          <div className="mb-3 flex flex-wrap gap-1.5">
-            {variables.map((v) => (
-              <button
-                key={v.key}
-                type="button"
-                onClick={() => insertVariable(v.key)}
-                className="rounded-md border border-gray-300 bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-              >
-                {`{{${v.key}}}`}
-              </button>
-            ))}
-          </div>
-          <label htmlFor="messageTemplateDraft" className="sr-only">
-            Message template
-          </label>
-          <textarea
-            ref={textareaRef}
-            id="messageTemplateDraft"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            className={messageTextareaClass}
-            placeholder="Write your message… click variables above to insert."
-            maxLength={4000}
-          />
-          <p className="mt-1.5 text-right text-[11px] text-gray-400">
-            {draft.length}/4000
-          </p>
-
-          <div className="mt-5 space-y-3 border-t border-gray-200 pt-4 dark:border-gray-700">
-            <div className="flex items-center gap-1.5">
-              <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                Balance notes for {'{{note}}'}
-              </p>
-              <InfoHint label="Balance notes" placement="above">
-                Only the matching line is inserted into the message: plus (+), minus (−), or
-                zero balance — based on the account or running balance.
-              </InfoHint>
-            </div>
-            <div>
-              <label
-                htmlFor="messageNotePlus"
-                className="mb-1 block text-sm font-medium text-gray-800 dark:text-gray-200"
-              >
-                Plus (+) note
-              </label>
-              <input
-                id="messageNotePlus"
-                type="text"
-                value={notePlus}
-                onChange={(e) => setNotePlus(e.target.value)}
-                className={messageNoteInputClass}
-                maxLength={500}
-                placeholder="Shown when balance is positive"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="messageNoteMinus"
-                className="mb-1 block text-sm font-medium text-gray-800 dark:text-gray-200"
-              >
-                Minus (−) note
-              </label>
-              <input
-                id="messageNoteMinus"
-                type="text"
-                value={noteMinus}
-                onChange={(e) => setNoteMinus(e.target.value)}
-                className={messageNoteInputClass}
-                maxLength={500}
-                placeholder="Shown when balance is negative"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="messageNoteZero"
-                className="mb-1 block text-sm font-medium text-gray-800 dark:text-gray-200"
-              >
-                Zero / clear note
-              </label>
-              <input
-                id="messageNoteZero"
-                type="text"
-                value={noteZero}
-                onChange={(e) => setNoteZero(e.target.value)}
-                className={messageNoteInputClass}
-                maxLength={500}
-                placeholder="Shown when balance is zero"
-              />
-            </div>
-
-            {shareUrlOptions.length > 0 ? (
-              <div className="space-y-2">
-                {shareUrlOptions.map((opt) => {
-                  const enabled = shareUrlAllowed[opt.key] !== false
-                  return (
-                    <div
-                      key={opt.key}
-                      className="flex items-center justify-between gap-3 rounded-md border border-gray-200 px-3 py-2.5 dark:border-gray-600"
-                    >
-                      <div className="flex min-w-0 items-center gap-1.5">
-                        <p className="truncate text-sm font-medium text-gray-700 dark:text-gray-300">
-                          {opt.title}
-                        </p>
-                        <InfoHint label={opt.title} placement="above">
-                          When enabled, Send message creates a PIN-gated ledger
-                          preview and fills{' '}
-                          <code className="rounded bg-gray-100 px-1 py-0.5 text-[11px] dark:bg-gray-700">
-                            {`{{${opt.variable}}}`}
-                          </code>{' '}
-                          (plus access code and expiry).
-                        </InfoHint>
-                      </div>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={enabled}
-                        aria-label={
-                          enabled ? `${opt.title} enabled` : `${opt.title} disabled`
-                        }
-                        onClick={() =>
-                          setShareUrlAllowed((prev) => ({
-                            ...prev,
-                            [opt.key]: !enabled,
-                          }))
-                        }
-                        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
-                          enabled
-                            ? 'bg-primary-600'
-                            : 'bg-gray-300 dark:bg-gray-600'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                            enabled ? 'translate-x-6' : 'translate-x-1'
-                          }`}
-                        />
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-            ) : null}
-          </div>
-        </FormModalBody>
+        <FormModalBody>{fields}</FormModalBody>
         {saveError ? (
           <p className="border-t border-gray-200 px-4 py-2 text-sm text-red-600 dark:border-gray-700 dark:text-red-400 sm:px-6">
             {saveError}
@@ -455,29 +572,7 @@ export function MessageTemplateModal({
             type="button"
             className={formModalPrimaryButtonClass}
             disabled={savingTemplate}
-            onClick={() => {
-              void (async () => {
-                setSavingTemplate(true)
-                setSaveError(null)
-                try {
-                  await onSave(draft, {
-                    plus: notePlus,
-                    minus: noteMinus,
-                    zero: noteZero,
-                    ...(shareUrlOptions.length > 0
-                      ? { shareUrlEnabled: { ...shareUrlAllowed } }
-                      : {}),
-                  })
-                  onClose()
-                } catch (err) {
-                  setSaveError(
-                    err instanceof Error ? err.message : 'Could not save message template.'
-                  )
-                } finally {
-                  setSavingTemplate(false)
-                }
-              })()
-            }}
+            onClick={handleSaveClick}
           >
             {savingTemplate ? 'Saving…' : 'Save'}
           </button>

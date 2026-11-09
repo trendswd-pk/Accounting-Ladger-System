@@ -1,7 +1,8 @@
 # Cash Type
 
-**Version:** 1.0.3  
+**Version:** 1.2.3  
 **Route:** `/settings/cash-type`  
+**Linked accounts:** `/settings/cash-type/{id}`  
 **Who can access:** Signed-in users with permission to manage setup types (Admin in Demo Mode).
 
 ## Screenshot
@@ -14,11 +15,13 @@ Maintain cash-type classifications (for example Cash in Hand, Savings, Owned Cas
 
 ## Layout at a glance
 
-- Title **Cash Type**
+- Title **Cash Type** with info tip
 - **Add** control
-- List with name, code, description, active state, and related actions
+- Mobile: brand-sky type cards (same pattern as Account Type)
+- Desktop table with name, code, description, accounts, status, actions
 - Edit and **Delete** controls
-- Same modal pattern as Account Type
+- Same add/edit modal pattern as Account Type
+- Tap a type to open its linked accounts page
 
 ## Steps
 
@@ -39,6 +42,13 @@ Maintain cash-type classifications (for example Cash in Hand, Savings, Owned Cas
 1. Use edit (pencil) to update a type.
 2. Use **Delete** and confirm when the type is no longer needed.
 
+### See accounts using a type
+
+1. Tap a type card (or the name / account count on desktop).
+2. The linked accounts page lists those accounts.
+3. Tap an account to open filtered [Transactions](./03-transactions.md).
+4. Use **Back** to return to Cash Type.
+
 ### Wire types into views
 
 1. Open [Settings](./12-settings.md).
@@ -57,6 +67,7 @@ Maintain cash-type classifications (for example Cash in Hand, Savings, Owned Cas
 ## Errors & edge cases
 
 - Empty list: **No cash types yet. Tap + to add one.**
+- Linked accounts empty: **No accounts use this cash type yet.**
 - Validation for name/code mirrors Account Type.
 - Accounts still keep historical type labels even if you later rename a type.
 

@@ -1,7 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Info, Pencil, Plus, Trash2 } from 'lucide-react'
 import {
   FormModalBody,
   FormModalFooter,
@@ -9,61 +10,24 @@ import {
   formModalDangerButtonClass,
   formModalOverlayClass,
   formModalPanelClass,
-  formModalPrimaryButtonClass,
   formModalSecondaryButtonClass,
 } from '@/components/FormModal'
 import {
-  createBank,
   deleteBank,
   fetchBanks,
   getCachedBanks,
-  updateBank,
   type BankDetailRecord,
 } from '@/lib/banks'
-import {
-  BRAND_IMAGE_EXTENSIONS,
-  isBrandImageName,
-  uploadFileToR2,
-} from '@/lib/uploads'
-
-const inputClass =
-  'w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500'
-
-const labelClass =
-  'mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300'
-
-const actionBtnClass =
-  'rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
-
-const qrAccept = BRAND_IMAGE_EXTENSIONS.map((ext) => `.${ext}`).join(',')
-
-const emptyForm = {
-  bankName: '',
-  accountTitle: '',
-  accountNumber: '',
-  iban: '',
-  branchName: '',
-  branchCode: '',
-  swiftCode: '',
-  notes: '',
-  qrCodeUrl: null as string | null,
-  active: true,
-}
 
 export default function BankDetailsPage() {
+  const router = useRouter()
   const cached = getCachedBanks()
   const [rows, setRows] = useState<BankDetailRecord[]>(() => cached ?? [])
   const [ready, setReady] = useState(() => cached != null)
   const [loading, setLoading] = useState(false)
   const [listError, setListError] = useState<string | null>(null)
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
-  const [form, setForm] = useState(emptyForm)
-  const [formError, setFormError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-  const [qrUploading, setQrUploading] = useState(false)
-  const qrInputRef = useRef<HTMLInputElement | null>(null)
+  const [infoOpen, setInfoOpen] = useState(false)
 
   const loadRows = useCallback(async () => {
     const hit = getCachedBanks()
@@ -90,94 +54,13 @@ export default function BankDetailsPage() {
   }, [loadRows])
 
   const openAdd = () => {
-    setEditingId(null)
-    setForm(emptyForm)
-    setFormError(null)
-    setModalOpen(true)
+    router.push('/settings/bank-details/new?from=%2Fsettings%2Fbank-details')
   }
 
   const openEdit = (row: BankDetailRecord) => {
-    setEditingId(row.id)
-    setForm({
-      bankName: row.bankName,
-      accountTitle: row.accountTitle,
-      accountNumber: row.accountNumber,
-      iban: row.iban,
-      branchName: row.branchName,
-      branchCode: row.branchCode,
-      swiftCode: row.swiftCode,
-      notes: row.notes,
-      qrCodeUrl: row.qrCodeUrl,
-      active: row.active,
-    })
-    setFormError(null)
-    setModalOpen(true)
-  }
-
-  const handleQrUpload = async (file: File | undefined) => {
-    if (!file) return
-    if (!isBrandImageName(file.name)) {
-      setFormError(
-        `Use an image file (${BRAND_IMAGE_EXTENSIONS.join(', ')}).`
-      )
-      return
-    }
-    setQrUploading(true)
-    setFormError(null)
-    try {
-      const attachment = await uploadFileToR2(file, {
-        folder: 'banks/qr',
-        compress: { maxEdge: 1200, quality: 0.88 },
-      })
-      setForm((prev) => ({ ...prev, qrCodeUrl: attachment.publicUrl }))
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'QR upload failed.')
-    } finally {
-      setQrUploading(false)
-      if (qrInputRef.current) qrInputRef.current.value = ''
-    }
-  }
-
-  const setField = <K extends keyof typeof emptyForm>(
-    key: K,
-    value: (typeof emptyForm)[K]
-  ) => {
-    setForm((prev) => ({ ...prev, [key]: value }))
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSubmitting(true)
-    setFormError(null)
-    setLoading(true)
-    try {
-      const payload = {
-        bankName: form.bankName.trim(),
-        accountTitle: form.accountTitle.trim(),
-        accountNumber: form.accountNumber.trim(),
-        iban: form.iban.trim(),
-        branchName: form.branchName.trim(),
-        branchCode: form.branchCode.trim(),
-        swiftCode: form.swiftCode.trim(),
-        notes: form.notes.trim(),
-        qrCodeUrl: form.qrCodeUrl,
-        active: form.active,
-      }
-      if (editingId) {
-        const item = await updateBank(editingId, payload)
-        setRows((prev) => prev.map((r) => (r.id === editingId ? item : r)))
-      } else {
-        const item = await createBank(payload)
-        setRows((prev) => [...prev, item])
-      }
-      setModalOpen(false)
-      setEditingId(null)
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Save failed')
-    } finally {
-      setSubmitting(false)
-      setLoading(false)
-    }
+    router.push(
+      `/settings/bank-details/${encodeURIComponent(row.id)}/edit?from=${encodeURIComponent('/settings/bank-details')}`
+    )
   }
 
   const handleDelete = async (id: string) => {
@@ -223,13 +106,41 @@ export default function BankDetailsPage() {
   return (
     <div className="p-4 lg:p-8">
       <div className="mb-4 flex items-center justify-between gap-3 lg:mb-6">
-        <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-2">
           <h1 className="truncate text-2xl font-bold text-gray-800 dark:text-gray-100 lg:text-3xl">
             Bank Details
           </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Save your business bank accounts for receipts, vouchers, and sharing.
-          </p>
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setInfoOpen((v) => !v)}
+              className={`rounded-full p-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                infoOpen
+                  ? 'text-primary-600 dark:text-primary-400'
+                  : 'text-gray-400 hover:text-primary-600 dark:text-gray-500 dark:hover:text-primary-400'
+              }`}
+              aria-label="About Bank Details"
+              aria-expanded={infoOpen}
+            >
+              <Info className="h-5 w-5" aria-hidden />
+            </button>
+            {infoOpen ? (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setInfoOpen(false)}
+                  aria-hidden
+                />
+                <div
+                  role="dialog"
+                  className="absolute left-0 top-full z-50 mt-2 w-72 max-w-[min(18rem,calc(100vw-2rem))] rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                >
+                  Save your business bank accounts for receipts, vouchers, and
+                  sharing.
+                </div>
+              </>
+            ) : null}
+          </div>
         </div>
         <button
           type="button"
@@ -451,225 +362,6 @@ export default function BankDetailsPage() {
           </table>
         </div>
       </div>
-
-      {modalOpen ? (
-        <div className={formModalOverlayClass} role="presentation">
-          <div
-            className={`${formModalPanelClass} max-w-lg`}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="bank-details-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <FormModalHeader
-              titleId="bank-details-title"
-              title={editingId ? 'Edit bank' : 'Add bank'}
-              onClose={() => {
-                if (!submitting) setModalOpen(false)
-              }}
-            />
-            <FormModalBody>
-              <form
-                id="bank-details-form"
-                onSubmit={(e) => void handleSubmit(e)}
-                className="space-y-3"
-              >
-                {formError ? (
-                  <div className="rounded-md bg-red-50 p-2 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">
-                    {formError}
-                  </div>
-                ) : null}
-                <div>
-                  <label className={labelClass} htmlFor="bank-name">
-                    Bank name <span className="text-red-600">*</span>
-                  </label>
-                  <input
-                    id="bank-name"
-                    className={inputClass}
-                    value={form.bankName}
-                    onChange={(e) => setField('bankName', e.target.value)}
-                    placeholder="e.g. Habib Bank Limited"
-                    required
-                    aria-required="true"
-                    autoFocus
-                  />
-                </div>
-                <div>
-                  <label className={labelClass} htmlFor="account-title">
-                    Account title <span className="text-red-600">*</span>
-                  </label>
-                  <input
-                    id="account-title"
-                    className={inputClass}
-                    value={form.accountTitle}
-                    onChange={(e) => setField('accountTitle', e.target.value)}
-                    placeholder="Account holder name"
-                    required
-                    aria-required="true"
-                  />
-                </div>
-                <div>
-                  <label className={labelClass} htmlFor="account-number">
-                    Account number <span className="text-red-600">*</span>
-                  </label>
-                  <input
-                    id="account-number"
-                    className={inputClass}
-                    value={form.accountNumber}
-                    onChange={(e) => setField('accountNumber', e.target.value)}
-                    placeholder="Account number"
-                    required
-                    aria-required="true"
-                  />
-                </div>
-                <div>
-                  <label className={labelClass} htmlFor="iban">
-                    IBAN
-                  </label>
-                  <input
-                    id="iban"
-                    className={inputClass}
-                    value={form.iban}
-                    onChange={(e) => setField('iban', e.target.value)}
-                    placeholder="PK00XXXX…"
-                  />
-                </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div>
-                    <label className={labelClass} htmlFor="branch-name">
-                      Branch name
-                    </label>
-                    <input
-                      id="branch-name"
-                      className={inputClass}
-                      value={form.branchName}
-                      onChange={(e) => setField('branchName', e.target.value)}
-                      placeholder="Branch"
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass} htmlFor="branch-code">
-                      Branch code
-                    </label>
-                    <input
-                      id="branch-code"
-                      className={inputClass}
-                      value={form.branchCode}
-                      onChange={(e) => setField('branchCode', e.target.value)}
-                      placeholder="Code"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className={labelClass} htmlFor="swift-code">
-                    SWIFT / BIC
-                  </label>
-                  <input
-                    id="swift-code"
-                    className={inputClass}
-                    value={form.swiftCode}
-                    onChange={(e) => setField('swiftCode', e.target.value)}
-                    placeholder="Optional"
-                  />
-                </div>
-                <div>
-                  <label className={labelClass} htmlFor="bank-qr">
-                    Bank QR code
-                  </label>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700/50">
-                      {form.qrCodeUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element -- remote R2 URL
-                        <img
-                          src={form.qrCodeUrl}
-                          alt="Bank QR preview"
-                          className="h-full w-full object-contain p-1"
-                        />
-                      ) : (
-                        <span className="px-1 text-center text-[10px] leading-tight text-gray-400 dark:text-gray-500">
-                          No QR
-                        </span>
-                      )}
-                    </div>
-                    <input
-                      ref={qrInputRef}
-                      id="bank-qr"
-                      type="file"
-                      accept={qrAccept}
-                      className="sr-only"
-                      disabled={submitting || qrUploading}
-                      onChange={(e) => {
-                        void handleQrUpload(e.target.files?.[0])
-                      }}
-                    />
-                    <button
-                      type="button"
-                      disabled={submitting || qrUploading}
-                      onClick={() => qrInputRef.current?.click()}
-                      className={actionBtnClass}
-                    >
-                      {qrUploading
-                        ? 'Uploading…'
-                        : form.qrCodeUrl
-                          ? 'Replace QR'
-                          : 'Upload QR'}
-                    </button>
-                    {form.qrCodeUrl ? (
-                      <button
-                        type="button"
-                        disabled={submitting || qrUploading}
-                        onClick={() => setField('qrCodeUrl', null)}
-                        className={actionBtnClass}
-                      >
-                        Remove
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-                <div>
-                  <label className={labelClass} htmlFor="bank-notes">
-                    Notes
-                  </label>
-                  <textarea
-                    id="bank-notes"
-                    className={`${inputClass} min-h-[72px] resize-y`}
-                    value={form.notes}
-                    onChange={(e) => setField('notes', e.target.value)}
-                    placeholder="Optional notes"
-                  />
-                </div>
-                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                  <input
-                    type="checkbox"
-                    checked={form.active}
-                    onChange={(e) => setField('active', e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                  />
-                  Active
-                </label>
-              </form>
-            </FormModalBody>
-            <FormModalFooter>
-              <button
-                type="button"
-                onClick={() => setModalOpen(false)}
-                disabled={submitting}
-                className={formModalSecondaryButtonClass}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                form="bank-details-form"
-                disabled={submitting || qrUploading}
-                className={formModalPrimaryButtonClass}
-              >
-                {submitting ? 'Saving…' : editingId ? 'Save' : 'Add'}
-              </button>
-            </FormModalFooter>
-          </div>
-        </div>
-      ) : null}
 
       {deleteConfirmId ? (
         <div className={formModalOverlayClass} role="presentation">

@@ -1,18 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Info } from 'lucide-react'
 import ExpensePeriodMobileCard from '@/components/ExpensePeriodMobileCard'
 import ExpenseTotalMobileBar from '@/components/ExpenseTotalMobileBar'
-import {
-  FormModalBody,
-  FormModalFooter,
-  FormModalHeader,
-  formModalOverlayClass,
-  formModalPanelClass,
-  formModalSecondaryButtonClass,
-} from '@/components/FormModal'
 import {
   fetchAccounts,
   getCachedAccounts,
@@ -48,16 +40,24 @@ const MONTH_NAMES = [
   'December',
 ] as const
 
-type MonthAccountRow = {
-  id: string
-  name: string
-  total: number
+function pad2(n: number): string {
+  return String(n).padStart(2, '0')
 }
 
-export default function MonthlyExpensePage() {
+function parseYearParam(raw: string | null, fallback: number): number {
+  if (!raw) return fallback
+  const n = Number(raw)
+  return Number.isFinite(n) && n >= 1900 && n <= 2100 ? n : fallback
+}
+
+function MonthlyExpensePageInner() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const now = new Date()
   const currentYear = now.getFullYear()
-  const [year, setYear] = useState(currentYear)
+  const [year, setYear] = useState(() =>
+    parseYearParam(searchParams.get('year'), currentYear)
+  )
   const [expenseAccounts, setExpenseAccounts] = useState<AccountRecord[]>(() => {
     const cached = getCachedAccounts()
     return cached ? cached.filter(isExpenseAccount) : []
@@ -70,7 +70,6 @@ export default function MonthlyExpensePage() {
   )
   const [listError, setListError] = useState<string | null>(null)
   const [infoOpen, setInfoOpen] = useState(false)
-  const [selectedMonthIndex, setSelectedMonthIndex] = useState<number | null>(null)
   const [currency, setCurrency] = useState(
     () => getCachedAppSettings()?.currency ?? DEFAULT_APP_SETTINGS.currency
   )
@@ -100,6 +99,12 @@ export default function MonthlyExpensePage() {
     void load()
     return watchAppSettings((s) => setCurrency(s.currency))
   }, [load])
+
+  useEffect(() => {
+    const yearRaw = searchParams.get('year')
+    if (yearRaw == null) return
+    setYear(parseYearParam(yearRaw, currentYear))
+  }, [searchParams, currentYear])
 
   const availableYears = useMemo(() => {
     const years = new Set<number>()
@@ -150,33 +155,6 @@ export default function MonthlyExpensePage() {
     [monthlyTotals]
   )
 
-  const monthAccountRows = useMemo((): MonthAccountRow[] => {
-    if (selectedMonthIndex == null) return []
-    const monthPrefix = `${year}-${String(selectedMonthIndex + 1).padStart(2, '0')}`
-    const byAccount = new Map<string, number>()
-    for (const tx of transactions) {
-      if (!expenseAccountIds.has(tx.accountId)) continue
-      if (!tx.transactionDate.slice(0, 10).startsWith(monthPrefix)) continue
-      byAccount.set(
-        tx.accountId,
-        (byAccount.get(tx.accountId) ?? 0) + expenseSpendAmount(tx)
-      )
-    }
-    return expenseAccounts
-      .map((a) => ({
-        id: a.id,
-        name: a.name,
-        total: byAccount.get(a.id) ?? 0,
-      }))
-      .filter((row) => row.total !== 0)
-      .sort((a, b) => Math.abs(b.total) - Math.abs(a.total) || a.name.localeCompare(b.name))
-  }, [selectedMonthIndex, year, transactions, expenseAccountIds, expenseAccounts])
-
-  const monthPopupTotal = useMemo(
-    () => monthAccountRows.reduce((sum, row) => sum + row.total, 0),
-    [monthAccountRows]
-  )
-
   const formatBalance = (n: number) => formatMoney(n, currency)
 
   const balanceColorClass = (balance: number) =>
@@ -191,11 +169,10 @@ export default function MonthlyExpensePage() {
 
   const isCurrentYear = year === now.getFullYear()
   const currentMonthIndex = now.getMonth()
-  const selectedMonthName =
-    selectedMonthIndex != null ? MONTH_NAMES[selectedMonthIndex] : null
 
-  const openMonth = (index: number) => setSelectedMonthIndex(index)
-  const closeMonth = () => setSelectedMonthIndex(null)
+  const openMonth = (index: number) => {
+    router.push(`/expenses/monthly/${year}-${pad2(index + 1)}`)
+  }
 
   return (
     <div className="p-4 lg:p-8">
@@ -203,7 +180,7 @@ export default function MonthlyExpensePage() {
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
             <h1 className="truncate text-2xl font-bold text-gray-800 dark:text-gray-100 lg:text-3xl">
-              Expenses
+              Monthly Expense
             </h1>
             <div className="relative shrink-0">
               <button
@@ -214,7 +191,7 @@ export default function MonthlyExpensePage() {
                     ? 'text-primary-600 dark:text-primary-400'
                     : 'text-gray-400 hover:text-primary-600 dark:text-gray-500 dark:hover:text-primary-400'
                 }`}
-                aria-label="About Expenses"
+                aria-label="About Monthly Expense"
                 aria-expanded={infoOpen}
                 aria-controls="monthly-expense-info-popover"
               >
@@ -415,74 +392,39 @@ export default function MonthlyExpensePage() {
           </table>
         </div>
       </div>
-
-      {selectedMonthIndex != null && selectedMonthName ? (
-        <div
-          className={formModalOverlayClass}
-          onClick={closeMonth}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="month-expense-accounts-title"
-        >
-          <div className={`${formModalPanelClass} max-w-md`} onClick={(e) => e.stopPropagation()}>
-            <FormModalHeader
-              titleId="month-expense-accounts-title"
-              title={`${selectedMonthName} ${year}`}
-              onClose={closeMonth}
-            />
-            <FormModalBody>
-              {monthAccountRows.length === 0 ? (
-                <p className="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                  No expense account activity this month.
-                </p>
-              ) : (
-                <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {monthAccountRows.map((row) => (
-                    <li
-                      key={row.id}
-                      className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
-                    >
-                      <Link
-                        href={`/transactions?accountId=${encodeURIComponent(row.id)}&dateFrom=${encodeURIComponent(`${year}-${String(selectedMonthIndex + 1).padStart(2, '0')}-01`)}&dateTo=${encodeURIComponent(`${year}-${String(selectedMonthIndex + 1).padStart(2, '0')}-${String(new Date(year, selectedMonthIndex + 1, 0).getDate()).padStart(2, '0')}`)}&from=${encodeURIComponent('/expenses/monthly')}`}
-                        className="min-w-0 truncate text-sm font-medium text-primary-700 hover:underline dark:text-primary-300"
-                        onClick={closeMonth}
-                      >
-                        {row.name}
-                      </Link>
-                      <span
-                        className={`shrink-0 text-sm font-semibold tabular-nums ${balanceColorClass(row.total)}`}
-                      >
-                        {formatBalance(row.total)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {monthAccountRows.length > 0 ? (
-                <div className="mt-4 flex items-center justify-between border-t border-gray-200 pt-3 dark:border-gray-700">
-                  <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-                    Total
-                  </span>
-                  <span
-                    className={`text-sm font-semibold tabular-nums ${balanceColorClass(monthPopupTotal)}`}
-                  >
-                    {formatBalance(monthPopupTotal)}
-                  </span>
-                </div>
-              ) : null}
-            </FormModalBody>
-            <FormModalFooter className="justify-center sm:justify-end">
-              <button
-                type="button"
-                onClick={closeMonth}
-                className={formModalSecondaryButtonClass}
-              >
-                Close
-              </button>
-            </FormModalFooter>
-          </div>
-        </div>
-      ) : null}
     </div>
+  )
+}
+
+function MonthlyExpensePageFallback() {
+  return (
+    <div className="p-4 lg:p-8">
+      <div className="mb-6 h-8 w-52 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+      <div className="space-y-3.5 lg:hidden">
+        {Array.from({ length: 4 }, (_, i) => (
+          <div
+            key={i}
+            className="h-28 animate-pulse rounded-[1.75rem] bg-brand-sky/60"
+          />
+        ))}
+      </div>
+      <div className="hidden overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 lg:block">
+        <div className="h-12 border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-700/40" />
+        {Array.from({ length: 6 }, (_, i) => (
+          <div
+            key={i}
+            className="h-12 animate-pulse border-b border-gray-50 dark:border-gray-700/50"
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export default function MonthlyExpensePage() {
+  return (
+    <Suspense fallback={<MonthlyExpensePageFallback />}>
+      <MonthlyExpensePageInner />
+    </Suspense>
   )
 }

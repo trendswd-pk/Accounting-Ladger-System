@@ -1,7 +1,8 @@
 # Monthly Expense
 
-**Version:** 1.0.3  
+**Version:** 1.2.3  
 **Route:** `/expenses/monthly`  
+**Month detail:** `/expenses/monthly/{YYYY-MM}`  
 **Who can access:** Signed-in users.
 
 ## Screenshot
@@ -10,15 +11,15 @@
 
 ## What this page does
 
-Year overview of expense spend by calendar month. Select a month to see contributing expense accounts. Credit counts as spend; debit reverses.
+Year overview of expense spend by calendar month. Select a month to open that month’s expense accounts on a full page. Credit counts as spend; debit reverses.
 
 ## Layout at a glance
 
-- Page heading **Expenses** (monthly view) with info tip
+- Page heading **Monthly Expense** with info tip
 - Year selector
 - Desktop table: **SR.**, **Month**, **Expense**
 - Footer: **Total Year Expenses**
-- Month detail modal with account list, **Total**, and **Close**
+- Month detail page with account breakdown and **Total** (mobile: Expenses-style brand-sky account cards; desktop: table)
 - **Current** / **Current month** marker on the active month
 
 ## Steps
@@ -36,10 +37,10 @@ Year overview of expense spend by calendar month. Select a month to see contribu
 
 ### Inspect a month
 
-1. Select a month row (for example **October**).
-2. Modal title shows **Month Year** (for example `October 2026`).
-3. Select an account to open filtered [Transactions](./03-transactions.md).
-4. Select **Close** when finished.
+1. Select a month row or card (for example **October**).
+2. The month page (`/expenses/monthly/2026-10`) lists expense accounts and amounts.
+3. Select an account to open filtered [Transactions](./03-transactions.md) for that month (return path: the month page).
+4. Use **Back** to return to Monthly Expense for the same year.
 
 ## Table columns
 
@@ -52,7 +53,8 @@ Year overview of expense spend by calendar month. Select a month to see contribu
 ## Errors & edge cases
 
 - Months with no postings show zero.
-- Empty month modal: **No expense account activity this month.**
+- Month page with no activity: **No expense account activity this month.**
+- Invalid month in the URL shows an error with a link back to Monthly Expense.
 - Info tip: tap a month for expense accounts; credit = spend, debit reverses.
 
 ## Related links

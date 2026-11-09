@@ -18,6 +18,18 @@ All notable changes to Accounting Ledger are documented here.
 - Floating Actions trigger icon: three-line menu (replaces three-dot).
 - Floating Actions on desktop: title-row toolbar — up to 5 actions as icon buttons in a row; more than 5 collapse to a dropdown. Mobile keeps the floating speed-dial.
 - Settings → **General**: hub list grouped by area — **Business**, **Dashboard**, **Transactions**, **Accounts**, **Messages**. Tap a row for that group’s settings; Save returns to the list.
+- Account **details** open at **`/accounts/{id}`** as a full page (Details + Documents stacked). The old details popup is removed; Edit returns to the list with the edit form.
+- Account detail page: desktop **Previous / Next** (and arrow keys); mobile swipe left/right between accounts — same pattern as transaction detail, with a swipe hint under the card.
+- Account Documents row: **Save ledger PDF** moved beside **Upload** (left of Upload); both are icon-only on mobile and icon + label on desktop. Save ledger PDF removed from the floating Actions menu.
+- Documents **Upload** control is icon-only on mobile and labeled on desktop (transaction and account detail).
+- Desktop header menu button: hover opens the sidebar (same fine-pointer hover devices as submenu expand); click still works.
+- Daily Expense day accounts open at **`/expenses/daily/{YYYY-MM-DD}`** as a full page (accounts list + total). The day popup is removed; Back restores the selected month.
+- Daily Expense day page: mobile uses the same **brand-sky account cards** as Expenses (phone, type, day amount); desktop keeps an accounts table.
+- Monthly Expense month accounts open at **`/expenses/monthly/{YYYY-MM}`** as a full page (same account cards + table as Daily day page). The month popup is removed; Back restores the selected year.
+- Settings **Account Type** / **Cash Type**: mobile uses clean **brand-sky** type cards; linked accounts open at **`/settings/account-type/{id}`** and **`/settings/cash-type/{id}`** (account cards + table). The linked-accounts popup is removed.
+- **Add Account** / **Edit Account** are dedicated pages at **`/accounts/new`** and **`/accounts/{id}/edit`** (full page layout, not a popup). The account form popup is removed.
+- Remaining data-entry forms moved off popups onto pages: **Edit Transaction** (`/transactions/{id}/edit`), **Account Type** / **Cash Type** add & edit, **Bank Details** add & edit, and **Messages** account/transaction template editors. Confirm / export / delete dialogs stay as small overlays.
+- **Send message**: preparation loading stays in the same app window (overlay). When ready, WhatsApp opens — no second browser tab for the loading screen.
 
 ## [1.2.2] — 2026-11-07
 

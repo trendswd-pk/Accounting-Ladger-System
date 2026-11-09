@@ -1,18 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import Link from 'next/link'
+import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Filter, Info, X } from 'lucide-react'
 import ExpensePeriodMobileCard from '@/components/ExpensePeriodMobileCard'
 import ExpenseTotalMobileBar from '@/components/ExpenseTotalMobileBar'
-import {
-  FormModalBody,
-  FormModalFooter,
-  FormModalHeader,
-  formModalOverlayClass,
-  formModalPanelClass,
-  formModalSecondaryButtonClass,
-} from '@/components/FormModal'
 import {
   fetchAccounts,
   getCachedAccounts,
@@ -66,20 +58,32 @@ function pad2(n: number): string {
   return String(n).padStart(2, '0')
 }
 
-type DayAccountRow = {
-  id: string
-  name: string
-  total: number
+function parseYearParam(raw: string | null, fallback: number): number {
+  if (!raw) return fallback
+  const n = Number(raw)
+  return Number.isFinite(n) && n >= 1900 && n <= 2100 ? n : fallback
 }
 
-export default function DailyExpensePage() {
+function parseMonthParam(raw: string | null, fallback: number): number {
+  if (!raw) return fallback
+  const n = Number(raw)
+  return Number.isFinite(n) && n >= 1 && n <= 12 ? n - 1 : fallback
+}
+
+function DailyExpensePageInner() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const now = new Date()
   const currentYear = now.getFullYear()
   const currentMonthIndex = now.getMonth()
   const todayDay = now.getDate()
 
-  const [year, setYear] = useState(currentYear)
-  const [monthIndex, setMonthIndex] = useState(currentMonthIndex)
+  const [year, setYear] = useState(() =>
+    parseYearParam(searchParams.get('year'), currentYear)
+  )
+  const [monthIndex, setMonthIndex] = useState(() =>
+    parseMonthParam(searchParams.get('month'), currentMonthIndex)
+  )
   const [expenseAccounts, setExpenseAccounts] = useState<AccountRecord[]>(() => {
     const cached = getCachedAccounts()
     return cached ? cached.filter(isExpenseAccount) : []
@@ -94,7 +98,6 @@ export default function DailyExpensePage() {
   const [infoOpen, setInfoOpen] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
   const filterAsideRef = useRef<HTMLElement>(null)
-  const [selectedDay, setSelectedDay] = useState<number | null>(null)
   const [currency, setCurrency] = useState(
     () => getCachedAppSettings()?.currency ?? DEFAULT_APP_SETTINGS.currency
   )
@@ -124,6 +127,14 @@ export default function DailyExpensePage() {
     void load()
     return watchAppSettings((s) => setCurrency(s.currency))
   }, [load])
+
+  useEffect(() => {
+    const yearRaw = searchParams.get('year')
+    const monthRaw = searchParams.get('month')
+    if (yearRaw == null && monthRaw == null) return
+    if (yearRaw != null) setYear(parseYearParam(yearRaw, currentYear))
+    if (monthRaw != null) setMonthIndex(parseMonthParam(monthRaw, currentMonthIndex))
+  }, [searchParams, currentYear, currentMonthIndex])
 
   const availableYears = useMemo(() => {
     const years = new Set<number>()
@@ -162,33 +173,6 @@ export default function DailyExpensePage() {
     [dailyTotals]
   )
 
-  const dayAccountRows = useMemo((): DayAccountRow[] => {
-    if (selectedDay == null) return []
-    const dayKey = `${monthPrefix}-${pad2(selectedDay)}`
-    const byAccount = new Map<string, number>()
-    for (const tx of transactions) {
-      if (!expenseAccountIds.has(tx.accountId)) continue
-      if (tx.transactionDate.slice(0, 10) !== dayKey) continue
-      byAccount.set(
-        tx.accountId,
-        (byAccount.get(tx.accountId) ?? 0) + expenseSpendAmount(tx)
-      )
-    }
-    return expenseAccounts
-      .map((a) => ({
-        id: a.id,
-        name: a.name,
-        total: byAccount.get(a.id) ?? 0,
-      }))
-      .filter((row) => row.total !== 0)
-      .sort((a, b) => Math.abs(b.total) - Math.abs(a.total) || a.name.localeCompare(b.name))
-  }, [selectedDay, monthPrefix, transactions, expenseAccountIds, expenseAccounts])
-
-  const dayPopupTotal = useMemo(
-    () => dayAccountRows.reduce((sum, row) => sum + row.total, 0),
-    [dayAccountRows]
-  )
-
   const formatBalance = (n: number) => formatMoney(n, currency)
 
   const balanceColorClass = (balance: number) =>
@@ -204,18 +188,14 @@ export default function DailyExpensePage() {
   const isCurrentMonth = year === currentYear && monthIndex === currentMonthIndex
   const monthName = MONTH_NAMES[monthIndex]
   const periodFilterActive = !isCurrentMonth
-  const selectedWeekday =
-    selectedDay != null
-      ? WEEKDAY_NAMES[new Date(year, monthIndex, selectedDay).getDay()]
-      : null
 
-  const openDay = (day: number) => setSelectedDay(day)
-  const closeDay = () => setSelectedDay(null)
+  const openDay = (day: number) => {
+    router.push(`/expenses/daily/${monthPrefix}-${pad2(day)}`)
+  }
 
   const resetPeriodFilter = () => {
     setYear(currentYear)
     setMonthIndex(currentMonthIndex)
-    setSelectedDay(null)
   }
 
   useEffect(() => {
@@ -363,10 +343,7 @@ export default function DailyExpensePage() {
             <select
               id="daily-filter-month"
               value={monthIndex}
-              onChange={(e) => {
-                setMonthIndex(Number(e.target.value))
-                setSelectedDay(null)
-              }}
+              onChange={(e) => setMonthIndex(Number(e.target.value))}
               className="h-10 w-full rounded-md border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
               aria-label="Select month"
             >
@@ -387,10 +364,7 @@ export default function DailyExpensePage() {
             <select
               id="daily-filter-year"
               value={year}
-              onChange={(e) => {
-                setYear(Number(e.target.value))
-                setSelectedDay(null)
-              }}
+              onChange={(e) => setYear(Number(e.target.value))}
               className="h-10 w-full rounded-md border border-gray-300 bg-white px-3 text-sm font-semibold tabular-nums text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
               aria-label="Select year"
             >
@@ -564,74 +538,39 @@ export default function DailyExpensePage() {
           </table>
         </div>
       </div>
-
-      {selectedDay != null && selectedWeekday ? (
-        <div
-          className={formModalOverlayClass}
-          onClick={closeDay}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="day-expense-accounts-title"
-        >
-          <div className={`${formModalPanelClass} max-w-md`} onClick={(e) => e.stopPropagation()}>
-            <FormModalHeader
-              titleId="day-expense-accounts-title"
-              title={`${pad2(selectedDay)} ${monthName} ${year} · ${selectedWeekday}`}
-              onClose={closeDay}
-            />
-            <FormModalBody>
-              {dayAccountRows.length === 0 ? (
-                <p className="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                  No expense account activity this day.
-                </p>
-              ) : (
-                <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {dayAccountRows.map((row) => (
-                    <li
-                      key={row.id}
-                      className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
-                    >
-                      <Link
-                        href={`/transactions?accountId=${encodeURIComponent(row.id)}&dateFrom=${encodeURIComponent(`${year}-${pad2(monthIndex + 1)}-${pad2(selectedDay)}`)}&dateTo=${encodeURIComponent(`${year}-${pad2(monthIndex + 1)}-${pad2(selectedDay)}`)}&from=${encodeURIComponent('/expenses/daily')}`}
-                        className="min-w-0 truncate text-sm font-medium text-primary-700 hover:underline dark:text-primary-300"
-                        onClick={closeDay}
-                      >
-                        {row.name}
-                      </Link>
-                      <span
-                        className={`shrink-0 text-sm font-semibold tabular-nums ${balanceColorClass(row.total)}`}
-                      >
-                        {formatBalance(row.total)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {dayAccountRows.length > 0 ? (
-                <div className="mt-4 flex items-center justify-between border-t border-gray-200 pt-3 dark:border-gray-700">
-                  <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-                    Total
-                  </span>
-                  <span
-                    className={`text-sm font-semibold tabular-nums ${balanceColorClass(dayPopupTotal)}`}
-                  >
-                    {formatBalance(dayPopupTotal)}
-                  </span>
-                </div>
-              ) : null}
-            </FormModalBody>
-            <FormModalFooter className="justify-center sm:justify-end">
-              <button
-                type="button"
-                onClick={closeDay}
-                className={formModalSecondaryButtonClass}
-              >
-                Close
-              </button>
-            </FormModalFooter>
-          </div>
-        </div>
-      ) : null}
     </div>
+  )
+}
+
+function DailyExpensePageFallback() {
+  return (
+    <div className="p-4 lg:p-8">
+      <div className="mb-6 h-8 w-48 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+      <div className="space-y-3.5 lg:hidden">
+        {Array.from({ length: 4 }, (_, i) => (
+          <div
+            key={i}
+            className="h-28 animate-pulse rounded-[1.75rem] bg-brand-sky/60"
+          />
+        ))}
+      </div>
+      <div className="hidden overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 lg:block">
+        <div className="h-12 border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-700/40" />
+        {Array.from({ length: 6 }, (_, i) => (
+          <div
+            key={i}
+            className="h-12 animate-pulse border-b border-gray-50 dark:border-gray-700/50"
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export default function DailyExpensePage() {
+  return (
+    <Suspense fallback={<DailyExpensePageFallback />}>
+      <DailyExpensePageInner />
+    </Suspense>
   )
 }

@@ -1,14 +1,17 @@
 # Accounts
 
-**Version:** 1.0.3  
+**Version:** 1.2.3  
 **Route:** `/accounts`  
+**Add:** `/accounts/new`  
+**Edit:** `/accounts/{id}/edit`  
+**Detail:** `/accounts/{id}`  
 **Who can access:** Signed-in users. Admins and Editors manage accounts; Viewers can browse.
 
 ## Screenshots
 
 ![Accounts list](./images/05-accounts.png)
 
-![Account Details popup](./images/23-accounts-detail.png)
+![Account Details](./images/23-accounts-detail.png)
 
 ## What this page does
 
@@ -18,10 +21,10 @@ Master list of ledger accounts (parties, cash wallets, expense heads, investment
 
 - Title **Accounts** with info tip
 - Search: **Search accounts…**
-- **Add** button
+- **Add** button → full **Add Account** page
 - Table: **SR.**, **ACC Name**, **Phone Number**, **ACC Type**, **Cash Type**, **Balance**, actions
 - Pagination when the list exceeds the page size (compact on mobile)
-- Modals: **Add Account** / **Edit Account**, **Account Details**, **Export ledger**, **Delete Account?**
+- Modals: **Export ledger**, **Delete Account?** (add/edit are full pages)
 
 ## Steps
 
@@ -39,26 +42,25 @@ Master list of ledger accounts (parties, cash wallets, expense heads, investment
 ### Open Account Details
 
 1. Select a row, or open **Actions** → **Details**.
-2. Use the **Details** and **Documents** tabs (same pattern as transaction preview).
-3. Footer icon buttons: **Send message** (ledger link), **Save ledger PDF**, **Edit**, and **Delete**.
-4. **Save ledger PDF** generates the account ledger PDF into that account’s Documents tab.
+2. Account opens at **`/accounts/{id}`** (Details + Documents stacked).
+3. Use floating **Actions** for Send message, Edit, and Delete; **Save ledger PDF** sits beside Upload on Documents.
+4. **Save ledger PDF** generates the account ledger PDF into that account’s Documents.
 
 ### Add an account
 
 1. Select **Add**.
-2. In **Add Account**, fill:
+2. On **`/accounts/new`**, fill:
    - **ACC Name** (required)
    - **Phone Number** (optional)
    - **Account Type**
    - **Cash Type**
-3. Select **Add** to save, or **Cancel**.
+3. Select **Add** to save (opens the new account), or **Cancel** to return to the list.
 
 ### Edit an account
 
-1. Open the row **Actions** menu.
-2. Choose **Edit**.
-3. Update fields in **Edit Account**.
-4. Select **Save**.
+1. Open the row **Actions** menu, or Edit from account detail.
+2. The **Edit Account** page opens at **`/accounts/{id}/edit`**.
+3. Update fields and select **Save**.
 
 ### Export a ledger
 

@@ -51,7 +51,6 @@ import {
   type TransactionEntryType,
   type TransactionRecord,
 } from '@/lib/transactions'
-import { openWhatsAppPrepTab } from '@/lib/whatsappPrepTab'
 
 function entryTypeBadgeClass(type: TransactionEntryType): string {
   return type === 'credit'
@@ -249,11 +248,10 @@ export default function TransactionDetailPage() {
     setSendError(null)
     setWaPrepPercent(8)
     setWaPrepLabel('Preparing message…')
-    const prep = openWhatsAppPrepTab('Preparing message…')
+    // In-app overlay only — stay on this page while preparing, then open WhatsApp.
     const bump = (percent: number, label: string) => {
       setWaPrepPercent(percent)
       setWaPrepLabel(label)
-      prep?.setProgress(percent, label)
     }
 
     try {
@@ -340,9 +338,8 @@ export default function TransactionDetailPage() {
         .trim()
 
       bump(96, 'Opening WhatsApp…')
-      openWhatsAppMessage(account?.phone, text, prep)
+      openWhatsAppMessage(account?.phone, text)
     } catch (err) {
-      prep?.close()
       setSendError(
         err instanceof Error ? err.message : 'Could not open WhatsApp message.'
       )
@@ -466,7 +463,9 @@ export default function TransactionDetailPage() {
               icon: Pencil,
               primary: true,
               onClick: () =>
-                router.push(`/transactions?edit=${encodeURIComponent(row.id)}`),
+                router.push(
+                  `/transactions/${encodeURIComponent(row.id)}/edit?from=${encodeURIComponent(`/transactions/${row.id}`)}`
+                ),
             },
           ]}
         />

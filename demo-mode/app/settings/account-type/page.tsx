@@ -8,6 +8,7 @@ export default function AccountTypePage() {
       title="Account Type"
       singularLabel="Account Type"
       kind="account-types"
+      listPath="/settings/account-type"
       emptyHint="No account types yet. Tap + to add one."
     />
   )

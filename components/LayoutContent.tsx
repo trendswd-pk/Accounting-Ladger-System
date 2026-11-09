@@ -102,6 +102,14 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
         <button
           type="button"
           onClick={() => setNavOpen(true)}
+          onMouseEnter={() => {
+            if (
+              typeof window !== 'undefined' &&
+              window.matchMedia('(hover: hover) and (pointer: fine)').matches
+            ) {
+              setNavOpen(true)
+            }
+          }}
           className="-ml-2 hidden shrink-0 rounded-md p-2 text-gray-700 hover:bg-primary-50 hover:text-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-300 dark:hover:bg-gray-700 lg:inline-flex"
           aria-label="Open menu"
         >
@@ -151,7 +159,9 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
       </main>
       <MobileBottomNav onOpenMenu={() => setNavOpen(true)} />
       {/* Detail pages are short — skip Back to top so the FAB can sit by the nav. */}
-      {!/^\/transactions\/[^/]+\/?$/.test(pathname) ? (
+      {!/^(?:\/(?:transactions|accounts)\/[^/]+(?:\/edit)?|\/accounts\/new|\/newentry|\/expenses\/(?:daily\/\d{4}-\d{2}-\d{2}|monthly\/\d{4}-\d{2})|\/settings\/(?:account-type|cash-type)(?:\/new|\/[^/]+(?:\/edit)?)|\/settings\/bank-details(?:\/new|\/[^/]+\/edit)|\/settings\/messages\/(?:account|transaction)-template)\/?$/.test(
+        pathname
+      ) ? (
         <ScrollToTopButton scrollRef={mainScrollRef} pathname={pathname} />
       ) : null}
       {isDev ? (

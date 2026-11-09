@@ -26,14 +26,10 @@ import {
   formModalDangerButtonClass,
   formModalOverlayClass,
   formModalPanelClass,
-  formModalPrimaryButtonClass,
   formModalSecondaryButtonClass,
 } from '@/components/FormModal'
 import SearchableSelect from '@/components/SearchableSelect'
 import { TablePaginationNav } from '@/components/TablePaginationNav'
-import TransactionFormAttachments, {
-  uploadPendingTransactionFiles,
-} from '@/components/TransactionFormAttachments'
 import { isExpenseAccount } from '@/lib/accountFilters'
 import { fetchAccounts, getCachedAccounts, type AccountRecord } from '@/lib/accounts'
 import { formatDisplayDate } from '@/lib/localDate'
@@ -41,7 +37,6 @@ import {
   DEFAULT_APP_SETTINGS,
   getCachedAppSettings,
   watchAppSettings,
-  type DefaultEntryMode,
 } from '@/lib/appSettings'
 import { WhatsAppPrepOverlay } from '@/components/WhatsAppPrepOverlay'
 import {
@@ -54,16 +49,12 @@ import {
   openWhatsAppMessage,
   transactionMessageVars,
 } from '@/lib/messageTemplates'
-import { openWhatsAppPrepTab } from '@/lib/whatsappPrepTab'
 import { formatMoney } from '@/lib/money'
 import {
-  createTransaction,
-  createTransfer,
   deleteTransaction,
   fetchTransactions,
   getCachedTransactions,
   signedTransactionAmount,
-  updateTransaction,
   type TransactionEntryType,
   type TransactionRecord,
 } from '@/lib/transactions'
@@ -72,18 +63,8 @@ import { DEFAULT_TABLE_PAGE_SIZE, TABLE_PAGE_SIZE_OPTIONS } from '@/lib/tablePag
 const inputClass =
   'w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500'
 
-type FormMode = DefaultEntryMode
-
 type TxnSortKey = 'date' | 'type' | 'balance'
 type TxnSortDir = 'asc' | 'desc'
-
-function todayISO(): string {
-  const d = new Date()
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
 
 function entryTypeBadgeClass(type: TransactionEntryType): string {
   return type === 'credit'
@@ -162,8 +143,6 @@ function TransactionsPageInner() {
 
   const [accounts, setAccounts] = useState<AccountRecord[]>(() => getCachedAccounts() ?? [])
 
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const openDetail = (row: TransactionRecord) => {
     router.push(`/transactions/${encodeURIComponent(row.id)}`)
@@ -200,24 +179,8 @@ function TransactionsPageInner() {
   const [sendingMessage, setSendingMessage] = useState(false)
   const [waPrepPercent, setWaPrepPercent] = useState(0)
   const [waPrepLabel, setWaPrepLabel] = useState('Preparing message…')
-  const [defaultEntryMode, setDefaultEntryMode] = useState<FormMode>(
-    () => getCachedAppSettings()?.defaultEntryMode ?? DEFAULT_APP_SETTINGS.defaultEntryMode
-  )
-  const [formMode, setFormMode] = useState<FormMode>(
-    () => getCachedAppSettings()?.defaultEntryMode ?? DEFAULT_APP_SETTINGS.defaultEntryMode
-  )
 
   const formatBalance = (n: number) => formatMoney(n, currency)
-  const [transactionDate, setTransactionDate] = useState(() => todayISO())
-  const [accountId, setAccountId] = useState('')
-  const [fromAccountId, setFromAccountId] = useState('')
-  const [toAccountId, setToAccountId] = useState('')
-  const [narration, setNarration] = useState('')
-  const [entryType, setEntryType] = useState<TransactionEntryType | ''>('')
-  const [balance, setBalance] = useState('')
-  const [pendingFiles, setPendingFiles] = useState<File[]>([])
-  const [formError, setFormError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
   const [infoOpen, setInfoOpen] = useState(false)
 
   const accountOptions = useMemo(
@@ -260,7 +223,6 @@ function TransactionsPageInner() {
     void loadRows()
     void loadAccounts().catch(() => {})
     return watchAppSettings((s) => {
-      setDefaultEntryMode(s.defaultEntryMode)
       setCurrency(s.currency)
       setBusinessName(s.businessName)
       setLogoUrl(s.logoUrl)
@@ -473,146 +435,19 @@ function TransactionsPageInner() {
     ) : null
 
   const openEdit = (row: TransactionRecord) => {
-    setFormError(null)
-    setEditingId(row.id)
-    setFormMode('normal')
-    setTransactionDate(row.transactionDate)
-    setAccountId(row.accountId)
-    setFromAccountId('')
-    setToAccountId('')
-    setNarration(row.narration)
-    setEntryType(row.entryType)
-    setBalance(String(row.balance))
-    setPendingFiles([])
-    setModalOpen(true)
-    void loadAccounts().catch(() => {})
+    router.push(
+      `/transactions/${encodeURIComponent(row.id)}/edit?from=${encodeURIComponent('/transactions')}`
+    )
   }
 
-  // /transactions/[id] Edit → /transactions?edit={id} opens the edit modal.
+  // Legacy /transactions?edit={id} → edit page.
   useEffect(() => {
     const editId = searchParams.get('edit')?.trim()
-    if (!editId || rows.length === 0) return
-    const row = rows.find((r) => r.id === editId)
-    if (!row) return
-    openEdit(row)
-    const qs = new URLSearchParams(searchParams.toString())
-    qs.delete('edit')
-    const rest = qs.toString()
-    router.replace(rest ? `/transactions?${rest}` : '/transactions', {
-      scroll: false,
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to ?edit=
-  }, [searchParams, rows, router])
-
-  const closeModal = () => {
-    if (submitting) return
-    setModalOpen(false)
-    setEditingId(null)
-    setPendingFiles([])
-    setFormError(null)
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!transactionDate) {
-      setFormError('Transaction date is required.')
-      return
-    }
-    const narrationTrim = narration.trim()
-    if (!narrationTrim) {
-      setFormError('Narration is required.')
-      return
-    }
-    const balanceTrim = balance.trim()
-    if (!balanceTrim) {
-      setFormError('Balance is required.')
-      return
-    }
-    const balanceNum = Number(balanceTrim)
-    if (!Number.isFinite(balanceNum) || balanceNum < 0) {
-      setFormError('Balance must be a valid number.')
-      return
-    }
-    const amount = Math.abs(balanceNum)
-
-    const isTransfer = !editingId && formMode === 'transfer'
-
-    if (isTransfer) {
-      if (!fromAccountId) {
-        setFormError('From account (out) is required.')
-        return
-      }
-      if (!toAccountId) {
-        setFormError('To account (in) is required.')
-        return
-      }
-      if (fromAccountId === toAccountId) {
-        setFormError('From and To accounts must be different.')
-        return
-      }
-    } else {
-      if (!accountId) {
-        setFormError('Account is required.')
-        return
-      }
-      if (entryType !== 'credit' && entryType !== 'debit') {
-        setFormError('Type is required. Select Credit or Debit.')
-        return
-      }
-    }
-
-    setSubmitting(true)
-    setFormError(null)
-    try {
-      const uploadIds: string[] = []
-      if (editingId) {
-        const item = await updateTransaction(editingId, {
-          transactionDate,
-          accountId,
-          narration: narrationTrim,
-          entryType: entryType as TransactionEntryType,
-          balance: amount,
-        })
-        setRows((prev) => prev.map((r) => (r.id === item.id ? item : r)))
-        uploadIds.push(item.id)
-      } else if (isTransfer) {
-        // Debit + credit in one API round-trip.
-        const { debit, credit } = await createTransfer({
-          transactionDate,
-          fromAccountId,
-          toAccountId,
-          narration: narrationTrim,
-          balance: amount,
-        })
-        setRows((prev) => [credit, debit, ...prev])
-        setPage(1)
-        uploadIds.push(debit.id, credit.id)
-      } else {
-        const item = await createTransaction({
-          transactionDate,
-          accountId,
-          narration: narrationTrim,
-          entryType: entryType as TransactionEntryType,
-          balance: amount,
-        })
-        setRows((prev) => [item, ...prev])
-        setPage(1)
-        uploadIds.push(item.id)
-      }
-      const filesToUpload = pendingFiles
-      setPendingFiles([])
-      setModalOpen(false)
-      setEditingId(null)
-      setSubmitting(false)
-      // Attachments after close — do not block the quick entry UX.
-      if (filesToUpload.length > 0) {
-        void uploadPendingTransactionFiles(uploadIds, filesToUpload).catch(() => {})
-      }
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Save failed')
-      setSubmitting(false)
-    }
-  }
+    if (!editId) return
+    router.replace(
+      `/transactions/${encodeURIComponent(editId)}/edit?from=${encodeURIComponent('/transactions')}`
+    )
+  }, [searchParams, router])
 
   const handleDelete = async (id: string) => {
     setLoading(true)
@@ -641,12 +476,10 @@ function TransactionsPageInner() {
     setWaPrepPercent(5)
     setWaPrepLabel('Preparing message…')
 
-    // Same-gesture tab with branded progress (avoids blank white page + blockers).
-    const prep = openWhatsAppPrepTab('Preparing message…')
+    // In-app overlay only — stay on this page while preparing, then open WhatsApp.
     const bump = (percent: number, label: string) => {
       setWaPrepPercent(percent)
       setWaPrepLabel(label)
-      prep?.setProgress(percent, label)
     }
 
     try {
@@ -734,9 +567,8 @@ function TransactionsPageInner() {
         .trim()
 
       bump(96, 'Opening WhatsApp…')
-      openWhatsAppMessage(account?.phone, text, prep)
+      openWhatsAppMessage(account?.phone, text)
     } catch (err) {
-      prep?.close()
       setListError(
         err instanceof Error ? err.message : 'Could not open WhatsApp message.'
       )
@@ -1297,265 +1129,6 @@ function TransactionsPageInner() {
         </div>
         {paginationBar}
       </div>
-
-      {modalOpen && (
-        <div
-          className={formModalOverlayClass}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="transaction-modal-title"
-        >
-          <div className={`${formModalPanelClass} max-w-md`}>
-            <FormModalHeader
-              titleId="transaction-modal-title"
-              title={editingId ? 'Edit Transaction' : 'Add Transaction'}
-              onClose={closeModal}
-            />
-            <FormModalBody>
-              {formError ? (
-                <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">
-                  {formError}
-                </div>
-              ) : null}
-              <form
-                id="transaction-form"
-                onSubmit={(e) => void handleSubmit(e)}
-                className="space-y-4"
-              >
-                {!editingId ? (
-                  <div>
-                    <span className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Entry Mode
-                    </span>
-                    <div className="flex gap-2" role="group" aria-label="Entry mode">
-                      {(
-                        [
-                          { id: 'normal', label: 'Normal Entry' },
-                          { id: 'transfer', label: 'Transfer' },
-                        ] as const
-                      ).map((option) => (
-                        <button
-                          key={option.id}
-                          type="button"
-                          aria-pressed={formMode === option.id}
-                          onClick={() => {
-                            setFormMode(option.id)
-                            setFormError(null)
-                            if (option.id === 'transfer') {
-                              setAccountId('')
-                              setEntryType('')
-                            } else {
-                              setFromAccountId('')
-                              setToAccountId('')
-                            }
-                          }}
-                          className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
-                            formMode === option.id
-                              ? 'border-primary-600 bg-primary-50 text-primary-800 dark:bg-primary-900/40 dark:text-primary-200'
-                              : 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700'
-                          }`}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                <div>
-                  <label
-                    htmlFor="txn-date"
-                    className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                  >
-                    Transaction Date <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="txn-date"
-                    type="date"
-                    required
-                    value={transactionDate}
-                    onChange={(e) => setTransactionDate(e.target.value)}
-                    className={inputClass}
-                  />
-                </div>
-
-                {formMode === 'transfer' && !editingId ? (
-                  <>
-                    <div>
-                      <label
-                        htmlFor="txn-to-account"
-                        className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                      >
-                        To Account (In) <span className="text-red-500">*</span>
-                      </label>
-                      <SearchableSelect
-                        key="to-account"
-                        id="txn-to-account"
-                        required
-                        value={toAccountId}
-                        onChange={(id) => {
-                          setToAccountId(id)
-                          if (id && id === fromAccountId) setFromAccountId('')
-                        }}
-                        options={accountOptions.filter((o) => o.value !== fromAccountId)}
-                        placeholder="Search to account…"
-                        emptyMessage={accounts.length === 0 ? 'No accounts yet' : 'No matches'}
-                        className={inputClass}
-                      />
-                      <p className="mt-1 text-xs text-green-700 dark:text-green-400">
-                        Saved as Credit on this account
-                      </p>
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="txn-from-account"
-                        className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                      >
-                        From Account (Out) <span className="text-red-500">*</span>
-                      </label>
-                      <SearchableSelect
-                        key="from-account"
-                        id="txn-from-account"
-                        required
-                        value={fromAccountId}
-                        onChange={(id) => {
-                          setFromAccountId(id)
-                          if (id && id === toAccountId) setToAccountId('')
-                        }}
-                        options={accountOptions.filter((o) => o.value !== toAccountId)}
-                        placeholder="Search from account…"
-                        emptyMessage={accounts.length === 0 ? 'No accounts yet' : 'No matches'}
-                        className={inputClass}
-                      />
-                      <p className="mt-1 text-xs text-red-600 dark:text-red-400">
-                        Saved as Debit on this account
-                      </p>
-                    </div>
-                  </>
-                ) : (
-                  <div>
-                    <label
-                      htmlFor="txn-account"
-                      className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                    >
-                      Account Name <span className="text-red-500">*</span>
-                    </label>
-                    <SearchableSelect
-                      key={editingId ?? 'add-account'}
-                      id="txn-account"
-                      required
-                      value={accountId}
-                      onChange={setAccountId}
-                      options={accountOptions}
-                      placeholder="Search account…"
-                      emptyMessage={accounts.length === 0 ? 'No accounts yet' : 'No matches'}
-                      className={inputClass}
-                    />
-                  </div>
-                )}
-
-                {accounts.length === 0 ? (
-                  <p className="text-xs text-amber-600 dark:text-amber-400">
-                    No accounts yet. Add them under Accounts first.
-                  </p>
-                ) : null}
-
-                <div>
-                  <label
-                    htmlFor="txn-narration"
-                    className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                  >
-                    Narration <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    id="txn-narration"
-                    required
-                    rows={3}
-                    value={narration}
-                    onChange={(e) => setNarration(e.target.value)}
-                    className={inputClass}
-                    placeholder="Enter details…"
-                  />
-                </div>
-
-                {formMode === 'normal' || editingId ? (
-                  <div>
-                    <span className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Type <span className="text-red-500">*</span>
-                    </span>
-                    <div className="flex gap-2" role="group" aria-label="Entry type">
-                      {(['credit', 'debit'] as const).map((option) => (
-                        <button
-                          key={option}
-                          type="button"
-                          aria-pressed={entryType === option}
-                          onClick={() => setEntryType(option)}
-                          className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium capitalize transition-colors ${
-                            entryType === option
-                              ? option === 'credit'
-                                ? 'border-green-600 bg-green-50 text-green-800 dark:bg-green-900/40 dark:text-green-300'
-                                : 'border-red-600 bg-red-50 text-red-800 dark:bg-red-900/40 dark:text-red-300'
-                              : 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700'
-                          }`}
-                        >
-                          {option}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                <div>
-                  <label
-                    htmlFor="txn-balance"
-                    className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                  >
-                    Balance <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="txn-balance"
-                    type="number"
-                    inputMode="decimal"
-                    step="any"
-                    min="0"
-                    required
-                    value={balance}
-                    onChange={(e) => setBalance(e.target.value)}
-                    className={inputClass}
-                    placeholder="Enter amount"
-                  />
-                </div>
-
-                <TransactionFormAttachments
-                  inputId="txn-attachments"
-                  files={pendingFiles}
-                  onChange={setPendingFiles}
-                  disabled={submitting}
-                  existingTransactionId={editingId}
-                />
-              </form>
-            </FormModalBody>
-            <FormModalFooter>
-              <button
-                type="button"
-                onClick={closeModal}
-                disabled={submitting}
-                className={formModalSecondaryButtonClass}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                form="transaction-form"
-                disabled={submitting}
-                className={formModalPrimaryButtonClass}
-              >
-                {submitting ? 'Saving…' : editingId ? 'Save' : 'Add'}
-              </button>
-            </FormModalFooter>
-          </div>
-        </div>
-      )}
 
       {deleteConfirmId && (
         <div

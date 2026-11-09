@@ -274,49 +274,21 @@ export function buildWhatsAppUrl(
   return digits ? `https://wa.me/${digits}${q}` : `https://wa.me/${q}`
 }
 
-type WhatsAppOpenTarget =
-  | Window
-  | {
-      win: Window
-      goToUrl: (url: string) => void
-      close: () => void
-    }
-
-function isPrepHandle(
-  target: WhatsAppOpenTarget
-): target is { win: Window; goToUrl: (url: string) => void; close: () => void } {
-  return typeof (target as { goToUrl?: unknown }).goToUrl === 'function'
-}
-
 /**
  * Opens WhatsApp with prefilled text (phone optional).
- * Pass a prep-tab handle (or window) opened on click so popup blockers
- * stay happy while PDF / message work finishes.
+ * Call after in-app prep overlay finishes — opens WhatsApp in a new tab;
+ * if the browser blocks it, navigates the current tab instead.
  */
 export function openWhatsAppMessage(
   phone: string | null | undefined,
-  text: string,
-  target?: WhatsAppOpenTarget | null
+  text: string
 ): void {
   if (typeof window === 'undefined') return
   const body = text.trim()
-  if (!body) {
-    if (target) {
-      if (isPrepHandle(target)) target.close()
-      else if (!target.closed) target.close()
-    }
-    return
-  }
+  if (!body) return
   const url = buildWhatsAppUrl(phone, body)
-  if (target) {
-    if (isPrepHandle(target)) {
-      target.goToUrl(url)
-      return
-    }
-    if (!target.closed) {
-      target.location.href = url
-      return
-    }
+  const opened = window.open(url, '_blank', 'noopener,noreferrer')
+  if (!opened) {
+    window.location.assign(url)
   }
-  window.open(url, '_blank', 'noopener,noreferrer')
 }

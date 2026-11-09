@@ -1,24 +1,16 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
-  FileText,
   Info,
   Loader2,
-  MessageCircle,
-  Pencil,
-  Phone,
   Plus,
-  X,
 } from 'lucide-react'
 import AccountMobileCard from '@/components/AccountMobileCard'
 import ActionsDropdown from '@/components/ActionsDropdown'
-import PhoneInput from '@/components/PhoneInput'
 import SoftSearchField from '@/components/SoftSearchField'
 import { WhatsAppPrepOverlay } from '@/components/WhatsAppPrepOverlay'
-import { toWhatsAppDigits } from '@/lib/phone'
-import { openWhatsAppPrepTab } from '@/lib/whatsappPrepTab'
 import {
   FormModalBody,
   FormModalFooter,
@@ -27,18 +19,13 @@ import {
   formModalOverlayClass,
   formModalPanelClass,
   formModalPrimaryButtonClass,
-  formModalPrimaryIconButtonClass,
   formModalSecondaryButtonClass,
-  formModalSecondaryIconButtonClass,
 } from '@/components/FormModal'
 import { TablePaginationNav } from '@/components/TablePaginationNav'
-import TransactionDocumentsPanel from '@/components/TransactionDocumentsPanel'
 import {
-  createAccount,
   deleteAccount,
   fetchAccounts,
   getCachedAccounts,
-  updateAccount,
   type AccountRecord,
 } from '@/lib/accounts'
 import {
@@ -48,7 +35,6 @@ import {
 } from '@/lib/appSettings'
 import {
   exportAccountLedger,
-  saveAccountLedgerPdfToDocuments,
   type LedgerExportFormat,
 } from '@/lib/ledgerExport'
 import {
@@ -66,11 +52,6 @@ import {
   createLedgerShare,
   formatShareExpiryLabel,
 } from '@/lib/ledgerShare'
-import {
-  fetchSetupTypes,
-  getCachedSetupTypes,
-  type SetupTypeRecord,
-} from '@/lib/setupTypes'
 import { DEFAULT_TABLE_PAGE_SIZE, TABLE_PAGE_SIZE_OPTIONS } from '@/lib/tablePagination'
 import {
   fetchTransactions,
@@ -78,10 +59,9 @@ import {
   type TransactionRecord,
 } from '@/lib/transactions'
 
-const inputClass =
-  'w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500'
-
-export default function AccountsPage() {
+function AccountsPageInner() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const cached = getCachedAccounts()
   const [rows, setRows] = useState<AccountRecord[]>(() => cached ?? [])
   const [ready, setReady] = useState(() => cached != null)
@@ -91,30 +71,10 @@ export default function AccountsPage() {
   const [listPageSize, setListPageSize] = useState(DEFAULT_TABLE_PAGE_SIZE)
   const [searchQuery, setSearchQuery] = useState('')
 
-  const [accountTypes, setAccountTypes] = useState<SetupTypeRecord[]>(
-    () => getCachedSetupTypes('account-types') ?? []
-  )
-  const [cashTypes, setCashTypes] = useState<SetupTypeRecord[]>(
-    () => getCachedSetupTypes('cash-types') ?? []
-  )
-
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
-  const [detailRow, setDetailRow] = useState<AccountRecord | null>(null)
-  const [detailTab, setDetailTab] = useState<'details' | 'documents'>('details')
-  const [detailDocCount, setDetailDocCount] = useState(0)
-  const [docsNonce, setDocsNonce] = useState(0)
-  const [savingLedgerPdf, setSavingLedgerPdf] = useState(false)
   const [sendingMessage, setSendingMessage] = useState(false)
   const [waPrepPercent, setWaPrepPercent] = useState(0)
   const [waPrepLabel, setWaPrepLabel] = useState('Preparing message…')
-  const [name, setName] = useState('')
-  const [phone, setPhone] = useState('')
-  const [accountTypeId, setAccountTypeId] = useState('')
-  const [cashTypeId, setCashTypeId] = useState('')
-  const [formError, setFormError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
   const [infoOpen, setInfoOpen] = useState(false)
   const [currency, setCurrency] = useState(
     () => getCachedAppSettings()?.currency ?? DEFAULT_APP_SETTINGS.currency
@@ -151,15 +111,6 @@ export default function AccountsPage() {
     () => getCachedTransactions() ?? []
   )
 
-  const loadLookups = useCallback(async () => {
-    const [ats, cts] = await Promise.all([
-      fetchSetupTypes('account-types'),
-      fetchSetupTypes('cash-types'),
-    ])
-    setAccountTypes(ats.filter((t) => t.active))
-    setCashTypes(cts.filter((t) => t.active))
-  }, [])
-
   const loadRows = useCallback(async () => {
     setListError(null)
     try {
@@ -175,7 +126,6 @@ export default function AccountsPage() {
 
   useEffect(() => {
     void loadRows()
-    void loadLookups().catch(() => {})
     return watchAppSettings((s) => {
       setCurrency(s.currency)
       setBusinessName(s.businessName)
@@ -186,7 +136,7 @@ export default function AccountsPage() {
       setMessageNoteZero(s.messageNoteZero)
       setAccountMessageIncludeLedgerUrl(s.accountMessageIncludeLedgerUrl)
     })
-  }, [loadRows, loadLookups])
+  }, [loadRows])
 
   useEffect(() => {
     const hit = getCachedTransactions()
@@ -270,104 +220,17 @@ export default function AccountsPage() {
     ) : null
 
   const openAdd = () => {
-    setFormError(null)
-    setEditingId(null)
-    setName('')
-    setPhone('')
-    setAccountTypeId(accountTypes[0]?.id ?? '')
-    setCashTypeId(cashTypes[0]?.id ?? '')
-    setModalOpen(true)
-    void loadLookups().catch(() => {})
+    router.push('/accounts/new')
   }
 
   const openDetail = (row: AccountRecord) => {
-    setDetailTab('details')
-    setDetailDocCount(0)
-    setSavingLedgerPdf(false)
-    setSendingMessage(false)
-    setDetailRow(row)
-  }
-
-  const saveLedgerPdfToAccountDocs = async () => {
-    if (!detailRow || savingLedgerPdf || sendingMessage) return
-    setSavingLedgerPdf(true)
-    setListError(null)
-    try {
-      await saveAccountLedgerPdfToDocuments(detailRow, {
-        currency,
-        businessName,
-        logoUrl,
-      })
-      setDocsNonce((n) => n + 1)
-      setDetailTab('documents')
-    } catch (err) {
-      setListError(
-        err instanceof Error ? err.message : 'Could not save ledger PDF to documents.'
-      )
-    } finally {
-      setSavingLedgerPdf(false)
-    }
+    router.push(`/accounts/${encodeURIComponent(row.id)}`)
   }
 
   const openEdit = (row: AccountRecord) => {
-    setFormError(null)
-    setEditingId(row.id)
-    setName(row.name)
-    setPhone(row.phone)
-    setAccountTypeId(row.accountTypeId)
-    setCashTypeId(row.cashTypeId)
-    setModalOpen(true)
-    void loadLookups().catch(() => {})
-  }
-
-  const closeModal = () => {
-    if (submitting) return
-    setModalOpen(false)
-    setEditingId(null)
-    setFormError(null)
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const trimmedName = name.trim()
-    if (!trimmedName) {
-      setFormError('Account name is required.')
-      return
-    }
-    if (!accountTypeId) {
-      setFormError('Account type is required.')
-      return
-    }
-    if (!cashTypeId) {
-      setFormError('Cash type is required.')
-      return
-    }
-
-    setSubmitting(true)
-    setFormError(null)
-    setLoading(true)
-    const payload = {
-      name: trimmedName,
-      phone: phone.trim(),
-      accountTypeId,
-      cashTypeId,
-    }
-    try {
-      if (editingId) {
-        const item = await updateAccount(editingId, payload)
-        setRows((prev) => prev.map((r) => (r.id === item.id ? item : r)))
-      } else {
-        const item = await createAccount(payload)
-        setRows((prev) => [...prev, item])
-      }
-      setModalOpen(false)
-      setEditingId(null)
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Save failed')
-    } finally {
-      setSubmitting(false)
-      setLoading(false)
-    }
+    router.push(
+      `/accounts/${encodeURIComponent(row.id)}/edit?from=${encodeURIComponent('/accounts')}`
+    )
   }
 
   const handleDelete = async (id: string) => {
@@ -393,24 +256,31 @@ export default function AccountsPage() {
     return 'text-gray-800 dark:text-gray-200'
   }
 
+  // Legacy /accounts?edit={id} → edit page.
+  useEffect(() => {
+    const editId = searchParams.get('edit')?.trim()
+    if (!editId) return
+    router.replace(
+      `/accounts/${encodeURIComponent(editId)}/edit?from=${encodeURIComponent('/accounts')}`
+    )
+  }, [searchParams, router])
+
   const sendAccountMessage = async (row: AccountRecord) => {
     const template = accountMessageTemplate.trim()
     if (!template) {
       setListError('Set an Account message template in Settings first.')
       return
     }
-    if (sendingMessage || savingLedgerPdf) return
+    if (sendingMessage) return
     setSendingMessage(true)
     setListError(null)
     setWaPrepPercent(5)
     setWaPrepLabel('Preparing message…')
 
-    // Same-gesture tab with branded progress (avoids blank white page + blockers).
-    const prep = openWhatsAppPrepTab('Preparing message…')
+    // In-app overlay only — stay on this page while preparing, then open WhatsApp.
     const bump = (percent: number, label: string) => {
       setWaPrepPercent(percent)
       setWaPrepLabel(label)
-      prep?.setProgress(percent, label)
     }
 
     try {
@@ -484,9 +354,8 @@ export default function AccountsPage() {
         .trim()
 
       bump(96, 'Opening WhatsApp…')
-      openWhatsAppMessage(row.phone, text, prep)
+      openWhatsAppMessage(row.phone, text)
     } catch (err) {
-      prep?.close()
       setListError(
         err instanceof Error ? err.message : 'Could not open WhatsApp message.'
       )
@@ -810,337 +679,6 @@ export default function AccountsPage() {
         {paginationBar}
       </div>
 
-      {modalOpen && (
-        <div
-          className={formModalOverlayClass}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="account-modal-title"
-        >
-          <div className={`${formModalPanelClass} max-w-md`}>
-            <FormModalHeader
-              titleId="account-modal-title"
-              title={editingId ? 'Edit Account' : 'Add Account'}
-              onClose={closeModal}
-            />
-            <FormModalBody>
-              {formError ? (
-                <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">
-                  {formError}
-                </div>
-              ) : null}
-              <form id="account-form" onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
-                <div>
-                  <label
-                    htmlFor="acc-name"
-                    className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                  >
-                    ACC Name
-                  </label>
-                  <input
-                    id="acc-name"
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className={inputClass}
-                    placeholder="e.g. Cash Counter, Customer ABC"
-                    autoFocus
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="acc-phone"
-                    className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                  >
-                    Phone Number
-                  </label>
-                  <PhoneInput
-                    id="acc-phone"
-                    value={phone}
-                    onChange={setPhone}
-                    inputClassName={inputClass}
-                    placeholder="e.g. 3059778976"
-                  />
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Pick country code (default Pakistan +92). Saved as international format for
-                    WhatsApp.
-                  </p>
-                </div>
-                <div>
-                  <label
-                    htmlFor="acc-type"
-                    className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                  >
-                    ACC Type
-                  </label>
-                  <select
-                    id="acc-type"
-                    value={accountTypeId}
-                    onChange={(e) => setAccountTypeId(e.target.value)}
-                    className={inputClass}
-                  >
-                    <option value="">Select account type…</option>
-                    {accountTypes.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name} ({t.code})
-                      </option>
-                    ))}
-                  </select>
-                  {accountTypes.length === 0 ? (
-                    <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                      No active account types. Add them under Settings → Account Type.
-                    </p>
-                  ) : null}
-                </div>
-                <div>
-                  <label
-                    htmlFor="cash-type"
-                    className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                  >
-                    Cash Type
-                  </label>
-                  <select
-                    id="cash-type"
-                    value={cashTypeId}
-                    onChange={(e) => setCashTypeId(e.target.value)}
-                    className={inputClass}
-                  >
-                    <option value="">Select cash type…</option>
-                    {cashTypes.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name} ({t.code})
-                      </option>
-                    ))}
-                  </select>
-                  {cashTypes.length === 0 ? (
-                    <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                      No active cash types. Add them under Settings → Cash Type.
-                    </p>
-                  ) : null}
-                </div>
-              </form>
-            </FormModalBody>
-            <FormModalFooter>
-              <button
-                type="button"
-                onClick={closeModal}
-                disabled={submitting}
-                className={formModalSecondaryButtonClass}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                form="account-form"
-                disabled={submitting}
-                className={formModalPrimaryButtonClass}
-              >
-                {submitting ? 'Saving…' : editingId ? 'Save' : 'Add'}
-              </button>
-            </FormModalFooter>
-          </div>
-        </div>
-      )}
-
-      {detailRow ? (
-        <div
-          className={formModalOverlayClass}
-          onClick={() => setDetailRow(null)}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="account-detail-title"
-        >
-          <div
-            className={`${formModalPanelClass} max-w-lg`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <FormModalHeader
-              titleId="account-detail-title"
-              title={
-                <span className="flex min-w-0 items-center gap-2">
-                  <span className="truncate">{detailRow.name}</span>
-                  <span
-                    className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium tabular-nums ${
-                      detailRow.balance > 0
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/35 dark:text-green-300'
-                        : detailRow.balance < 0
-                          ? 'bg-red-100 text-red-800 dark:bg-red-900/35 dark:text-red-300'
-                          : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200'
-                    }`}
-                  >
-                    {formatBalance(detailRow.balance)}
-                  </span>
-                </span>
-              }
-              onClose={() => setDetailRow(null)}
-            />
-            <FormModalBody>
-              <div
-                className="mb-4 flex gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-900/60"
-                role="tablist"
-                aria-label="Account sections"
-              >
-                {(
-                  [
-                    { id: 'details' as const, label: 'Details' },
-                    {
-                      id: 'documents' as const,
-                      label:
-                        detailDocCount > 0
-                          ? `Documents (${detailDocCount})`
-                          : 'Documents',
-                    },
-                  ] as const
-                ).map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={detailTab === tab.id}
-                    className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                      detailTab === tab.id
-                        ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100'
-                        : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
-                    }`}
-                    onClick={() => setDetailTab(tab.id)}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-
-              <div className={detailTab === 'details' ? '' : 'hidden'}>
-                <dl className="space-y-3 text-sm">
-                  <div>
-                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                      Account Name
-                    </dt>
-                    <dd className="mt-0.5 font-medium text-gray-900 dark:text-gray-100">
-                      <Link
-                        href={`/transactions?accountId=${encodeURIComponent(detailRow.id)}&from=${encodeURIComponent('/accounts')}`}
-                        className="text-primary-700 hover:underline dark:text-primary-300"
-                        onClick={() => setDetailRow(null)}
-                      >
-                        {detailRow.name}
-                      </Link>
-                    </dd>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                        Phone
-                      </dt>
-                      <dd className="mt-0.5 text-gray-900 dark:text-gray-100">
-                        {detailRow.phone ? (
-                          <a
-                            href={`tel:+${toWhatsAppDigits(detailRow.phone)}`}
-                            className="inline-flex items-center gap-1.5 text-primary-600 hover:underline dark:text-primary-400"
-                          >
-                            <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                            {detailRow.phone}
-                          </a>
-                        ) : (
-                          '—'
-                        )}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                        Balance
-                      </dt>
-                      <dd
-                        className={`mt-0.5 tabular-nums font-medium ${balanceColorClass(detailRow.balance)}`}
-                      >
-                        {formatBalance(detailRow.balance)}
-                      </dd>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                        Account Type
-                      </dt>
-                      <dd className="mt-0.5 text-gray-900 dark:text-gray-100">
-                        {detailRow.accountTypeName || '—'}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                        Cash Type
-                      </dt>
-                      <dd className="mt-0.5 text-gray-900 dark:text-gray-100">
-                        {detailRow.cashTypeName || '—'}
-                      </dd>
-                    </div>
-                  </div>
-                </dl>
-              </div>
-
-              <TransactionDocumentsPanel
-                key={`${detailRow.id}-${docsNonce}`}
-                accountId={detailRow.id}
-                active={detailTab === 'documents'}
-                onFilesChange={(items) => setDetailDocCount(items.length)}
-              />
-            </FormModalBody>
-            <FormModalFooter className="justify-center sm:justify-end">
-              <button
-                type="button"
-                onClick={() => void sendAccountMessage(detailRow)}
-                disabled={sendingMessage || savingLedgerPdf}
-                className={formModalSecondaryIconButtonClass}
-                aria-label="Send message with ledger link"
-                title="Send message with ledger link"
-              >
-                {sendingMessage ? (
-                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-                ) : (
-                  <MessageCircle className="h-5 w-5" aria-hidden />
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => void saveLedgerPdfToAccountDocs()}
-                disabled={savingLedgerPdf || sendingMessage}
-                className={formModalSecondaryIconButtonClass}
-                aria-label="Save ledger PDF to documents"
-                title="Save ledger PDF to documents"
-              >
-                {savingLedgerPdf ? (
-                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-                ) : (
-                  <FileText className="h-5 w-5" aria-hidden />
-                )}
-              </button>
-              {detailTab === 'details' ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const row = detailRow
-                    setDetailRow(null)
-                    openEdit(row)
-                  }}
-                  className={formModalPrimaryIconButtonClass}
-                  aria-label="Edit"
-                  title="Edit"
-                >
-                  <Pencil className="h-5 w-5" aria-hidden />
-                </button>
-              ) : null}
-              <button
-                type="button"
-                onClick={() => setDetailRow(null)}
-                className={formModalSecondaryIconButtonClass}
-                aria-label="Close"
-                title="Close"
-              >
-                <X className="h-5 w-5" aria-hidden />
-              </button>
-            </FormModalFooter>
-          </div>
-        </div>
-      ) : null}
-
       {exportAccount ? (
         <div
           className={formModalOverlayClass}
@@ -1285,5 +823,19 @@ export default function AccountsPage() {
         label={waPrepLabel}
       />
     </div>
+  )
+}
+
+export default function AccountsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[40vh] items-center justify-center p-4 lg:p-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary-600" aria-hidden />
+        </div>
+      }
+    >
+      <AccountsPageInner />
+    </Suspense>
   )
 }

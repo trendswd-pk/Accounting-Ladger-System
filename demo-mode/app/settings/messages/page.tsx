@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import {
   actionBtnClass,
   inputClass,
-  MessageTemplateModal,
   SettingRow,
   SettingsDetailShell,
 } from '@/components/settings/SettingsShared'
@@ -15,10 +14,6 @@ import {
   saveAppSettings,
 } from '@/lib/appSettings'
 import { LEDGER_SHARE_TTL_OPTIONS } from '@/lib/ledgerShareCrypto'
-import {
-  ACCOUNT_MESSAGE_VARS,
-  TRANSACTION_MESSAGE_VARS,
-} from '@/lib/messageTemplates'
 
 export default function MessagesSettingsPage() {
   const router = useRouter()
@@ -47,9 +42,6 @@ export default function MessagesSettingsPage() {
   )
   const [ledgerShareTtlHours, setLedgerShareTtlHours] = useState(
     DEFAULT_APP_SETTINGS.ledgerShareTtlHours
-  )
-  const [messageEditor, setMessageEditor] = useState<'account' | 'transaction' | null>(
-    null
   )
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -126,7 +118,7 @@ export default function MessagesSettingsPage() {
               type="button"
               className={actionBtnClass}
               disabled={loading}
-              onClick={() => setMessageEditor('account')}
+              onClick={() => router.push('/settings/messages/account-template')}
             >
               {accountMessageTemplate.trim() ? 'Edit account' : 'Account message'}
             </button>
@@ -134,7 +126,7 @@ export default function MessagesSettingsPage() {
               type="button"
               className={actionBtnClass}
               disabled={loading}
-              onClick={() => setMessageEditor('transaction')}
+              onClick={() => router.push('/settings/messages/transaction-template')}
             >
               {transactionMessageTemplate.trim()
                 ? 'Edit transaction'
@@ -204,88 +196,6 @@ export default function MessagesSettingsPage() {
           </div>
         </SettingRow>
       </div>
-
-      <MessageTemplateModal
-        open={messageEditor === 'account'}
-        title="Account message"
-        description="Used when sending from the Accounts page. Click a variable to insert it at the cursor."
-        value={accountMessageTemplate}
-        notes={{
-          plus: messageNotePlus,
-          minus: messageNoteMinus,
-          zero: messageNoteZero,
-        }}
-        variables={ACCOUNT_MESSAGE_VARS}
-        shareUrlOptions={[
-          {
-            key: 'ledger_url',
-            title: 'Ledger preview link',
-            variable: 'ledger_url',
-            enabled: accountMessageIncludeLedgerUrl,
-          },
-        ]}
-        onClose={() => setMessageEditor(null)}
-        onSave={async (next, notes) => {
-          const includeLedger =
-            typeof notes.shareUrlEnabled?.ledger_url === 'boolean'
-              ? notes.shareUrlEnabled.ledger_url
-              : accountMessageIncludeLedgerUrl
-          const saved = await saveAppSettings({
-            accountMessageTemplate: next,
-            messageNotePlus: notes.plus,
-            messageNoteMinus: notes.minus,
-            messageNoteZero: notes.zero,
-            accountMessageIncludeLedgerUrl: includeLedger,
-          })
-          setAccountMessageTemplate(saved.accountMessageTemplate)
-          setMessageNotePlus(saved.messageNotePlus)
-          setMessageNoteMinus(saved.messageNoteMinus)
-          setMessageNoteZero(saved.messageNoteZero)
-          setAccountMessageIncludeLedgerUrl(saved.accountMessageIncludeLedgerUrl)
-          setMessage({ type: 'success', text: 'Account message template saved.' })
-        }}
-      />
-      <MessageTemplateModal
-        open={messageEditor === 'transaction'}
-        title="Transaction message"
-        description="Used when sending from the Transactions page. Click a variable to insert it at the cursor."
-        value={transactionMessageTemplate}
-        notes={{
-          plus: messageNotePlus,
-          minus: messageNoteMinus,
-          zero: messageNoteZero,
-        }}
-        variables={TRANSACTION_MESSAGE_VARS}
-        shareUrlOptions={[
-          {
-            key: 'ledger_url',
-            title: 'Ledger preview link',
-            variable: 'ledger_url',
-            enabled: transactionMessageIncludeLedgerUrl,
-          },
-        ]}
-        onClose={() => setMessageEditor(null)}
-        onSave={async (next, notes) => {
-          const includeLedger =
-            typeof notes.shareUrlEnabled?.ledger_url === 'boolean'
-              ? notes.shareUrlEnabled.ledger_url
-              : transactionMessageIncludeLedgerUrl
-          const saved = await saveAppSettings({
-            transactionMessageTemplate: next,
-            messageNotePlus: notes.plus,
-            messageNoteMinus: notes.minus,
-            messageNoteZero: notes.zero,
-            transactionMessageIncludePdfUrl: false,
-            transactionMessageIncludeLedgerUrl: includeLedger,
-          })
-          setTransactionMessageTemplate(saved.transactionMessageTemplate)
-          setMessageNotePlus(saved.messageNotePlus)
-          setMessageNoteMinus(saved.messageNoteMinus)
-          setMessageNoteZero(saved.messageNoteZero)
-          setTransactionMessageIncludeLedgerUrl(saved.transactionMessageIncludeLedgerUrl)
-          setMessage({ type: 'success', text: 'Transaction message template saved.' })
-        }}
-      />
     </SettingsDetailShell>
   )
 }

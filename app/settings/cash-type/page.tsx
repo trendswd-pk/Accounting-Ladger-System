@@ -8,6 +8,7 @@ export default function CashTypePage() {
       title="Cash Type"
       singularLabel="Cash Type"
       kind="cash-types"
+      listPath="/settings/cash-type"
       emptyHint="No cash types yet. Tap + to add one."
     />
   )
