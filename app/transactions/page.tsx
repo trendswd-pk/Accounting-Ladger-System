@@ -500,6 +500,19 @@ function TransactionsPageInner() {
     if (cachedSettings) setDefaultEntryMode(cachedSettings.defaultEntryMode)
   }
 
+  // Mobile bottom-nav “+” → /transactions?new=1 opens the add form, then cleans the URL.
+  useEffect(() => {
+    if (searchParams.get('new') !== '1') return
+    openAdd()
+    const qs = new URLSearchParams(searchParams.toString())
+    qs.delete('new')
+    const rest = qs.toString()
+    router.replace(rest ? `/transactions?${rest}` : '/transactions', {
+      scroll: false,
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to ?new=1
+  }, [searchParams, router])
+
   const openEdit = (row: TransactionRecord) => {
     setFormError(null)
     setEditingId(row.id)

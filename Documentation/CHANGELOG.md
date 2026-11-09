@@ -2,6 +2,11 @@
 
 All notable changes to Accounting Ledger are documented here.
 
+## [1.2.3] — 2026-11-09
+
+### Changed
+- Mobile bottom nav: center **Trans.** tab is now a primary **Add transaction** (+) control. Tap navigates to Transactions and opens the add form.
+
 ## [1.2.2] — 2026-11-07
 
 ### Changed

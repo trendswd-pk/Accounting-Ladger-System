@@ -1,11 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
-  ArrowLeftRight,
   LayoutDashboard,
   Menu,
+  Plus,
   Receipt,
   WalletCards,
   type LucideIcon,
@@ -17,12 +17,13 @@ type NavTab = {
   href?: string
   icon: LucideIcon
   opensMenu?: boolean
+  opensAddTxn?: boolean
 }
 
 const TABS: NavTab[] = [
   { id: 'home', label: 'Home', href: '/', icon: LayoutDashboard },
   { id: 'accounts', label: 'Account', href: '/accounts', icon: WalletCards },
-  { id: 'transactions', label: 'Trans.', href: '/transactions', icon: ArrowLeftRight },
+  { id: 'add-txn', label: 'Add transaction', icon: Plus, opensAddTxn: true },
   { id: 'expenses', label: 'Expenses', href: '/expenses', icon: Receipt },
   { id: 'menu', label: 'Menu', icon: Menu, opensMenu: true },
 ]
@@ -33,8 +34,9 @@ export const MOBILE_BOTTOM_NAV_HEIGHT_PX = 64
 function activeTabIndex(pathname: string): number {
   if (pathname === '/') return 0
   if (pathname.startsWith('/accounts')) return 1
-  if (pathname.startsWith('/transactions')) return 2
+  // Center control is an action (add txn), not a destination tab.
   if (pathname.startsWith('/expenses')) return 3
+  if (pathname.startsWith('/transactions')) return -1
   return 4
 }
 
@@ -44,10 +46,12 @@ type MobileBottomNavProps = {
 
 /**
  * Fixed mobile tab bar — full screen width, safe-area aware, soft active chip.
+ * Center control opens Add Transaction (navigates to /transactions?new=1).
  * Brand greens (color-scheme.mdc). Hidden from lg+.
  */
 export default function MobileBottomNav({ onOpenMenu }: MobileBottomNavProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const active = activeTabIndex(pathname)
 
   return (
@@ -68,12 +72,18 @@ export default function MobileBottomNav({ onOpenMenu }: MobileBottomNavProps) {
           const itemClass = [
             'relative flex h-full min-w-0 items-center justify-center px-0.5 outline-none transition-colors',
             'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500',
-            isActive
-              ? 'text-primary-700 dark:text-primary-400'
-              : 'text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300',
+            tab.opensAddTxn
+              ? 'text-white'
+              : isActive
+                ? 'text-primary-700 dark:text-primary-400'
+                : 'text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300',
           ].join(' ')
 
-          const inner = (
+          const inner = tab.opensAddTxn ? (
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary-600 text-white shadow-sm ring-2 ring-primary-600/20 transition hover:bg-primary-700">
+              <Icon className="h-6 w-6" strokeWidth={2.35} aria-hidden />
+            </span>
+          ) : (
             <span
               className={[
                 'flex h-11 w-11 items-center justify-center rounded-xl transition-colors',
@@ -99,6 +109,15 @@ export default function MobileBottomNav({ onOpenMenu }: MobileBottomNavProps) {
                   className={`${itemClass} w-full`}
                   aria-label="Open menu"
                   aria-current={isActive ? 'true' : undefined}
+                >
+                  {inner}
+                </button>
+              ) : tab.opensAddTxn ? (
+                <button
+                  type="button"
+                  onClick={() => router.push('/transactions?new=1')}
+                  className={`${itemClass} w-full`}
+                  aria-label="Add transaction"
                 >
                   {inner}
                 </button>
