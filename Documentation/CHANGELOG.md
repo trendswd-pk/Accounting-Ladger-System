@@ -12,6 +12,7 @@ All notable changes to Accounting Ledger are documented here.
 - Fixed Multi Transaction debit/credit footer totals staying at 0.00.
 - **Print preview**: on mobile (and coarse-pointer devices) opens in the same tab so action menus are not blocked by popup blockers; Close returns via browser back when needed. Desktop still prefers a new tab.
 - **Send message**: loading overlay closes before WhatsApp opens (and auto-clears if the page returns from WhatsApp/bfcache), so the spinner no longer sticks on screen.
+- **Send message (mobile)**: opens WhatsApp via app deep link (`whatsapp://`) on Accounts and Transactions alike — no navigation to `api.whatsapp.com`, so the ledger page is not left stuck on the “Share on WhatsApp” browser screen.
 
 ## [1.2.3] — 2026-11-09
 

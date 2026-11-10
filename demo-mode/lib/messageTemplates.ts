@@ -274,11 +274,43 @@ export function buildWhatsAppUrl(
   return digits ? `https://wa.me/${digits}${q}` : `https://wa.me/${q}`
 }
 
+/** Native app scheme — opens WhatsApp directly (no api.whatsapp.com interstitial). */
+export function buildWhatsAppAppUrl(
+  phone: string | null | undefined,
+  text: string
+): string {
+  const body = text.trim()
+  const digits = toWhatsAppDigits(phone)
+  const q = body ? `text=${encodeURIComponent(body)}` : ''
+  if (digits) {
+    return q
+      ? `whatsapp://send?phone=${digits}&${q}`
+      : `whatsapp://send?phone=${digits}`
+  }
+  return q ? `whatsapp://send?${q}` : 'whatsapp://send'
+}
+
+function preferWhatsAppAppHandoff(): boolean {
+  if (typeof window === 'undefined') return false
+  return (
+    window.matchMedia('(max-width: 1023px)').matches ||
+    window.matchMedia('(pointer: coarse)').matches ||
+    /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '')
+  )
+}
+
 /**
  * Opens WhatsApp with prefilled text (phone optional).
- * Deferred a tick so callers can clear the in-app loading overlay first
- * (otherwise same-tab / app handoff can freeze the overlay via bfcache).
- * Prefers a new tab; if blocked, navigates the current tab.
+ *
+ * Mobile: `whatsapp://` deep link keeps Accounting Ledger on-screen and skips
+ * the api.whatsapp.com “Share on WhatsApp” page that required a manual close.
+ * Desktop: wa.me in a new tab.
+ *
+ * Deferred briefly so in-app loading overlays can unmount first.
+ *
+ * Important: never use `noopener` when testing `window.open` success — browsers
+ * return `null` with noopener even when a tab opened, which used to wrongly
+ * run `location.assign` and leave users stuck on WhatsApp’s web share page.
  */
 export function openWhatsAppMessage(
   phone: string | null | undefined,
@@ -287,11 +319,23 @@ export function openWhatsAppMessage(
   if (typeof window === 'undefined') return
   const body = text.trim()
   if (!body) return
-  const url = buildWhatsAppUrl(phone, body)
+
+  const webUrl = buildWhatsAppUrl(phone, body)
+  const appUrl = buildWhatsAppAppUrl(phone, body)
+
   window.setTimeout(() => {
-    const opened = window.open(url, '_blank', 'noopener,noreferrer')
+    if (preferWhatsAppAppHandoff()) {
+      // Open the installed WhatsApp app. Do NOT assign wa.me / api.whatsapp.com
+      // in this tab — that left Accounts & Transactions stuck on “Share on WhatsApp”.
+      // location.href + whatsapp:// keeps the ledger page underneath when the app opens.
+      window.location.href = appUrl
+      return
+    }
+
+    // Desktop: new tab (no noopener so a blocked popup is detectable).
+    const opened = window.open(webUrl, '_blank')
     if (!opened) {
-      window.location.assign(url)
+      window.location.assign(webUrl)
     }
   }, 80)
 }
