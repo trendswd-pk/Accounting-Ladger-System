@@ -4,7 +4,11 @@ All notable changes to Accounting Ledger are documented here.
 
 ## [1.2.4] — 2026-11-10
 
+### Added
+- Shared ledger statement (full / month / day): table pagination on mobile and desktop (25 / 50 per page), placed after the Closing balance row.
+
 ### Changed
+- Shared ledger statement **Closing balance** row: high-contrast primary text on mint / dark-green wash (fixes invisible text when light text sat on a light panel).
 - Multi Transaction: **Short narration** column is back after Debit/Credit. Short is required unless shared Narration is filled (then short is optional); shared Narration is required unless every line has short. When both are filled, each entry saves as `short - narration`.
 - Multi Transaction D/C: choose **D** or **C** on each line; that side’s amount is required and the other amount field stays disabled.
 - Multi Transaction: shared **Narration** switches to optional as soon as any line has a short narration (and the reverse when shared Narration is filled).
@@ -13,6 +17,8 @@ All notable changes to Accounting Ledger are documented here.
 - **Print preview**: on mobile (and coarse-pointer devices) opens in the same tab so action menus are not blocked by popup blockers; Close returns via browser back when needed. Desktop still prefers a new tab.
 - **Send message**: loading overlay closes before WhatsApp opens (and auto-clears if the page returns from WhatsApp/bfcache), so the spinner no longer sticks on screen.
 - **Send message (mobile)**: opens WhatsApp via app deep link (`whatsapp://`) on Accounts and Transactions alike — no navigation to `api.whatsapp.com`, so the ledger page is not left stuck on the “Share on WhatsApp” browser screen.
+- Mobile bottom nav center control: opens **Transactions** by default; on the Transactions page it becomes the **+** Add transaction action.
+- Floating **Add transaction** (+) FAB docks just above the mobile bottom nav (mobile only); **Back to top** appears after ~12% scroll and stacks above Add; after ~85% scroll both FABs lift above the list pagination row.
 
 ## [1.2.3] — 2026-11-09
 

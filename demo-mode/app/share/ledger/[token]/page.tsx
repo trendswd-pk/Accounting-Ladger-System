@@ -20,6 +20,11 @@ import {
 } from 'lucide-react'
 import TransactionMobileCard from '@/components/TransactionMobileCard'
 import ScrollToTopButton from '@/components/ScrollToTopButton'
+import { TablePaginationNav } from '@/components/TablePaginationNav'
+import {
+  DEFAULT_TABLE_PAGE_SIZE,
+  TABLE_PAGE_SIZE_OPTIONS,
+} from '@/lib/tablePagination'
 import {
   FormModalBody,
   FormModalFooter,
@@ -34,10 +39,6 @@ import {
   type LedgerExportFormat,
   type LedgerLine,
 } from '@/lib/ledgerExport'
-import {
-  fetchLedgerShareMeta,
-  unlockLedgerShareDemo,
-} from '@/lib/ledgerShare'
 import {
   formatDisplayDate,
   formatDisplayDateTime,
@@ -175,9 +176,9 @@ function dayOpeningBalance(
 
 /**
  * Public PIN-gated ledger preview for WhatsApp recipients.
- * After unlock: menu (account + last txn + actions), full / month ledger, banks.
+ * After unlock: menu (account + latest day / full / month / banks).
  */
-export default function DemoSharedLedgerPage() {
+export default function SharedLedgerPage() {
   const params = useParams()
   const token = String(params?.token ?? '').trim()
 
@@ -203,6 +204,8 @@ export default function DemoSharedLedgerPage() {
   } | null>(null)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [nowMs, setNowMs] = useState(() => Date.now())
+  const [listPage, setListPage] = useState(1)
+  const [listPageSize, setListPageSize] = useState(DEFAULT_TABLE_PAGE_SIZE)
   const ledgerRef = useRef<LedgerPayload | null>(null)
   const txnTouchStartRef = useRef<{ x: number; y: number } | null>(null)
   const returnViewRef = useRef(returnView)
@@ -227,6 +230,7 @@ export default function DemoSharedLedgerPage() {
 
   const applyShareHist = useCallback((s: ShareHist) => {
     setView(s.view)
+    setListPage(1)
     setReturnView(s.returnView || 'home')
     setExportOpen(s.overlay === 'export')
     if (s.overlay === 'qr' && s.qrUrl) {
@@ -411,8 +415,18 @@ export default function DemoSharedLedgerPage() {
       setMetaLoading(true)
       setMetaError(null)
       try {
-        const next = await fetchLedgerShareMeta(token)
-        if (!cancelled) setMeta(next)
+        const res = await fetch(
+          `/api/ledger-shares/${encodeURIComponent(token)}`,
+          { cache: 'no-store' }
+        )
+        const data = await res.json()
+        if (cancelled) return
+        if (!res.ok) {
+          setMetaError(data.error || 'Link not found.')
+          setMeta(null)
+          return
+        }
+        setMeta(data as ShareMeta)
       } catch {
         if (!cancelled) setMetaError('Could not load this link.')
       } finally {
@@ -436,10 +450,21 @@ export default function DemoSharedLedgerPage() {
       setUnlocking(true)
       setUnlockError(null)
       try {
-        const data = await unlockLedgerShareDemo(
-          token,
-          pinOverride !== undefined ? pinOverride : pin
+        const res = await fetch(
+          `/api/ledger-shares/${encodeURIComponent(token)}/unlock`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              pin: pinOverride !== undefined ? pinOverride : pin,
+            }),
+          }
         )
+        const data = await res.json()
+        if (!res.ok) {
+          setUnlockError(data.error || 'Could not unlock.')
+          return
+        }
         setLedger(data as LedgerPayload)
         setView('home')
         setReturnView('home')
@@ -459,10 +484,8 @@ export default function DemoSharedLedgerPage() {
             window.location.href
           )
         }
-      } catch (err) {
-        setUnlockError(
-          err instanceof Error ? err.message : 'Could not unlock. Try again.'
-        )
+      } catch {
+        setUnlockError('Could not unlock. Try again.')
       } finally {
         setUnlocking(false)
       }
@@ -470,6 +493,7 @@ export default function DemoSharedLedgerPage() {
     [token, pin]
   )
 
+  // PIN disabled on this link → open ledger automatically.
   useEffect(() => {
     if (!meta || ledger || meta.expired || meta.requirePin !== false) return
     void unlock('')
@@ -623,6 +647,7 @@ export default function DemoSharedLedgerPage() {
 
   const openShareView = (next: Exclude<ShareView, 'txn'>) => {
     setView(next)
+    setListPage(1)
     setDetailTxn(null)
     setExportOpen(false)
     setQrPreview(null)
@@ -1386,6 +1411,51 @@ export default function DemoSharedLedgerPage() {
           : 'No transactions on this day.'
         : 'No transactions yet.'
 
+    const totalItems = rows.length
+    const totalPages = Math.max(1, Math.ceil(totalItems / listPageSize) || 1)
+    const safePage = Math.min(listPage, totalPages)
+    const pageStartIndex = (safePage - 1) * listPageSize
+    const pagedRows = rows.slice(pageStartIndex, pageStartIndex + listPageSize)
+
+    const goListPage = (next: number) => {
+      setListPage(next)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+
+    const paginationBar =
+      totalItems > DEFAULT_TABLE_PAGE_SIZE ? (
+        <div className="mt-4 flex flex-nowrap items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 shadow-md dark:border-gray-700 dark:bg-gray-900/40">
+          <select
+            value={listPageSize}
+            onChange={(e) => {
+              setListPageSize(Number(e.target.value))
+              setListPage(1)
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }}
+            className="h-7 shrink-0 rounded-md border border-gray-300 bg-white px-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
+            aria-label="Records per page"
+          >
+            {TABLE_PAGE_SIZE_OPTIONS.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+          <div className="flex min-w-0 flex-nowrap items-center justify-end gap-1">
+            <span className="mr-1 shrink-0 text-xs tabular-nums text-gray-600 dark:text-gray-400">
+              {pageStartIndex + 1}–{Math.min(pageStartIndex + listPageSize, totalItems)} of{' '}
+              {totalItems}
+            </span>
+            <TablePaginationNav
+              page={safePage}
+              totalPages={totalPages}
+              onPageChange={goListPage}
+              size="sm"
+            />
+          </div>
+        </div>
+      ) : null
+
     return (
       <main className="min-h-screen bg-[#525659] dark:bg-gray-950 px-0 py-0 pb-[env(safe-area-inset-bottom)] sm:px-3 sm:py-8">
         <div className="mx-auto w-full max-w-[840px] overflow-hidden bg-white shadow-2xl sm:rounded-sm dark:bg-gray-800">
@@ -1528,16 +1598,17 @@ export default function DemoSharedLedgerPage() {
               </div>
             ) : null}
 
-            {renderTxnList(rows, emptyMessage)}
+            {renderTxnList(pagedRows, emptyMessage)}
 
-            <div className="mt-3 flex items-center justify-between gap-3 rounded-md border border-primary-200 bg-primary-50 px-3 py-3 sm:px-4 dark:border-primary-800/60 dark:bg-primary-950/40">
-              <span className="text-sm font-bold text-primary-800 dark:text-primary-300">
+            <div className="mt-3 flex items-center justify-between gap-3 rounded-md border border-primary-200 bg-primary-50 px-3 py-3 sm:px-4 dark:border-primary-700 dark:bg-primary-900">
+              <span className="text-sm font-bold text-primary-800 dark:text-primary-400">
                 Closing balance
               </span>
-              <span className="text-sm font-bold tabular-nums text-primary-800 dark:text-primary-300">
+              <span className="text-sm font-bold tabular-nums text-primary-800 dark:text-primary-400">
                 {formatMoney(closingBalance, currency)}
               </span>
             </div>
+            {paginationBar}
           </div>
 
           <footer className="flex flex-col gap-1 border-t border-gray-200 px-4 py-3 text-[11px] text-brand-stone dark:border-gray-700 dark:text-gray-400 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-8">
