@@ -2,6 +2,15 @@
 
 All notable changes to Accounting Ledger are documented here.
 
+## [1.2.4] — 2026-11-10
+
+### Changed
+- Multi Transaction: **Short narration** column is back after Debit/Credit. Short is required unless shared Narration is filled (then short is optional); shared Narration is required unless every line has short. When both are filled, each entry saves as `short - narration`.
+- Multi Transaction D/C: choose **D** or **C** on each line; that side’s amount is required and the other amount field stays disabled.
+- Multi Transaction: shared **Narration** switches to optional as soon as any line has a short narration (and the reverse when shared Narration is filled).
+- Multi Transaction: choosing **D** or **C** on a new line auto-fills the balancing amount from the current debit/credit difference (still editable).
+- Fixed Multi Transaction debit/credit footer totals staying at 0.00.
+
 ## [1.2.3] — 2026-11-09
 
 ### Changed

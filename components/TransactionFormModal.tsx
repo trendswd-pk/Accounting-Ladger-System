@@ -38,11 +38,15 @@ const multiCellClass =
 
 type FormMode = DefaultEntryMode
 
+type MultiSide = 'D' | 'C' | ''
+
 type MultiLine = {
   key: string
+  side: MultiSide
   accountId: string
   debit: string
   credit: string
+  shortNarration: string
 }
 
 const MULTI_STARTER_ROWS = 2
@@ -59,10 +63,20 @@ function todayISO(): string {
 function newMultiLine(): MultiLine {
   return {
     key: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    side: '',
     accountId: '',
     debit: '',
     credit: '',
+    shortNarration: '',
   }
+}
+
+/** short only | long only | `short - long` when both filled */
+function combineMultiNarration(short: string, long: string): string {
+  const s = short.trim()
+  const l = long.trim()
+  if (s && l) return `${s} - ${l}`
+  return s || l
 }
 
 function starterMultiLines(count = MULTI_STARTER_ROWS): MultiLine[] {
@@ -84,6 +98,34 @@ function formatMoney(n: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })
+}
+
+/** Plain numeric string for amount inputs (editable after auto-fill). */
+function formatAmountInput(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return ''
+  const rounded = Math.round(n * 100) / 100
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2)
+}
+
+/** How much is still needed on Debit or Credit to balance other rows. */
+function balancingAmountForSide(
+  lines: MultiLine[],
+  excludeKey: string,
+  side: 'D' | 'C'
+): number {
+  let debit = 0
+  let credit = 0
+  for (const line of lines) {
+    if (line.key === excludeKey) continue
+    debit += parseAmount(line.debit)
+    credit += parseAmount(line.credit)
+  }
+  if (side === 'D') {
+    const need = credit - debit
+    return need > 0 ? need : 0
+  }
+  const need = debit - credit
+  return need > 0 ? need : 0
 }
 
 type TransactionFormModalProps = {
@@ -133,39 +175,64 @@ export default function TransactionFormModal({
     let credit = 0
     let filled = 0
     let validFilled = 0
+    let validWithShort = 0
+    let active = 0
+    let activeWithShort = 0
     for (const line of multiLines) {
       const debitAmt = parseAmount(line.debit)
       const creditAmt = parseAmount(line.credit)
       debit += debitAmt
       credit += creditAmt
-      const hasAny = Boolean(line.accountId) || debitAmt > 0 || creditAmt > 0
+      const hasShort = Boolean(line.shortNarration.trim())
+      const hasAny =
+        Boolean(line.side) ||
+        Boolean(line.accountId) ||
+        debitAmt > 0 ||
+        creditAmt > 0 ||
+        hasShort
       if (!hasAny) continue
       filled += 1
-      if (
+      active += 1
+      if (hasShort) activeWithShort += 1
+      const amountOk =
         line.accountId &&
-        ((debitAmt > 0 && creditAmt <= 0) || (creditAmt > 0 && debitAmt <= 0))
-      ) {
+        ((line.side === 'D' && debitAmt > 0 && creditAmt <= 0) ||
+          (line.side === 'C' && creditAmt > 0 && debitAmt <= 0))
+      if (amountOk) {
         validFilled += 1
+        if (hasShort) validWithShort += 1
       }
     }
+    const allValidHaveShort = validFilled > 0 && validWithShort === validFilled
     return {
       debit,
       credit,
       filled,
       validFilled,
+      validWithShort,
+      allValidHaveShort,
+      // UI: shared Narration becomes optional once any line has short narration.
+      anyActiveHaveShort: activeWithShort > 0,
       balanced: amountsMatch(debit, credit) && debit > 0,
     }
   }, [multiLines])
+
+  const multiLongFilled = Boolean(longNarration.trim())
+  const multiShortRequired = !multiLongFilled
+  // Shared Narration * drops as soon as any row short narration is filled.
+  const multiLongRequired = !multiLongFilled && !multiTotals.anyActiveHaveShort
 
   const canSubmit = useMemo(() => {
     if (submitting) return false
     if (!transactionDate.trim()) return false
 
     if (formMode === 'multi') {
-      if (!longNarration.trim()) return false
       if (multiTotals.validFilled < 2) return false
       if (multiTotals.validFilled !== multiTotals.filled) return false
-      return multiTotals.balanced
+      if (!multiTotals.balanced) return false
+      // Narration: shared long, or every valid row short (or both).
+      if (!multiLongFilled && !multiTotals.allValidHaveShort) return false
+      return true
     }
 
     if (!narration.trim()) return false
@@ -181,7 +248,7 @@ export default function TransactionFormModal({
     submitting,
     transactionDate,
     formMode,
-    longNarration,
+    multiLongFilled,
     multiTotals,
     narration,
     balance,
@@ -287,40 +354,54 @@ export default function TransactionFormModal({
 
     if (formMode === 'multi') {
       const longTrim = longNarration.trim()
-      if (!longTrim) {
-        setFormError('Narration is required.')
-        return
-      }
 
       const prepared: TransactionInput[] = []
       for (let i = 0; i < multiLines.length; i++) {
         const line = multiLines[i]!
         const debitAmt = parseAmount(line.debit)
         const creditAmt = parseAmount(line.credit)
+        const shortTrim = line.shortNarration.trim()
         const hasAny =
-          Boolean(line.accountId) || debitAmt > 0 || creditAmt > 0
+          Boolean(line.side) ||
+          Boolean(line.accountId) ||
+          debitAmt > 0 ||
+          creditAmt > 0 ||
+          Boolean(shortTrim)
 
         if (!hasAny) continue
 
+        if (!line.side) {
+          setFormError(`Row ${i + 1}: select D (debit) or C (credit).`)
+          return
+        }
         if (!line.accountId) {
           setFormError(`Row ${i + 1}: account is required.`)
           return
         }
-        if (debitAmt > 0 && creditAmt > 0) {
-          setFormError(`Row ${i + 1}: enter either debit or credit, not both.`)
+        if (line.side === 'D') {
+          if (debitAmt <= 0) {
+            setFormError(`Row ${i + 1}: debit amount is required.`)
+            return
+          }
+        } else if (creditAmt <= 0) {
+          setFormError(`Row ${i + 1}: credit amount is required.`)
           return
         }
-        if (debitAmt <= 0 && creditAmt <= 0) {
-          setFormError(`Row ${i + 1}: enter a debit or credit amount.`)
+
+        const narrationCombined = combineMultiNarration(shortTrim, longTrim)
+        if (!narrationCombined) {
+          setFormError(
+            'Add short narration on each line, or fill the shared Narration (or both).'
+          )
           return
         }
 
         prepared.push({
           transactionDate,
           accountId: line.accountId,
-          narration: longTrim,
-          entryType: debitAmt > 0 ? 'debit' : 'credit',
-          balance: debitAmt > 0 ? debitAmt : creditAmt,
+          narration: narrationCombined,
+          entryType: line.side === 'D' ? 'debit' : 'credit',
+          balance: line.side === 'D' ? debitAmt : creditAmt,
         })
       }
 
@@ -529,15 +610,48 @@ export default function TransactionFormModal({
 
   const amountInputClass = `${multiCellClass} text-right tabular-nums disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 dark:disabled:bg-gray-900/50 dark:disabled:text-gray-500`
 
+  const setMultiSide = (key: string, side: MultiSide) => {
+    setMultiLines((rows) => {
+      const current = rows.find((row) => row.key === key)
+      if (!current) return rows
+
+      let debit = current.debit
+      let credit = current.credit
+      if (side === 'D') {
+        credit = ''
+        // Auto-fill balancing debit when empty (user can still edit).
+        if (!debit.trim()) {
+          debit = formatAmountInput(balancingAmountForSide(rows, key, 'D'))
+        }
+      } else if (side === 'C') {
+        debit = ''
+        if (!credit.trim()) {
+          credit = formatAmountInput(balancingAmountForSide(rows, key, 'C'))
+        }
+      } else {
+        debit = ''
+        credit = ''
+      }
+
+      const next = rows.map((row) =>
+        row.key === key ? { ...row, side, debit, credit } : row
+      )
+      const last = next[next.length - 1]
+      const lastUsed =
+        last &&
+        (last.side ||
+          last.accountId ||
+          parseAmount(last.debit) > 0 ||
+          parseAmount(last.credit) > 0)
+      if (lastUsed && next.length < MULTI_MAX_ROWS) {
+        return [...next, newMultiLine()]
+      }
+      return next
+    })
+  }
+
   const multiSideMeta = (line: MultiLine) => {
-    const debitAmt = parseAmount(line.debit)
-    const creditAmt = parseAmount(line.credit)
-    const side: 'D' | 'C' | '' =
-      debitAmt > 0 || (Boolean(line.debit.trim()) && !line.credit.trim())
-        ? 'D'
-        : creditAmt > 0 || (Boolean(line.credit.trim()) && !line.debit.trim())
-          ? 'C'
-          : ''
+    const side = line.side
     const tint =
       side === 'D'
         ? 'bg-red-50 dark:bg-red-900/25'
@@ -550,14 +664,33 @@ export default function TransactionFormModal({
         : side === 'C'
           ? 'border-l-primary-600'
           : 'border-l-transparent'
-    const badge =
-      side === 'D'
-        ? 'border-red-600 bg-red-50 text-red-800 dark:bg-red-900/40 dark:text-red-300'
-        : side === 'C'
-          ? 'border-primary-600 bg-primary-50 text-primary-800 dark:bg-primary-900/40 dark:text-primary-300'
-          : 'border-dashed border-gray-300 text-gray-400 dark:border-gray-600 dark:text-gray-500'
-    return { side, tint, edge, badge }
+    return { side, tint, edge }
   }
+
+  const renderDcToggle = (line: MultiLine, index: number) => (
+    <div className="flex gap-0.5" role="group" aria-label={`Row ${index + 1} debit or credit`}>
+      {(['D', 'C'] as const).map((code) => {
+        const active = line.side === code
+        return (
+          <button
+            key={code}
+            type="button"
+            aria-pressed={active}
+            onClick={() => setMultiSide(line.key, active ? '' : code)}
+            className={`h-8 w-8 rounded text-xs font-semibold ${
+              active
+                ? code === 'D'
+                  ? 'border border-red-600 bg-red-50 text-red-800 dark:bg-red-900/40 dark:text-red-300'
+                  : 'border border-primary-600 bg-primary-50 text-primary-800 dark:bg-primary-900/40 dark:text-primary-300'
+                : 'border border-transparent bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'
+            }`}
+          >
+            {code}
+          </button>
+        )
+      })}
+    </div>
+  )
 
   const multiTotalsBar = (
     <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 dark:border-gray-700 dark:bg-gray-900/40">
@@ -597,7 +730,9 @@ export default function TransactionFormModal({
       {/* Mobile: stacked entry cards */}
       <div className="space-y-3 md:hidden">
         {multiLines.map((line, index) => {
-          const { side, tint, edge, badge } = multiSideMeta(line)
+          const { side, tint, edge } = multiSideMeta(line)
+          const debitEnabled = side === 'D'
+          const creditEnabled = side === 'C'
           return (
             <div
               key={line.key}
@@ -605,18 +740,7 @@ export default function TransactionFormModal({
             >
               <div className="mb-2.5 flex items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2">
-                  <span
-                    className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded text-xs font-semibold border ${badge}`}
-                    aria-label={
-                      side === 'D'
-                        ? `Row ${index + 1} debit`
-                        : side === 'C'
-                          ? `Row ${index + 1} credit`
-                          : `Row ${index + 1} side unset`
-                    }
-                  >
-                    {side || '—'}
-                  </span>
+                  {renderDcToggle(line, index)}
                   <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                     Line {index + 1}
                   </span>
@@ -651,7 +775,7 @@ export default function TransactionFormModal({
                     htmlFor={`dash-multi-debit-m-${line.key}`}
                     className="mb-1 block text-xs font-medium text-red-700 dark:text-red-400"
                   >
-                    Debit <span className="text-red-500">*</span>
+                    Debit {debitEnabled ? <span className="text-red-500">*</span> : null}
                   </label>
                   <input
                     id={`dash-multi-debit-m-${line.key}`}
@@ -660,15 +784,16 @@ export default function TransactionFormModal({
                     step="any"
                     min="0"
                     value={line.debit}
-                    disabled={Boolean(line.credit.trim())}
+                    disabled={!debitEnabled}
                     onChange={(e) =>
                       updateMultiLine(line.key, {
                         debit: e.target.value,
-                        credit: e.target.value.trim() ? '' : line.credit,
+                        credit: '',
+                        side: 'D',
                       })
                     }
                     className={amountInputClass}
-                    placeholder="0.00"
+                    placeholder={debitEnabled ? '0.00' : 'Select D'}
                   />
                 </div>
                 <div>
@@ -676,7 +801,7 @@ export default function TransactionFormModal({
                     htmlFor={`dash-multi-credit-m-${line.key}`}
                     className="mb-1 block text-xs font-medium text-primary-700 dark:text-primary-400"
                   >
-                    Credit <span className="text-red-500">*</span>
+                    Credit {creditEnabled ? <span className="text-red-500">*</span> : null}
                   </label>
                   <input
                     id={`dash-multi-credit-m-${line.key}`}
@@ -685,18 +810,45 @@ export default function TransactionFormModal({
                     step="any"
                     min="0"
                     value={line.credit}
-                    disabled={Boolean(line.debit.trim())}
+                    disabled={!creditEnabled}
                     onChange={(e) =>
                       updateMultiLine(line.key, {
                         credit: e.target.value,
-                        debit: e.target.value.trim() ? '' : line.debit,
+                        debit: '',
+                        side: 'C',
                       })
                     }
                     className={amountInputClass}
-                    placeholder="0.00"
+                    placeholder={creditEnabled ? '0.00' : 'Select C'}
                   />
                 </div>
               </div>
+
+              <label
+                htmlFor={`dash-multi-short-m-${line.key}`}
+                className="mb-1 mt-2.5 block text-xs font-medium text-gray-600 dark:text-gray-300"
+              >
+                Short narration{' '}
+                {multiShortRequired ? (
+                  <span className="text-red-500">*</span>
+                ) : (
+                  <span className="font-normal text-gray-400">(optional)</span>
+                )}
+              </label>
+              <input
+                id={`dash-multi-short-m-${line.key}`}
+                type="text"
+                value={line.shortNarration}
+                onChange={(e) =>
+                  updateMultiLine(line.key, { shortNarration: e.target.value })
+                }
+                className={multiCellClass}
+                placeholder={
+                  multiLongFilled
+                    ? 'Optional — shared narration applies'
+                    : 'Required for this line'
+                }
+              />
             </div>
           )
         })}
@@ -705,10 +857,12 @@ export default function TransactionFormModal({
 
       {/* Desktop: journal table */}
       <div className="hidden overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 md:block">
-        <table className="min-w-[36rem] w-full border-collapse text-sm">
+        <table className="min-w-[44rem] w-full border-collapse text-sm">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-300">
-              <th className="w-12 px-2 py-2">D/C</th>
+              <th className="w-16 px-2 py-2">
+                D/C <span className="text-red-500">*</span>
+              </th>
               <th className="min-w-[12rem] px-2 py-2">
                 Account <span className="text-red-500">*</span>
               </th>
@@ -718,6 +872,10 @@ export default function TransactionFormModal({
               <th className="w-28 px-2 py-2 text-right">
                 Credit <span className="text-red-500">*</span>
               </th>
+              <th className="min-w-[10rem] px-2 py-2">
+                Short narration{' '}
+                {multiShortRequired ? <span className="text-red-500">*</span> : null}
+              </th>
               <th className="w-10 px-1 py-2">
                 <span className="sr-only">Remove</span>
               </th>
@@ -725,23 +883,12 @@ export default function TransactionFormModal({
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {multiLines.map((line, index) => {
-              const { side, tint, edge, badge } = multiSideMeta(line)
+              const { side, tint, edge } = multiSideMeta(line)
+              const debitEnabled = side === 'D'
+              const creditEnabled = side === 'C'
               return (
                 <tr key={line.key} className={`${tint} border-l-2 ${edge}`}>
-                  <td className="px-2 py-1.5 align-middle">
-                    <span
-                      className={`inline-flex h-8 w-8 items-center justify-center rounded border text-xs font-semibold ${badge}`}
-                      aria-label={
-                        side === 'D'
-                          ? `Row ${index + 1} debit`
-                          : side === 'C'
-                            ? `Row ${index + 1} credit`
-                            : `Row ${index + 1} side unset`
-                      }
-                    >
-                      {side || '—'}
-                    </span>
-                  </td>
+                  <td className="px-2 py-1.5 align-middle">{renderDcToggle(line, index)}</td>
                   <td className="px-2 py-1.5 align-middle">
                     <SearchableSelect
                       key={`multi-account-${line.key}`}
@@ -761,15 +908,16 @@ export default function TransactionFormModal({
                       step="any"
                       min="0"
                       value={line.debit}
-                      disabled={Boolean(line.credit.trim())}
+                      disabled={!debitEnabled}
                       onChange={(e) =>
                         updateMultiLine(line.key, {
                           debit: e.target.value,
-                          credit: e.target.value.trim() ? '' : line.credit,
+                          credit: '',
+                          side: 'D',
                         })
                       }
                       className={amountInputClass}
-                      placeholder="0.00"
+                      placeholder={debitEnabled ? '0.00' : '—'}
                       aria-label={`Row ${index + 1} debit`}
                     />
                   </td>
@@ -780,16 +928,29 @@ export default function TransactionFormModal({
                       step="any"
                       min="0"
                       value={line.credit}
-                      disabled={Boolean(line.debit.trim())}
+                      disabled={!creditEnabled}
                       onChange={(e) =>
                         updateMultiLine(line.key, {
                           credit: e.target.value,
-                          debit: e.target.value.trim() ? '' : line.debit,
+                          debit: '',
+                          side: 'C',
                         })
                       }
                       className={amountInputClass}
-                      placeholder="0.00"
+                      placeholder={creditEnabled ? '0.00' : '—'}
                       aria-label={`Row ${index + 1} credit`}
+                    />
+                  </td>
+                  <td className="px-2 py-1.5 align-middle">
+                    <input
+                      type="text"
+                      value={line.shortNarration}
+                      onChange={(e) =>
+                        updateMultiLine(line.key, { shortNarration: e.target.value })
+                      }
+                      className={multiCellClass}
+                      placeholder={multiLongFilled ? 'Optional' : 'Required'}
+                      aria-label={`Row ${index + 1} short narration`}
                     />
                   </td>
                   <td className="px-1 py-1.5 align-middle">
@@ -826,7 +987,7 @@ export default function TransactionFormModal({
               <td className="px-2 py-2 text-right tabular-nums text-primary-700 dark:text-primary-400">
                 {formatMoney(multiTotals.credit)}
               </td>
-              <td />
+              <td colSpan={2} />
             </tr>
           </tfoot>
         </table>
@@ -851,16 +1012,25 @@ export default function TransactionFormModal({
           htmlFor="dash-txn-long-narration"
           className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
         >
-          Narration <span className="text-red-500">*</span>
+          Narration{' '}
+          {multiLongRequired ? (
+            <span className="text-red-500">*</span>
+          ) : (
+            <span className="font-normal text-gray-400">(optional)</span>
+          )}
         </label>
         <textarea
           id="dash-txn-long-narration"
-          required
+          required={multiLongRequired}
           rows={3}
           value={longNarration}
           onChange={(e) => setLongNarration(e.target.value)}
           className={inputClass}
-          placeholder="Applies to every line in this multi entry…"
+          placeholder={
+            multiLongRequired
+              ? 'Required — or fill short narration on a line to make this optional…'
+              : 'Optional — with short text, saved as “short - narration”…'
+          }
         />
       </div>
     </div>
