@@ -10,6 +10,8 @@ All notable changes to Accounting Ledger are documented here.
 - Multi Transaction: shared **Narration** switches to optional as soon as any line has a short narration (and the reverse when shared Narration is filled).
 - Multi Transaction: choosing **D** or **C** on a new line auto-fills the balancing amount from the current debit/credit difference (still editable).
 - Fixed Multi Transaction debit/credit footer totals staying at 0.00.
+- **Print preview**: on mobile (and coarse-pointer devices) opens in the same tab so action menus are not blocked by popup blockers; Close returns via browser back when needed. Desktop still prefers a new tab.
+- **Send message**: loading overlay closes before WhatsApp opens (and auto-clears if the page returns from WhatsApp/bfcache), so the spinner no longer sticks on screen.
 
 ## [1.2.3] — 2026-11-09
 

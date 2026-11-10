@@ -1,9 +1,13 @@
 'use client'
 
+import { useEffect } from 'react'
+
 type Props = {
   open: boolean
   percent: number
   label?: string
+  /** Clear stuck overlay after WhatsApp handoff / bfcache restore. */
+  onForceClose?: () => void
 }
 
 /** In-app progress while WhatsApp message (and ledger link) are prepared. */
@@ -11,7 +15,31 @@ export function WhatsAppPrepOverlay({
   open,
   percent,
   label = 'Preparing message…',
+  onForceClose,
 }: Props) {
+  useEffect(() => {
+    if (!open || !onForceClose) return
+
+    const forceClose = () => onForceClose()
+
+    // Returning from WhatsApp (esp. after same-tab assign) can restore a frozen open overlay.
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) forceClose()
+    }
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && percent >= 96) {
+        forceClose()
+      }
+    }
+
+    window.addEventListener('pageshow', onPageShow)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.removeEventListener('pageshow', onPageShow)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [open, onForceClose, percent])
+
   if (!open) return null
   const p = Math.max(0, Math.min(100, Math.round(percent)))
 

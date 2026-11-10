@@ -276,8 +276,9 @@ export function buildWhatsAppUrl(
 
 /**
  * Opens WhatsApp with prefilled text (phone optional).
- * Call after in-app prep overlay finishes — opens WhatsApp in a new tab;
- * if the browser blocks it, navigates the current tab instead.
+ * Deferred a tick so callers can clear the in-app loading overlay first
+ * (otherwise same-tab / app handoff can freeze the overlay via bfcache).
+ * Prefers a new tab; if blocked, navigates the current tab.
  */
 export function openWhatsAppMessage(
   phone: string | null | undefined,
@@ -287,8 +288,10 @@ export function openWhatsAppMessage(
   const body = text.trim()
   if (!body) return
   const url = buildWhatsAppUrl(phone, body)
-  const opened = window.open(url, '_blank', 'noopener,noreferrer')
-  if (!opened) {
-    window.location.assign(url)
-  }
+  window.setTimeout(() => {
+    const opened = window.open(url, '_blank', 'noopener,noreferrer')
+    if (!opened) {
+      window.location.assign(url)
+    }
+  }, 80)
 }

@@ -353,13 +353,14 @@ function AccountsPageInner() {
         .replace(/\n{3,}/g, '\n\n')
         .trim()
 
-      bump(96, 'Opening WhatsApp…')
+      bump(100, 'Opening WhatsApp…')
+      setSendingMessage(false)
+      setWaPrepPercent(0)
       openWhatsAppMessage(row.phone, text)
     } catch (err) {
       setListError(
         err instanceof Error ? err.message : 'Could not open WhatsApp message.'
       )
-    } finally {
       setSendingMessage(false)
       setWaPrepPercent(0)
     }
@@ -821,6 +822,10 @@ function AccountsPageInner() {
         open={sendingMessage}
         percent={waPrepPercent}
         label={waPrepLabel}
+        onForceClose={() => {
+          setSendingMessage(false)
+          setWaPrepPercent(0)
+        }}
       />
     </div>
   )

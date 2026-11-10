@@ -43,6 +43,7 @@ import {
   openWhatsAppMessage,
   transactionMessageVars,
 } from '@/lib/messageTemplates'
+import { openTransactionPrintPreview } from '@/lib/transactionPrint'
 import {
   deleteTransaction,
   fetchTransactions,
@@ -337,13 +338,15 @@ export default function TransactionDetailPage() {
         .replace(/\n{3,}/g, '\n\n')
         .trim()
 
-      bump(96, 'Opening WhatsApp…')
+      bump(100, 'Opening WhatsApp…')
+      // Close overlay before handoff so it cannot stick after WhatsApp opens.
+      setSendingMessage(false)
+      setWaPrepPercent(0)
       openWhatsAppMessage(account?.phone, text)
     } catch (err) {
       setSendError(
         err instanceof Error ? err.message : 'Could not open WhatsApp message.'
       )
-    } finally {
       setSendingMessage(false)
       setWaPrepPercent(0)
     }
@@ -449,13 +452,7 @@ export default function TransactionDetailPage() {
               key: 'pdf',
               label: 'Print preview',
               icon: Printer,
-              onClick: () => {
-                window.open(
-                  `/transactions/${encodeURIComponent(row.id)}/print`,
-                  '_blank',
-                  'noopener,noreferrer'
-                )
-              },
+              onClick: () => openTransactionPrintPreview(row.id),
             },
             {
               key: 'edit',
@@ -683,6 +680,10 @@ export default function TransactionDetailPage() {
         open={sendingMessage}
         percent={waPrepPercent}
         label={waPrepLabel}
+        onForceClose={() => {
+          setSendingMessage(false)
+          setWaPrepPercent(0)
+        }}
       />
     </div>
   )

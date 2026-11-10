@@ -33,6 +33,7 @@ import { TablePaginationNav } from '@/components/TablePaginationNav'
 import { isExpenseAccount } from '@/lib/accountFilters'
 import { fetchAccounts, getCachedAccounts, type AccountRecord } from '@/lib/accounts'
 import { formatDisplayDate } from '@/lib/localDate'
+import { openTransactionPrintPreview } from '@/lib/transactionPrint'
 import {
   DEFAULT_APP_SETTINGS,
   getCachedAppSettings,
@@ -566,21 +567,17 @@ function TransactionsPageInner() {
         .replace(/\n{3,}/g, '\n\n')
         .trim()
 
-      bump(96, 'Opening WhatsApp…')
+      bump(100, 'Opening WhatsApp…')
+      setSendingMessage(false)
+      setWaPrepPercent(0)
       openWhatsAppMessage(account?.phone, text)
     } catch (err) {
       setListError(
         err instanceof Error ? err.message : 'Could not open WhatsApp message.'
       )
-    } finally {
       setSendingMessage(false)
       setWaPrepPercent(0)
     }
-  }
-
-  const openTransactionPrintPreview = (row: TransactionRecord) => {
-    const href = `/transactions/${encodeURIComponent(row.id)}/print`
-    window.open(href, '_blank', 'noopener,noreferrer')
   }
 
   const actionsFor = (
@@ -601,7 +598,7 @@ function TransactionsPageInner() {
         {
           key: 'pdf',
           label: 'Print preview',
-          onClick: () => openTransactionPrintPreview(row),
+          onClick: () => openTransactionPrintPreview(row.id),
         },
         {
           key: 'send',
@@ -1173,6 +1170,10 @@ function TransactionsPageInner() {
         open={sendingMessage}
         percent={waPrepPercent}
         label={waPrepLabel}
+        onForceClose={() => {
+          setSendingMessage(false)
+          setWaPrepPercent(0)
+        }}
       />
     </div>
   )

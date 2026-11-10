@@ -14,6 +14,7 @@ import {
   signedTransactionAmount,
   type TransactionRecord,
 } from '@/lib/transactions'
+import { leaveTransactionPrintPreview } from '@/lib/transactionPrint'
 
 type Status = 'loading' | 'ready' | 'error'
 
@@ -214,7 +215,7 @@ export default function TransactionPrintPage() {
           </button>
           <button
             type="button"
-            onClick={() => window.close()}
+            onClick={() => leaveTransactionPrintPreview(id)}
             className="inline-flex h-10 items-center justify-center rounded-[10px] border border-brand-pistachio bg-transparent px-3.5 text-sm font-semibold text-brand-stone"
           >
             Close
