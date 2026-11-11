@@ -2,6 +2,11 @@
 
 All notable changes to Accounting Ledger are documented here.
 
+## [1.2.5] — 2026-11-11
+
+### Fixed
+- After saving a new transaction, the Transactions list no longer clears its cache and full-reloads (was slow on large ledgers); the list opens from the updated in-memory cache.
+
 ## [1.2.4] — 2026-11-10
 
 ### Added

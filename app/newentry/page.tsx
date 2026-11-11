@@ -2,11 +2,12 @@
 
 import { useRouter } from 'next/navigation'
 import TransactionFormModal from '@/components/TransactionFormModal'
-import { invalidateTransactionsCache } from '@/lib/transactions'
 
 /**
  * Dedicated URL for adding a transaction (replaces the add popup flow).
  * Cancel / save → Transactions list.
+ * Save already updates the in-memory transactions cache — do not invalidate
+ * (that forced a full list refetch and a slow reload spinner).
  */
 export default function NewEntryPage() {
   const router = useRouter()
@@ -21,10 +22,7 @@ export default function NewEntryPage() {
         open
         presentation="page"
         onClose={leave}
-        onSaved={() => {
-          invalidateTransactionsCache()
-          leave()
-        }}
+        onSaved={leave}
       />
     </div>
   )
