@@ -12,6 +12,11 @@ export function localTodayIso(): string {
   return `${y}-${m}-${day}`
 }
 
+/** Local calendar YYYY-MM (current month prefix). */
+export function currentMonthPrefix(dayIso: string = localTodayIso()): string {
+  return dayIso.slice(0, 7)
+}
+
 /** Sum of signed entry amounts for each account on `dayIso`. */
 export function todayNetsByAccount(
   transactions: TransactionRecord[],
@@ -20,6 +25,25 @@ export function todayNetsByAccount(
   const byAccount = new Map<string, number>()
   for (const tx of transactions) {
     if (tx.transactionDate.slice(0, 10) !== dayIso) continue
+    byAccount.set(
+      tx.accountId,
+      (byAccount.get(tx.accountId) ?? 0) + signedTransactionAmount(tx)
+    )
+  }
+  return byAccount
+}
+
+/**
+ * Sum of signed entry amounts for each account in the calendar month
+ * (`YYYY-MM`). Used for balance change vs end of last month.
+ */
+export function monthToDateNetsByAccount(
+  transactions: TransactionRecord[],
+  monthPrefix: string = currentMonthPrefix()
+): Map<string, number> {
+  const byAccount = new Map<string, number>()
+  for (const tx of transactions) {
+    if (tx.transactionDate.slice(0, 7) !== monthPrefix) continue
     byAccount.set(
       tx.accountId,
       (byAccount.get(tx.accountId) ?? 0) + signedTransactionAmount(tx)
@@ -75,4 +99,17 @@ export function periodChange(
           : -100
       : (delta / Math.abs(previous)) * 100
   return { delta, deltaPct }
+}
+
+/**
+ * Balance change vs end of last calendar month.
+ * `monthToDateNet` = sum of this month's signed transactions for the account.
+ */
+export function accountMonthMovement(
+  balanceToday: number,
+  monthToDateNet: number
+): { monthDelta: number; monthDeltaPct: number } {
+  const endOfLastMonth = balanceToday - monthToDateNet
+  const { delta, deltaPct } = periodChange(balanceToday, endOfLastMonth)
+  return { monthDelta: delta, monthDeltaPct: deltaPct }
 }

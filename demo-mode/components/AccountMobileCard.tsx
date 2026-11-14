@@ -14,10 +14,10 @@ export type AccountMobileCardRow = {
   accountTypeName: string
   cashTypeName: string
   balance: number
-  /** Signed balance change today vs end of yesterday */
-  dayDelta?: number
-  /** Percent change vs yesterday's balance */
-  dayDeltaPct?: number
+  /** Signed change vs prior period (month / day — see `deltaVersusLabel`) */
+  monthDelta?: number
+  /** Percent change vs prior period */
+  monthDeltaPct?: number
 }
 
 type AccountMobileCardProps = {
@@ -26,6 +26,13 @@ type AccountMobileCardProps = {
   currency?: string
   actions?: ReactNode
   onOpen: () => void
+  /** e.g. "last month" or "yesterday" — used in tooltip / aria */
+  deltaVersusLabel?: string
+  /**
+   * `balance` (default): up = green, down = red.
+   * `expense`: more spend = red, less = green.
+   */
+  trendMode?: 'balance' | 'expense'
 }
 
 /**
@@ -38,6 +45,8 @@ export default function AccountMobileCard({
   currency,
   actions,
   onOpen,
+  deltaVersusLabel = 'last month',
+  trendMode = 'balance',
 }: AccountMobileCardProps) {
   const typeLabel = row.accountTypeName.trim() || 'Account'
   const cashLabel = row.cashTypeName.trim() || '—'
@@ -46,27 +55,43 @@ export default function AccountMobileCard({
   const phoneDigits = waDigits ? `+${waDigits}` : ''
   const balanceLabel = formatBalance(row.balance)
   const balanceTone =
-    row.balance > 0
-      ? 'text-primary-800'
-      : row.balance < 0
+    trendMode === 'expense'
+      ? row.balance > 0
         ? 'text-red-700'
-        : 'text-brand-ink'
+        : row.balance < 0
+          ? 'text-primary-800'
+          : 'text-brand-ink'
+      : row.balance > 0
+        ? 'text-primary-800'
+        : row.balance < 0
+          ? 'text-red-700'
+          : 'text-brand-ink'
 
-  const dayDelta = row.dayDelta ?? 0
-  const dayDeltaPct = row.dayDeltaPct ?? 0
-  const trend = dayDelta > 0 ? 'up' : dayDelta < 0 ? 'down' : 'flat'
+  const monthDelta = row.monthDelta ?? 0
+  const monthDeltaPct = row.monthDeltaPct ?? 0
+  const trend = monthDelta > 0 ? 'up' : monthDelta < 0 ? 'down' : 'flat'
   const trendClass =
-    trend === 'up'
-      ? 'text-primary-800'
-      : trend === 'down'
-        ? 'text-red-700'
-        : 'text-brand-ink/45'
+    trend === 'flat'
+      ? 'text-brand-ink/45'
+      : trendMode === 'expense'
+        ? trend === 'up'
+          ? 'text-red-700'
+          : 'text-primary-800'
+        : trend === 'up'
+          ? 'text-primary-800'
+          : 'text-red-700'
+  const trendWord =
+    trendMode === 'expense'
+      ? trend === 'up'
+        ? 'more'
+        : 'less'
+      : trend === 'up'
+        ? 'up'
+        : 'down'
   const trendTitle =
     trend === 'flat'
-      ? 'No change vs yesterday'
-      : `${currency ? formatMoney(Math.abs(dayDelta), currency) : formatBalance(Math.abs(dayDelta))} ${
-          trend === 'up' ? 'up' : 'down'
-        } vs yesterday`
+      ? `No change vs ${deltaVersusLabel}`
+      : `${currency ? formatMoney(Math.abs(monthDelta), currency) : formatBalance(Math.abs(monthDelta))} ${trendWord} vs ${deltaVersusLabel}`
 
   return (
     <article
@@ -154,7 +179,7 @@ export default function AccountMobileCard({
             ) : trend === 'down' ? (
               <ArrowDown className="h-3 w-3 shrink-0" strokeWidth={2.5} aria-hidden />
             ) : null}
-            <span>{formatDayDeltaPct(dayDeltaPct)}</span>
+            <span>{formatDayDeltaPct(monthDeltaPct)}</span>
           </p>
           <p className={`min-w-0 shrink-0 text-right ${balanceTone}`}>
             <span className="opacity-70 text-brand-ink">Balance :</span>{' '}

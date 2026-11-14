@@ -8,6 +8,7 @@ import Sidebar from './Sidebar'
 import MobileBottomNav from './MobileBottomNav'
 import RequestProfilerIcon from './RequestProfilerIcon'
 import RequestProfilerPanel from './RequestProfilerPanel'
+import MobileNewAccountButton from './MobileNewAccountButton'
 import MobileNewEntryButton from './MobileNewEntryButton'
 import ScrollToTopButton from './ScrollToTopButton'
 import {
@@ -201,6 +202,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
       </main>
       <MobileBottomNav onOpenMenu={() => setNavOpen(true)} />
       <MobileNewEntryButton scrollRef={mainScrollRef} />
+      <MobileNewAccountButton scrollRef={mainScrollRef} />
       {/* Detail pages are short — skip Back to top so the FAB stack stays clear. */}
       {!/^(?:\/(?:transactions|accounts)\/[^/]+(?:\/edit)?|\/accounts\/new|\/newentry|\/expenses\/(?:daily\/\d{4}-\d{2}-\d{2}|monthly\/\d{4}-\d{2})|\/settings\/(?:account-type|cash-type)(?:\/new|\/[^/]+(?:\/edit)?)|\/settings\/bank-details(?:\/new|\/[^/]+\/edit)|\/settings\/messages\/(?:account|transaction)-template)\/?$/.test(
         pathname

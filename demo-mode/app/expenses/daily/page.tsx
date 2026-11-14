@@ -16,6 +16,7 @@ import {
   getCachedAppSettings,
   watchAppSettings,
 } from '@/lib/appSettings'
+import { formatDayDeltaPct, periodChange } from '@/lib/accountDayMovement'
 import { formatMoney } from '@/lib/money'
 import {
   expenseSpendAmount,
@@ -167,6 +168,19 @@ function DailyExpensePageInner() {
     }
     return totals
   }, [transactions, expenseAccountIds, monthPrefix, dayCount])
+
+  /** Last calendar day of previous month — baseline for day-1 vs “yesterday”. */
+  const prevMonthLastDayTotal = useMemo(() => {
+    const prev = new Date(year, monthIndex, 0)
+    const iso = `${prev.getFullYear()}-${pad2(prev.getMonth() + 1)}-${pad2(prev.getDate())}`
+    let sum = 0
+    for (const tx of transactions) {
+      if (!expenseAccountIds.has(tx.accountId)) continue
+      if (tx.transactionDate.slice(0, 10) !== iso) continue
+      sum += expenseSpendAmount(tx)
+    }
+    return sum
+  }, [transactions, expenseAccountIds, year, monthIndex])
 
   const monthTotal = useMemo(
     () => dailyTotals.reduce((sum, n) => sum + n, 0),
@@ -419,6 +433,25 @@ function DailyExpensePageInner() {
               const weekdayShort = WEEKDAY_NAMES[new Date(year, monthIndex, day).getDay()]
               const weekdayFull = WEEKDAY_FULL[new Date(year, monthIndex, day).getDay()]
               const isToday = isCurrentMonth && day === todayDay
+              const prevTotal =
+                day === 1 ? prevMonthLastDayTotal : dailyTotals[day - 2]!
+              const { delta, deltaPct } = periodChange(total, prevTotal)
+              const skipTrend =
+                year > currentYear ||
+                (year === currentYear && monthIndex > currentMonthIndex) ||
+                (isCurrentMonth && day > todayDay)
+              const prevLabel =
+                day === 1
+                  ? `${pad2(new Date(year, monthIndex, 0).getDate())} ${
+                      MONTH_NAMES[new Date(year, monthIndex, 0).getMonth()]
+                    }`
+                  : `${pad2(day - 1)} ${monthName}`
+              const trendTitle =
+                delta === 0
+                  ? `No change vs ${prevLabel}`
+                  : `${formatBalance(Math.abs(delta))} ${
+                      delta > 0 ? 'more' : 'less'
+                    } than ${prevLabel} (${formatDayDeltaPct(deltaPct)})`
               return (
                 <ExpensePeriodMobileCard
                   key={day}
@@ -434,6 +467,9 @@ function DailyExpensePageInner() {
                   footerLeftLabel=""
                   footerLeftValue={isToday ? 'Current day' : undefined}
                   footerLeftHighlighted={isToday}
+                  footerTrendDelta={skipTrend ? undefined : delta}
+                  footerTrendPct={skipTrend ? undefined : deltaPct}
+                  footerTrendTitle={skipTrend ? undefined : trendTitle}
                   onOpen={() => openDay(day)}
                 />
               )

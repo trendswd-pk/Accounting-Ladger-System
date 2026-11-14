@@ -10,7 +10,10 @@ import {
   getCachedAccounts,
   type AccountRecord,
 } from '@/lib/accounts'
-import { accountDayMovement, todayNetsByAccount } from '@/lib/accountDayMovement'
+import {
+  accountMonthMovement,
+  monthToDateNetsByAccount,
+} from '@/lib/accountDayMovement'
 import {
   DEFAULT_APP_SETTINGS,
   getCachedAppSettings,
@@ -108,8 +111,8 @@ export default function SetupTypeAccountsPage({
     )
   }, [accounts, kind, typeId])
 
-  const dayNetsByAccount = useMemo(
-    () => todayNetsByAccount(transactions),
+  const monthNetsByAccount = useMemo(
+    () => monthToDateNetsByAccount(transactions),
     [transactions]
   )
 
@@ -260,9 +263,9 @@ export default function SetupTypeAccountsPage({
         ) : (
           <>
             {linkedAccounts.map((acc, index) => {
-              const movement = accountDayMovement(
+              const movement = accountMonthMovement(
                 Number(acc.balance) || 0,
-                dayNetsByAccount.get(acc.id) ?? 0
+                monthNetsByAccount.get(acc.id) ?? 0
               )
               return (
                 <AccountMobileCard
@@ -275,8 +278,8 @@ export default function SetupTypeAccountsPage({
                     accountTypeName: acc.accountTypeName,
                     cashTypeName: acc.cashTypeName,
                     balance: acc.balance,
-                    dayDelta: movement.dayDelta,
-                    dayDeltaPct: movement.dayDeltaPct,
+                    monthDelta: movement.monthDelta,
+                    monthDeltaPct: movement.monthDeltaPct,
                   }}
                   formatBalance={formatBalance}
                   currency={currency}

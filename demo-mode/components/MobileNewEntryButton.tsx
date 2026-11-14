@@ -5,12 +5,21 @@ import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useState, type RefObject } from 'react'
 import { Plus } from 'lucide-react'
 
-/** Same short/form routes where Back to top is skipped (FAB / form chrome). */
-const HIDE_ON =
-  /^(?:\/(?:transactions|accounts)\/[^/]+(?:\/edit)?|\/accounts\/new|\/newentry|\/expenses\/(?:daily\/\d{4}-\d{2}-\d{2}|monthly\/\d{4}-\d{2})|\/settings\/(?:account-type|cash-type)(?:\/new|\/[^/]+(?:\/edit)?)|\/settings\/bank-details(?:\/new|\/[^/]+\/edit)|\/settings\/messages\/(?:account|transaction)-template)\/?$/
-
 /** Match Back to top — raise FABs clear of the list pagination strip. */
 const RAISE_AFTER_PROGRESS = 0.85
+
+/**
+ * Mobile Add Transaction FAB — only on these surfaces (not Accounts, Settings, etc.).
+ * 1. Dashboard  2. Transactions list  3. Expenses (+ daily/monthly)  4. Payable / Receivable
+ */
+export function showMobileNewEntryFab(pathname: string): boolean {
+  const path = pathname.replace(/\/$/, '') || '/'
+  if (path === '/') return true
+  if (path === '/transactions') return true
+  if (path === '/payable' || path === '/receivable') return true
+  if (path === '/expenses' || path.startsWith('/expenses/')) return true
+  return false
+}
 
 type MobileNewEntryButtonProps = {
   scrollRef?: RefObject<HTMLElement | null>
@@ -23,6 +32,7 @@ type MobileNewEntryButtonProps = {
 export default function MobileNewEntryButton({ scrollRef }: MobileNewEntryButtonProps) {
   const pathname = usePathname() || '/'
   const [raised, setRaised] = useState(false)
+  const visible = showMobileNewEntryFab(pathname)
 
   const measure = useCallback(() => {
     const el = scrollRef?.current
@@ -40,7 +50,7 @@ export default function MobileNewEntryButton({ scrollRef }: MobileNewEntryButton
   }, [scrollRef])
 
   useEffect(() => {
-    if (HIDE_ON.test(pathname)) return
+    if (!visible) return
     const el = scrollRef?.current
     measure()
 
@@ -64,18 +74,20 @@ export default function MobileNewEntryButton({ scrollRef }: MobileNewEntryButton
       window.removeEventListener('resize', measure)
       ro.disconnect()
     }
-  }, [scrollRef, pathname, measure])
+  }, [scrollRef, pathname, measure, visible])
 
-  if (HIDE_ON.test(pathname)) return null
+  if (!visible) return null
 
   // 5rem clears bottom nav; +3.75rem clears ~50px pagination + gap when near page end.
   const bottomClass = raised
     ? 'bottom-[calc(8.75rem+env(safe-area-inset-bottom,0px))]'
     : 'bottom-[calc(5rem+env(safe-area-inset-bottom,0px))]'
 
+  const from = encodeURIComponent(pathname)
+
   return (
     <Link
-      href="/newentry"
+      href={`/newentry?from=${from}`}
       aria-label="Add transaction"
       title="Add transaction"
       className={`fixed z-40 flex h-12 w-12 items-center justify-center rounded-full bg-primary-600 text-white shadow-lg ring-1 ring-primary-600/20 transition-all duration-200 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 right-4 lg:hidden ${bottomClass}`}

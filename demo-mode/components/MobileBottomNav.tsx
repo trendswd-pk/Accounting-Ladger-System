@@ -130,7 +130,11 @@ export default function MobileBottomNav({ onOpenMenu }: MobileBottomNavProps) {
                 showAdd ? (
                   <button
                     type="button"
-                    onClick={() => router.push('/newentry')}
+                    onClick={() =>
+                      router.push(
+                        `/newentry?from=${encodeURIComponent(pathname || '/transactions')}`
+                      )
+                    }
                     className={`${itemClass} w-full`}
                     aria-label="Add transaction"
                   >

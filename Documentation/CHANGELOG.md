@@ -2,6 +2,19 @@
 
 All notable changes to Accounting Ledger are documented here.
 
+## [1.2.6] — 2026-11-14
+
+### Added
+- Mobile **Add account** (+) FAB on the Accounts list (same dock as Add transaction); cancel returns to Accounts.
+
+### Changed
+- Account mobile cards show balance **% change vs end of last month** (not day-over-day).
+- Daily Expenses mobile cards show **% change vs the previous day** (same trend style as Monthly Expenses).
+- Day expense account cards (`/expenses/daily/YYYY-MM-DD`) show **% spend change vs the previous calendar day**.
+- Month expense account cards (`/expenses/monthly/YYYY-MM`) show **% spend change vs the previous calendar month**.
+- Mobile **Add transaction** (+) FAB only on Dashboard, Transactions list, Expenses (all sub-pages), Payable, and Receivable — hidden elsewhere.
+- **New entry** cancel/save returns to the page that opened the form (`from` query), including mobile FAB and header Add actions.
+
 ## [1.2.5] — 2026-11-11
 
 ### Fixed

@@ -43,8 +43,8 @@ import {
   openWhatsAppMessage,
 } from '@/lib/messageTemplates'
 import {
-  accountDayMovement,
-  todayNetsByAccount,
+  accountMonthMovement,
+  monthToDateNetsByAccount,
 } from '@/lib/accountDayMovement'
 import { formatMoney } from '@/lib/money'
 import {
@@ -152,8 +152,8 @@ function AccountsPageInner() {
     }
   }, [])
 
-  const dayNetsByAccount = useMemo(
-    () => todayNetsByAccount(transactions),
+  const monthNetsByAccount = useMemo(
+    () => monthToDateNetsByAccount(transactions),
     [transactions]
   )
 
@@ -220,7 +220,7 @@ function AccountsPageInner() {
     ) : null
 
   const openAdd = () => {
-    router.push('/accounts/new')
+    router.push(`/accounts/new?from=${encodeURIComponent('/accounts')}`)
   }
 
   const openDetail = (row: AccountRecord) => {
@@ -553,9 +553,9 @@ function AccountsPageInner() {
           </div>
         ) : (
           pageRows.map((row, index) => {
-            const movement = accountDayMovement(
+            const movement = accountMonthMovement(
               Number(row.balance) || 0,
-              dayNetsByAccount.get(row.id) ?? 0
+              monthNetsByAccount.get(row.id) ?? 0
             )
             return (
               <AccountMobileCard
@@ -568,8 +568,8 @@ function AccountsPageInner() {
                   accountTypeName: row.accountTypeName,
                   cashTypeName: row.cashTypeName,
                   balance: row.balance,
-                  dayDelta: movement.dayDelta,
-                  dayDeltaPct: movement.dayDeltaPct,
+                  monthDelta: movement.monthDelta,
+                  monthDeltaPct: movement.monthDeltaPct,
                 }}
                 formatBalance={formatBalance}
                 currency={currency}

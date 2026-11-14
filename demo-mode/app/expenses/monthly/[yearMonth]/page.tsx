@@ -16,6 +16,7 @@ import {
   getCachedAppSettings,
   watchAppSettings,
 } from '@/lib/appSettings'
+import { periodChange } from '@/lib/accountDayMovement'
 import { formatMoney } from '@/lib/money'
 import {
   expenseSpendAmount,
@@ -135,6 +136,33 @@ export default function MonthlyExpenseMonthPage() {
     () => new Set(expenseAccounts.map((a) => a.id)),
     [expenseAccounts]
   )
+
+  const prevMonthPrefix = useMemo(() => {
+    if (!parsed) return null
+    const prev = new Date(parsed.year, parsed.monthIndex, 0)
+    return `${prev.getFullYear()}-${pad2(prev.getMonth() + 1)}`
+  }, [parsed])
+
+  const prevMonthLabel = useMemo(() => {
+    if (!parsed) return 'last month'
+    const prev = new Date(parsed.year, parsed.monthIndex, 0)
+    return `${MONTH_NAMES[prev.getMonth()]} ${prev.getFullYear()}`
+  }, [parsed])
+
+  /** Per-account spend in the previous calendar month (for % vs last month). */
+  const prevMonthTotalsByAccount = useMemo(() => {
+    const byAccount = new Map<string, number>()
+    if (!prevMonthPrefix) return byAccount
+    for (const tx of transactions) {
+      if (!expenseAccountIds.has(tx.accountId)) continue
+      if (!tx.transactionDate.slice(0, 10).startsWith(prevMonthPrefix)) continue
+      byAccount.set(
+        tx.accountId,
+        (byAccount.get(tx.accountId) ?? 0) + expenseSpendAmount(tx)
+      )
+    }
+    return byAccount
+  }, [transactions, expenseAccountIds, prevMonthPrefix])
 
   const monthAccountRows = useMemo((): MonthAccountRow[] => {
     if (!parsed) return []
@@ -287,25 +315,31 @@ export default function MonthlyExpenseMonthPage() {
           </div>
         ) : (
           <>
-            {monthAccountRows.map((row, index) => (
-              <AccountMobileCard
-                key={row.id}
-                row={{
-                  id: row.id,
-                  serialNumber: index + 1,
-                  name: row.name,
-                  phone: row.phone,
-                  accountTypeName: row.accountTypeName,
-                  cashTypeName: row.cashTypeName,
-                  balance: row.total,
-                  dayDelta: 0,
-                  dayDeltaPct: 0,
-                }}
-                formatBalance={formatBalance}
-                currency={currency}
-                onOpen={() => openAccountMonth(row.id)}
-              />
-            ))}
+            {monthAccountRows.map((row, index) => {
+              const prevTotal = prevMonthTotalsByAccount.get(row.id) ?? 0
+              const { delta, deltaPct } = periodChange(row.total, prevTotal)
+              return (
+                <AccountMobileCard
+                  key={row.id}
+                  row={{
+                    id: row.id,
+                    serialNumber: index + 1,
+                    name: row.name,
+                    phone: row.phone,
+                    accountTypeName: row.accountTypeName,
+                    cashTypeName: row.cashTypeName,
+                    balance: row.total,
+                    monthDelta: delta,
+                    monthDeltaPct: deltaPct,
+                  }}
+                  formatBalance={formatBalance}
+                  currency={currency}
+                  deltaVersusLabel={prevMonthLabel}
+                  trendMode="expense"
+                  onOpen={() => openAccountMonth(row.id)}
+                />
+              )
+            })}
             <div className="flex items-center justify-between gap-3 rounded-[1.65rem] border border-gray-200 bg-white px-4 py-3 shadow-md dark:border-gray-700 dark:bg-gray-800">
               <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
                 Total

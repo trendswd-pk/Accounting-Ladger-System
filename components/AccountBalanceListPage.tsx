@@ -13,8 +13,8 @@ import {
   type AccountRecord,
 } from '@/lib/accounts'
 import {
-  accountDayMovement,
-  todayNetsByAccount,
+  accountMonthMovement,
+  monthToDateNetsByAccount,
 } from '@/lib/accountDayMovement'
 import {
   DEFAULT_APP_SETTINGS,
@@ -102,8 +102,8 @@ export default function AccountBalanceListPage({
 
   useEffect(() => watchAppSettings((s) => setCurrency(s.currency)), [])
 
-  const dayNetsByAccount = useMemo(
-    () => todayNetsByAccount(transactions),
+  const monthNetsByAccount = useMemo(
+    () => monthToDateNetsByAccount(transactions),
     [transactions]
   )
 
@@ -286,9 +286,9 @@ export default function AccountBalanceListPage({
           </div>
         ) : (
           pageRows.map((row, index) => {
-            const movement = accountDayMovement(
+            const movement = accountMonthMovement(
               Number(row.balance) || 0,
-              dayNetsByAccount.get(row.id) ?? 0
+              monthNetsByAccount.get(row.id) ?? 0
             )
             return (
               <AccountMobileCard
@@ -301,8 +301,8 @@ export default function AccountBalanceListPage({
                   accountTypeName: row.accountTypeName,
                   cashTypeName: row.cashTypeName,
                   balance: row.balance,
-                  dayDelta: movement.dayDelta,
-                  dayDeltaPct: movement.dayDeltaPct,
+                  monthDelta: movement.monthDelta,
+                  monthDeltaPct: movement.monthDeltaPct,
                 }}
                 formatBalance={formatBalance}
                 currency={currency}

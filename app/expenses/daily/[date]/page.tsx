@@ -16,6 +16,8 @@ import {
   getCachedAppSettings,
   watchAppSettings,
 } from '@/lib/appSettings'
+import { periodChange } from '@/lib/accountDayMovement'
+import { shiftYmd } from '@/lib/localDate'
 import { formatMoney } from '@/lib/money'
 import {
   expenseSpendAmount,
@@ -138,6 +140,23 @@ export default function DailyExpenseDayPage() {
     () => new Set(expenseAccounts.map((a) => a.id)),
     [expenseAccounts]
   )
+
+  const prevDayIso = parsed ? shiftYmd(parsed.iso, -1) : null
+
+  /** Per-account spend on the previous calendar day (for % vs yesterday). */
+  const prevDayTotalsByAccount = useMemo(() => {
+    const byAccount = new Map<string, number>()
+    if (!prevDayIso) return byAccount
+    for (const tx of transactions) {
+      if (!expenseAccountIds.has(tx.accountId)) continue
+      if (tx.transactionDate.slice(0, 10) !== prevDayIso) continue
+      byAccount.set(
+        tx.accountId,
+        (byAccount.get(tx.accountId) ?? 0) + expenseSpendAmount(tx)
+      )
+    }
+    return byAccount
+  }, [transactions, expenseAccountIds, prevDayIso])
 
   const dayAccountRows = useMemo((): DayAccountRow[] => {
     if (!parsed) return []
@@ -294,25 +313,36 @@ export default function DailyExpenseDayPage() {
           </div>
         ) : (
           <>
-            {dayAccountRows.map((row, index) => (
-              <AccountMobileCard
-                key={row.id}
-                row={{
-                  id: row.id,
-                  serialNumber: index + 1,
-                  name: row.name,
-                  phone: row.phone,
-                  accountTypeName: row.accountTypeName,
-                  cashTypeName: row.cashTypeName,
-                  balance: row.total,
-                  dayDelta: 0,
-                  dayDeltaPct: 0,
-                }}
-                formatBalance={formatBalance}
-                currency={currency}
-                onOpen={() => openAccountDay(row.id)}
-              />
-            ))}
+            {dayAccountRows.map((row, index) => {
+              const prevTotal = prevDayTotalsByAccount.get(row.id) ?? 0
+              const { delta, deltaPct } = periodChange(row.total, prevTotal)
+              const prevLabel = prevDayIso
+                ? `${pad2(Number(prevDayIso.slice(8, 10)))} ${
+                    MONTH_NAMES[Number(prevDayIso.slice(5, 7)) - 1]
+                  }`
+                : 'yesterday'
+              return (
+                <AccountMobileCard
+                  key={row.id}
+                  row={{
+                    id: row.id,
+                    serialNumber: index + 1,
+                    name: row.name,
+                    phone: row.phone,
+                    accountTypeName: row.accountTypeName,
+                    cashTypeName: row.cashTypeName,
+                    balance: row.total,
+                    monthDelta: delta,
+                    monthDeltaPct: deltaPct,
+                  }}
+                  formatBalance={formatBalance}
+                  currency={currency}
+                  deltaVersusLabel={prevLabel}
+                  trendMode="expense"
+                  onOpen={() => openAccountDay(row.id)}
+                />
+              )
+            })}
             <div className="flex items-center justify-between gap-3 rounded-[1.65rem] border border-gray-200 bg-white px-4 py-3 shadow-md dark:border-gray-700 dark:bg-gray-800">
               <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
                 Total

@@ -503,14 +503,14 @@ export default function DashboardHome() {
               Transactions
             </Link>
             <Link
-              href="/newentry"
+              href={`/newentry?from=${encodeURIComponent('/')}`}
               className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 lg:hidden"
               aria-label="Add Transaction"
             >
               <Plus className="h-4 w-4" aria-hidden />
             </Link>
             <Link
-              href="/newentry"
+              href={`/newentry?from=${encodeURIComponent('/')}`}
               className="hidden h-10 items-center rounded-md bg-primary-600 px-4 text-sm font-medium leading-none text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 lg:inline-flex"
             >
               Add
