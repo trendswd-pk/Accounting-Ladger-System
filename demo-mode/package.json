@@ -21,7 +21,7 @@
     "recharts": "^2.15.0"
   },
   "engines": {
-    "node": ">=18.18.0"
+    "node": "24.x"
   },
   "devDependencies": {
     "@types/node": "^20.10.6",

@@ -258,6 +258,7 @@ export function buildNorthlineSeed(): {
     ledgerShareRequirePin: true,
     ledgerShareTtlHours: 24,
     dashboardExpensePeriod: 'all',
+    floatingActionsShowLabels: false,
     cashSavingsCashTypeIds: ['ct-cash', 'ct-savings'],
     cashSavingsAccountTypeIds: ['at-cash', 'at-savings'],
     payableReceivableCashTypeIds: ['ct-owned'],
