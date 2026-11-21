@@ -1,7 +1,10 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
+import PdfBlobPreview, {
+  type PdfBlobPreviewHandle,
+} from '@/components/PdfBlobPreview'
 import { fetchAccounts, getCachedAccounts } from '@/lib/accounts'
 import {
   DEFAULT_APP_SETTINGS,
@@ -54,12 +57,12 @@ function downloadBlob(filename: string, blob: Blob): void {
 export default function TransactionPrintPage() {
   const params = useParams()
   const id = String(params?.id ?? '').trim()
+  const previewRef = useRef<PdfBlobPreviewHandle>(null)
 
   const [status, setStatus] = useState<Status>('loading')
   const [error, setError] = useState<string | null>(null)
   const [entryLabel, setEntryLabel] = useState('')
   const [filename, setFilename] = useState('voucher.pdf')
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [blob, setBlob] = useState<Blob | null>(null)
 
   const [currency, setCurrency] = useState(
@@ -89,11 +92,11 @@ export default function TransactionPrintPage() {
     }
 
     let cancelled = false
-    let objectUrl: string | null = null
 
     void (async () => {
       setStatus('loading')
       setError(null)
+      setBlob(null)
       try {
         const [txns, accounts] = await Promise.all([
           getCachedTransactions()
@@ -134,10 +137,8 @@ export default function TransactionPrintPage() {
         })
         if (cancelled) return
 
-        objectUrl = URL.createObjectURL(built.blob)
         setBlob(built.blob)
         setFilename(built.filename)
-        setPdfUrl(objectUrl)
         setStatus('ready')
       } catch (err) {
         if (cancelled) return
@@ -150,7 +151,6 @@ export default function TransactionPrintPage() {
 
     return () => {
       cancelled = true
-      if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
   }, [id, currency, businessName, logoUrl])
 
@@ -167,19 +167,7 @@ export default function TransactionPrintPage() {
   }, [title])
 
   const handlePrint = () => {
-    const frame = document.getElementById(
-      'txn-print-frame'
-    ) as HTMLIFrameElement | null
-    try {
-      if (frame?.contentWindow) {
-        frame.contentWindow.focus()
-        frame.contentWindow.print()
-        return
-      }
-    } catch {
-      /* fall through */
-    }
-    window.print()
+    previewRef.current?.print()
   }
 
   const handleDownload = () => {
@@ -240,12 +228,12 @@ export default function TransactionPrintPage() {
           </div>
         ) : null}
 
-        {status === 'ready' && pdfUrl ? (
-          <iframe
-            id="txn-print-frame"
+        {status === 'ready' && blob ? (
+          <PdfBlobPreview
+            ref={previewRef}
+            blob={blob}
             title={title}
-            src={pdfUrl}
-            className="h-full w-full border-0 bg-[#525659]"
+            iframeId="txn-print-frame"
           />
         ) : null}
       </main>
