@@ -103,7 +103,7 @@ export default function BiometricUnlockGate({
     }
   }, [runUnlockFlow])
 
-  const usePasswordInstead = async () => {
+  const fallBackToPasswordLogin = async () => {
     setPrompting(false)
     setError(null)
     try {
@@ -157,7 +157,7 @@ export default function BiometricUnlockGate({
         <button
           type="button"
           disabled={prompting}
-          onClick={() => void usePasswordInstead()}
+          onClick={() => void fallBackToPasswordLogin()}
           className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-md border border-gray-300 bg-white px-4 text-sm font-medium text-gray-800 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600"
         >
           Use password instead
