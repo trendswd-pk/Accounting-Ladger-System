@@ -2,6 +2,19 @@
 
 All notable changes to Accounting Ledger are documented here.
 
+## [1.4.0] — 2026-11-23
+
+### Added
+- **Android biometric unlock:** after a successful sign-in in the Capacitor app, later launches can unlock with fingerprint / device credential while the Supabase session remains. Explicit logout clears biometric unlock. Fallback: “Use password instead” signs out and returns to `/login`.
+
+### Fixed
+- Android Capacitor: force WebView **top padding** equal to the system status-bar height so “Trends WD” / menu sit below the clock and signal (previous edge-to-edge attempt pushed content up on some OEMs).
+
+## [1.3.3] — 2026-11-23
+
+### Fixed
+- Android Capacitor: force WebView top padding for status-bar clearance on OEM devices.
+
 ## [1.3.2] — 2026-11-23
 
 ### Fixed

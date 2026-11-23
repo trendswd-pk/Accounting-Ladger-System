@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Manrope } from 'next/font/google'
 import './globals.css'
+import BiometricUnlockGate from '@/components/BiometricUnlockGate'
 import LayoutContent from '@/components/LayoutContent'
 import PwaRegister from '@/components/PwaRegister'
 import ThemeInit from '@/components/ThemeInit'
@@ -68,7 +69,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={manrope.className} suppressHydrationWarning>
         <ThemeInit />
         <PwaRegister />
-        <LayoutContent>{children}</LayoutContent>
+        <BiometricUnlockGate>
+          <LayoutContent>{children}</LayoutContent>
+        </BiometricUnlockGate>
       </body>
     </html>
   )

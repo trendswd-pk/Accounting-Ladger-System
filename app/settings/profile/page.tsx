@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Info, LogOut } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
+import { clearBiometricUnlock } from '@/lib/biometricUnlock'
 
 const inputClass =
   'w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500'
@@ -122,6 +123,7 @@ export default function ProfilePage() {
     setMessage(null)
     try {
       const supabase = createClient()
+      await clearBiometricUnlock().catch(() => undefined)
       await supabase.auth.signOut()
       router.replace('/login')
       router.refresh()

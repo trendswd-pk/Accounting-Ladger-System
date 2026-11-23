@@ -4,6 +4,7 @@ import { FormEvent, Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { BookOpen } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { enableBiometricUnlockAfterLogin } from '@/lib/biometricUnlock'
 
 function safeNextPath(raw: string | null): string {
   if (!raw) return '/'
@@ -41,6 +42,8 @@ function LoginForm() {
         setError(signError.message || 'Sign in failed.')
         return
       }
+      // Capacitor Android: enable fingerprint unlock for later launches (no-op on web).
+      await enableBiometricUnlockAfterLogin().catch(() => false)
       router.replace(nextPath)
       router.refresh()
     } catch (err) {

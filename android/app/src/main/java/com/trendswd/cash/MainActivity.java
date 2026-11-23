@@ -2,24 +2,19 @@ package com.trendswd.cash;
 
 import android.graphics.Color;
 import android.os.Bundle;
-import android.view.View;
+import android.util.DisplayMetrics;
 import android.view.Window;
 import android.webkit.WebView;
 import androidx.activity.OnBackPressedCallback;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
-import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.Bridge;
 import com.getcapacitor.BridgeActivity;
 
 /**
- * Native WebView host for https://cash.trendswd.com/
- *
- * OEM WebViews often report env(safe-area-inset-top)=0, so we pad the WebView
- * with real status-bar / cutout insets. That pushes "Trends WD" / menu header
- * below the clock and signal icons.
+ * Forces the WebView content below the status bar.
+ * Does not rely on CSS env(safe-area-inset-top) (often 0 in Android WebView)
+ * or WindowInsets listeners (unreliable on some OEMs with Capacitor).
  */
 public class MainActivity extends BridgeActivity {
     private static final int STATUS_BAR_COLOR = Color.parseColor("#03624C");
@@ -28,23 +23,11 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        Window window = getWindow();
-        // Draw edge-to-edge; we consume insets ourselves on the WebView.
-        WindowCompat.setDecorFitsSystemWindows(window, false);
-        window.setStatusBarColor(Color.TRANSPARENT);
-        window.setNavigationBarColor(NAV_BAR_COLOR);
-
-        WindowInsetsControllerCompat controller =
-            WindowCompat.getInsetsController(window, window.getDecorView());
-        if (controller != null) {
-            controller.setAppearanceLightStatusBars(false);
-            controller.setAppearanceLightNavigationBars(false);
-        }
-
-        // Bridge WebView is ready after super.onCreate — apply on next frame.
-        final View decor = window.getDecorView();
-        decor.post(this::applyWebViewSystemInsets);
+        applyTopInset();
+        getWindow().getDecorView().post(this::applyTopInset);
+        getWindow().getDecorView().postDelayed(this::applyTopInset, 250);
+        getWindow().getDecorView().postDelayed(this::applyTopInset, 800);
+        getWindow().getDecorView().postDelayed(this::applyTopInset, 2000);
 
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
@@ -63,12 +46,33 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
-    public void onStart() {
-        super.onStart();
-        applyWebViewSystemInsets();
+    public void onResume() {
+        super.onResume();
+        applyTopInset();
     }
 
-    private void applyWebViewSystemInsets() {
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            applyTopInset();
+        }
+    }
+
+    private void applyTopInset() {
+        Window window = getWindow();
+        // Full-bleed window; we reserve top space ourselves with WebView padding.
+        WindowCompat.setDecorFitsSystemWindows(window, false);
+        window.setStatusBarColor(Color.TRANSPARENT);
+        window.setNavigationBarColor(NAV_BAR_COLOR);
+
+        WindowInsetsControllerCompat controller =
+            WindowCompat.getInsetsController(window, window.getDecorView());
+        if (controller != null) {
+            controller.setAppearanceLightStatusBars(false);
+            controller.setAppearanceLightNavigationBars(false);
+        }
+
         Bridge bridge = getBridge();
         if (bridge == null) {
             return;
@@ -78,17 +82,31 @@ public class MainActivity extends BridgeActivity {
             return;
         }
 
-        // Padding strip behind the status bar uses brand green.
-        webView.setBackgroundColor(STATUS_BAR_COLOR);
+        int top = resolveStatusBarHeightPx();
 
-        ViewCompat.setOnApplyWindowInsetsListener(webView, (v, windowInsets) -> {
-            Insets bars = windowInsets.getInsets(
-                WindowInsetsCompat.Type.statusBars() | WindowInsetsCompat.Type.displayCutout()
-            );
-            Insets nav = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars());
-            v.setPadding(bars.left, bars.top, bars.right, nav.bottom);
-            return WindowInsetsCompat.CONSUMED;
-        });
-        ViewCompat.requestApplyInsets(webView);
+        // Green strip under the clock / signal icons; page content starts below.
+        // Do not pad bottom — mobile tab bar already uses safe-area-inset-bottom.
+        webView.setBackgroundColor(STATUS_BAR_COLOR);
+        webView.setPadding(0, top, 0, 0);
+
+        // Help fixed CSS chrome (sidebar) after the live site picks up safe-area classes.
+        float density = getResources().getDisplayMetrics().density;
+        int cssTop = Math.max(0, Math.round(top / density));
+        String js =
+            "(function(){var r=document.documentElement;if(!r)return;"
+                + "r.style.setProperty('--safe-area-top','"
+                + cssTop
+                + "px');})();";
+        webView.evaluateJavascript(js, null);
     }
+
+    private int resolveStatusBarHeightPx() {
+        int resId = getResources().getIdentifier("status_bar_height", "dimen", "android");
+        if (resId > 0) {
+            return getResources().getDimensionPixelSize(resId);
+        }
+        DisplayMetrics metrics = getResources().getDisplayMetrics();
+        return Math.round(28 * metrics.density);
+    }
+
 }

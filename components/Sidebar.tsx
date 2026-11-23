@@ -22,6 +22,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { clearBiometricUnlock } from '@/lib/biometricUnlock'
 import {
   DEFAULT_APP_SETTINGS,
   getCachedAppSettings,
@@ -196,6 +197,7 @@ export default function Sidebar({
     setSigningOut(true)
     try {
       const supabase = createClient()
+      await clearBiometricUnlock().catch(() => undefined)
       await supabase.auth.signOut()
       onClose?.()
       router.replace('/login')
@@ -239,7 +241,7 @@ export default function Sidebar({
         ref={asideRef}
         onMouseEnter={onPanelMouseEnter}
         onMouseLeave={onPanelMouseLeave}
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] transform flex-col border-r border-gray-200 bg-white shadow-xl transition-transform duration-200 ease-out dark:border-gray-700 dark:bg-gray-800 ${
+        className={`fixed bottom-0 left-0 top-[var(--safe-area-top,0px)] z-50 flex w-72 max-w-[85vw] transform flex-col border-r border-gray-200 bg-white shadow-xl transition-transform duration-200 ease-out dark:border-gray-700 dark:bg-gray-800 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
         aria-label="Main navigation"

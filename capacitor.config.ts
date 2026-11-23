@@ -29,8 +29,7 @@ const config: CapacitorConfig = {
       showSpinner: false,
     },
     StatusBar: {
-      // Overlay; MainActivity pads the WebView with real status-bar/cutout insets
-      // (Android WebView often reports CSS safe-area as 0).
+      // MainActivity applies WebView top padding for the status bar.
       overlaysWebView: true,
       style: 'LIGHT',
       backgroundColor: '#03624C',

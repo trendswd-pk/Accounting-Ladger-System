@@ -7,15 +7,22 @@ The production site [https://cash.trendswd.com/](https://cash.trendswd.com/) run
 | Package ID | `com.trendswd.cash` |
 | Loads | `https://cash.trendswd.com/` (live site; UI stays the Next.js app) |
 | Min SDK | 24 |
-| App version | `1.3.2` (versionCode 5) |
+| App version | `1.4.0` (versionCode 7) |
 | Signing key | repo-root `android.keystore` (alias `android`) |
 | Native project | `android/` (does **not** replace Next.js `app/`) |
 
 ### Status bar / notch
 
-- Native: status bar does **not** overlay the WebView (`overlaysWebView: false` + `WindowCompat.setDecorFitsSystemWindows`).
-- Web: top header uses `env(safe-area-inset-top)` so PWA / notched devices stay clear of the clock icons.
-- After a web-only CSS change, redeploy `cash.trendswd.com` — no APK rebuild required for that part. Native overlay changes need a new APK.
+- Native WebView top padding matches the system status-bar height so “Trends WD” sits below clock / signal icons.
+- After a web-only CSS change, redeploy `cash.trendswd.com`. Native shell changes need a new APK.
+
+### Biometric / fingerprint unlock
+
+1. Sign in once with email/password in the Capacitor app (device must have fingerprint / screen lock enrolled).
+2. Close the app fully, reopen → **Unlock Ledger** prompt (fingerprint or device PIN).
+3. **Use password instead** signs out and opens `/login`.
+4. **Log out** in the app clears biometric unlock for that device.
+5. Requires the web build on `cash.trendswd.com` to include the biometric gate (deploy after merging), plus a synced APK (`npx cap sync android`).
 
 ## Prerequisites
 
