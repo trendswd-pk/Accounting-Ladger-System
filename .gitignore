@@ -41,22 +41,3 @@ Courier-Dashboard/
 demo-mode/node_modules/
 demo-mode/.next/
 demo-mode/.env*
-
-# Bubblewrap / Android TWA
-.gradle/
-app/
-build/
-gradle/
-android.keystore
-app-release-bundle.aab
-app-release-signed.apk
-app-release-signed.apk.idsig
-app-release-unsigned.apk
-build.gradle
-gradle.properties
-gradlew
-gradlew.bat
-manifest-checksum.json
-settings.gradle
-store_icon.png
-twa-manifest.json
