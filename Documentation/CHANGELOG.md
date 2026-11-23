@@ -2,6 +2,13 @@
 
 All notable changes to Accounting Ledger are documented here.
 
+## [1.2.7] — 2026-11-23
+
+### Changed
+- Trusted Web Activity / Digital Asset Links: confirmed signing SHA-256 fingerprint for `com.trendswd.cash.twa`, kept `/.well-known/assetlinks.json` in sync, and set Android `minSdkVersion` to **24** (required by Android Browser Helper 2.7+).
+- Service worker no longer intercepts `/.well-known/*` requests; `assetlinks.json` responses get explicit JSON content-type headers.
+- TWA / PWA theme colors aligned to brand green (`#03624C`).
+
 ## [1.2.6] — 2026-11-14
 
 ### Added

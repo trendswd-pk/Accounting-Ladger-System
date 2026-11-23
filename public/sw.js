@@ -9,6 +9,14 @@ self.addEventListener('activate', (event) => {
 })
 
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url)
+  // Never intercept Digital Asset Links / well-known — Chrome and Android
+  // verify TWA / App Links against these URLs outside the page SW path, but
+  // a failed catch-all fetch would still risk odd offline/503 behavior.
+  if (url.pathname.startsWith('/.well-known/')) {
+    return
+  }
+
   // Pass through; swallow network/abort errors so the page isn't broken.
   event.respondWith(
     fetch(event.request).catch(() =>

@@ -9,6 +9,11 @@ self.addEventListener('activate', (event) => {
 })
 
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url)
+  if (url.pathname.startsWith('/.well-known/')) {
+    return
+  }
+
   // Pass through; swallow network/abort errors so the page isn't broken.
   event.respondWith(
     fetch(event.request).catch(() =>

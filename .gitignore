@@ -59,3 +59,6 @@ gradlew
 gradlew.bat
 settings.gradle
 twa-manifest.json
+manifest-checksum.txt
+app-release-unsigned*.apk
+app-release-bundle-unsigned.aab
