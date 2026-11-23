@@ -41,3 +41,21 @@ Courier-Dashboard/
 demo-mode/node_modules/
 demo-mode/.next/
 demo-mode/.env*
+
+# Bubblewrap / Android TWA artifacts & signing key (keep keystore backed up safely!)
+.gradle/
+android.keystore
+*.keystore
+*.jks
+*.apk
+*.aab
+*.idsig
+app/build.gradle
+app/src/
+build.gradle
+gradle.properties
+gradle/
+gradlew
+gradlew.bat
+settings.gradle
+twa-manifest.json
