@@ -49,6 +49,7 @@ export async function middleware(request: NextRequest) {
     pathname === '/sw.js' ||
     pathname === '/manifest.webmanifest' ||
     pathname === '/manifest.json' ||
+    pathname.startsWith('/.well-known/') ||
     isLinkPreviewImage ||
     /\.(?:ico|png|jpg|jpeg|gif|webp|svg|webmanifest)$/i.test(pathname)
 
