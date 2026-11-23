@@ -88,7 +88,7 @@ For the fastest file uploads, allow your app origin in the R2 bucket CORS (PUT +
 
 ## Version
 
-**1.3.1** (2026-11-23) — see [`Documentation/APP-VERSION.md`](Documentation/APP-VERSION.md) and [`Documentation/CHANGELOG.md`](Documentation/CHANGELOG.md).
+**1.3.2** (2026-11-23) — see [`Documentation/APP-VERSION.md`](Documentation/APP-VERSION.md) and [`Documentation/CHANGELOG.md`](Documentation/CHANGELOG.md).
 
 ## License / contact
 

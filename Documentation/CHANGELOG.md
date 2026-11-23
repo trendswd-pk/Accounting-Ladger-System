@@ -2,6 +2,11 @@
 
 All notable changes to Accounting Ledger are documented here.
 
+## [1.3.2] — 2026-11-23
+
+### Fixed
+- Android Capacitor: WebView is padded with real status-bar / cutout insets so the top header (“Trends WD”) sits fully below the clock and signal icons (OEM WebViews often ignore CSS `safe-area`).
+
 ## [1.3.1] — 2026-11-23
 
 ### Fixed

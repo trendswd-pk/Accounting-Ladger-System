@@ -29,9 +29,9 @@ const config: CapacitorConfig = {
       showSpinner: false,
     },
     StatusBar: {
-      // Keep web content below the status bar (no overlap with clock / icons).
-      overlaysWebView: false,
-      // Light icons on brand-green (#03624C) bar.
+      // Overlay; MainActivity pads the WebView with real status-bar/cutout insets
+      // (Android WebView often reports CSS safe-area as 0).
+      overlaysWebView: true,
       style: 'LIGHT',
       backgroundColor: '#03624C',
     },
