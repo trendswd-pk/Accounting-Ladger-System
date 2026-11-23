@@ -13,7 +13,7 @@ The production site [https://cash.trendswd.com/](https://cash.trendswd.com/) run
 
 ### Status bar / notch
 
-- Native WebView top padding matches the system status-bar height so “Trends WD” sits below clock / signal icons.
+- System status bar stays above the WebView (native `topMargin` from status-bar insets) so “Trends WD” sits below clock / signal icons.
 - After a web-only CSS change, redeploy `cash.trendswd.com`. Native shell changes need a new APK.
 
 ### Biometric / fingerprint unlock

@@ -8,7 +8,9 @@ All notable changes to Accounting Ledger are documented here.
 - **Android biometric unlock:** after a successful sign-in in the Capacitor app, later launches can unlock with fingerprint / device credential while the Supabase session remains. Explicit logout clears biometric unlock. Fallback: “Use password instead” signs out and returns to `/login`.
 
 ### Fixed
-- Android Capacitor: force WebView **top padding** equal to the system status-bar height so “Trends WD” / menu sit below the clock and signal (previous edge-to-edge attempt pushed content up on some OEMs).
+- Android Capacitor: status bar no longer overlaps “Trends WD” — WebView is offset with **topMargin** from real status-bar / cutout insets (padding cannot inset Chromium HTML; targetSdk 36 edge-to-edge).
+- Biometric unlock password fallback renamed so production ESLint `rules-of-hooks` no longer fails the Vercel build.
+- Biometric unlock no longer re-opens in a loop after success or cancel: the system fingerprint sheet pauses the Activity, which was incorrectly treated as “app backgrounded → lock again”. Cancel now stays on the unlock screen until the user taps Unlock (or uses password).
 
 ## [1.3.3] — 2026-11-23
 

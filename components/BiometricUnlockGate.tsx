@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { App as CapApp } from '@capacitor/app'
 import { Fingerprint } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -18,6 +18,9 @@ import {
  * Capacitor-only gate: when a Supabase session exists and biometric unlock is
  * enabled, require fingerprint / device credential before showing the app.
  * No-ops in the browser / PWA.
+ *
+ * Important: the system biometric sheet pauses the Activity (`appStateChange`
+ * inactive). We must not treat that as a real background → lock → re-prompt loop.
  */
 export default function BiometricUnlockGate({
   children,
@@ -25,31 +28,42 @@ export default function BiometricUnlockGate({
   children: React.ReactNode
 }) {
   const router = useRouter()
-  const pathname = usePathname()
   const [locked, setLocked] = useState(false)
   const [checking, setChecking] = useState(isCapacitorNative())
   const [prompting, setPrompting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const busyRef = useRef(false)
+  /** True while the native biometric UI is up (Activity often goes inactive). */
+  const biometricUiOpenRef = useRef(false)
+  /** After cancel / dismiss: show gate UI but do not auto-open the sheet again. */
+  const awaitManualUnlockRef = useRef(false)
 
-  const runUnlockFlow = useCallback(async (force = false) => {
+  const runUnlockFlow = useCallback(async (opts?: { manual?: boolean }) => {
+    const manual = opts?.manual === true
+
     if (!isCapacitorNative()) {
       setChecking(false)
       setLocked(false)
       return
     }
     if (busyRef.current) return
+    if (biometricUiOpenRef.current) return
+
     busyRef.current = true
     setChecking(true)
     setError(null)
+
     try {
       const enabled = await isBiometricUnlockEnabled()
       if (!enabled) {
         setLocked(false)
+        awaitManualUnlockRef.current = false
         return
       }
-      if (!force && isBiometricUnlocked()) {
+
+      if (isBiometricUnlocked()) {
         setLocked(false)
+        awaitManualUnlockRef.current = false
         return
       }
 
@@ -59,22 +73,41 @@ export default function BiometricUnlockGate({
       } = await supabase.auth.getSession()
       if (!session) {
         setLocked(false)
+        awaitManualUnlockRef.current = false
         return
       }
 
       setLocked(true)
+
+      // User cancelled earlier — keep the unlock screen until they tap the button.
+      if (awaitManualUnlockRef.current && !manual) {
+        return
+      }
+
+      awaitManualUnlockRef.current = false
+      biometricUiOpenRef.current = true
       setPrompting(true)
       const result = await promptBiometricUnlock()
+      biometricUiOpenRef.current = false
       setPrompting(false)
+
       if (result.ok) {
         setLocked(false)
         setError(null)
-      } else if (!result.cancelled) {
+        awaitManualUnlockRef.current = false
+      } else if (result.cancelled) {
+        // Stay on gate; wait for an explicit tap (do not re-open the sheet).
+        awaitManualUnlockRef.current = true
+        setError(null)
+      } else {
+        awaitManualUnlockRef.current = true
         setError(result.message || 'Unlock failed. Try again or use your password.')
       }
     } catch (err) {
+      biometricUiOpenRef.current = false
       setPrompting(false)
       setLocked(true)
+      awaitManualUnlockRef.current = true
       setError(err instanceof Error ? err.message : 'Unlock failed.')
     } finally {
       setChecking(false)
@@ -82,19 +115,24 @@ export default function BiometricUnlockGate({
     }
   }, [])
 
+  // Cold start / first paint only — not on every route change.
   useEffect(() => {
-    void runUnlockFlow(false)
-  }, [runUnlockFlow, pathname])
+    void runUnlockFlow()
+  }, [runUnlockFlow])
 
   useEffect(() => {
     if (!isCapacitorNative()) return
     let handle: { remove: () => Promise<void> } | undefined
     void CapApp.addListener('appStateChange', ({ isActive }) => {
       if (!isActive) {
+        // Biometric / credential UI pauses the app — do not clear unlock for that.
+        if (biometricUiOpenRef.current) return
         markBiometricLocked()
         return
       }
-      void runUnlockFlow(true)
+      // Returning from biometric sheet or after cancel: do not force another prompt.
+      if (biometricUiOpenRef.current || awaitManualUnlockRef.current) return
+      void runUnlockFlow()
     }).then((h) => {
       handle = h
     })
@@ -104,6 +142,8 @@ export default function BiometricUnlockGate({
   }, [runUnlockFlow])
 
   const fallBackToPasswordLogin = async () => {
+    biometricUiOpenRef.current = false
+    awaitManualUnlockRef.current = false
     setPrompting(false)
     setError(null)
     try {
@@ -149,7 +189,7 @@ export default function BiometricUnlockGate({
         <button
           type="button"
           disabled={prompting}
-          onClick={() => void runUnlockFlow(true)}
+          onClick={() => void runUnlockFlow({ manual: true })}
           className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-md bg-primary-600 px-4 text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50"
         >
           {prompting ? 'Waiting for fingerprint…' : 'Unlock with fingerprint'}

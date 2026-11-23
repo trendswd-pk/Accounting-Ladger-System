@@ -29,9 +29,9 @@ const config: CapacitorConfig = {
       showSpinner: false,
     },
     StatusBar: {
-      // MainActivity applies WebView top padding for the status bar.
+      // Edge-to-edge window; MainActivity offsets the WebView with topMargin.
       overlaysWebView: true,
-      style: 'LIGHT',
+      style: 'DARK',
       backgroundColor: '#03624C',
     },
   },
