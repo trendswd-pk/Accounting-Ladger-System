@@ -7,8 +7,15 @@ The production site [https://cash.trendswd.com/](https://cash.trendswd.com/) run
 | Package ID | `com.trendswd.cash` |
 | Loads | `https://cash.trendswd.com/` (live site; UI stays the Next.js app) |
 | Min SDK | 24 |
+| App version | `1.3.1` (versionCode 4) |
 | Signing key | repo-root `android.keystore` (alias `android`) |
 | Native project | `android/` (does **not** replace Next.js `app/`) |
+
+### Status bar / notch
+
+- Native: status bar does **not** overlay the WebView (`overlaysWebView: false` + `WindowCompat.setDecorFitsSystemWindows`).
+- Web: top header uses `env(safe-area-inset-top)` so PWA / notched devices stay clear of the clock icons.
+- After a web-only CSS change, redeploy `cash.trendswd.com` — no APK rebuild required for that part. Native overlay changes need a new APK.
 
 ## Prerequisites
 

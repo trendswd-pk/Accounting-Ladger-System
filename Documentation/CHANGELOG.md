@@ -2,6 +2,11 @@
 
 All notable changes to Accounting Ledger are documented here.
 
+## [1.3.1] — 2026-11-23
+
+### Fixed
+- Android / Capacitor WebView: top app header no longer overlaps the system status bar (clock, signal, battery). Native status bar sits above the WebView; web header also uses `safe-area-inset-top` for PWA / notched devices.
+
 ## [1.3.0] — 2026-11-23
 
 ### Added

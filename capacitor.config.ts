@@ -29,7 +29,10 @@ const config: CapacitorConfig = {
       showSpinner: false,
     },
     StatusBar: {
-      style: 'DARK',
+      // Keep web content below the status bar (no overlap with clock / icons).
+      overlaysWebView: false,
+      // Light icons on brand-green (#03624C) bar.
+      style: 'LIGHT',
       backgroundColor: '#03624C',
     },
   },

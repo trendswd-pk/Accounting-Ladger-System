@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Notch / status-bar insets (0 on desktop). Used with viewport-fit=cover. */
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 body {
   @apply bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-50;
 }

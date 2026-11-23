@@ -144,7 +144,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
         onPanelMouseEnter={clearNavHoverClose}
         onPanelMouseLeave={scheduleNavHoverClose}
       />
-      <header className="flex shrink-0 items-center gap-3 border-b border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+      <header className="flex shrink-0 items-center gap-3 border-b border-gray-200 bg-white px-4 pb-3 pt-[calc(0.75rem+var(--safe-area-top,0px))] shadow-sm dark:border-gray-700 dark:bg-gray-800">
         <button
           type="button"
           onClick={() => {
