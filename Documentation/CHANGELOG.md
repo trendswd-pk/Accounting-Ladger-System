@@ -2,6 +2,16 @@
 
 All notable changes to Accounting Ledger are documented here.
 
+## [1.3.0] — 2026-11-23
+
+### Added
+- **Android Capacitor app** (`com.trendswd.cash`): native WebView shell that loads `https://cash.trendswd.com/` with the same responsive UI — no Chrome Custom Tab / TWA wrapper or Chrome first-run strip.
+- Hardware back button walks in-app WebView history; brand splash / status bar colors; network + media/file permissions for imports and attachments.
+- Guide: [`Documentation/17-android-capacitor.md`](./17-android-capacitor.md).
+
+### Changed
+- `.gitignore` scopes Bubblewrap root ignores with leading `/` so the Capacitor `android/` project stays trackable; Capacitor build outputs and keystores remain ignored.
+
 ## [1.2.7] — 2026-11-23
 
 ### Changed

@@ -6,6 +6,9 @@
 Documentation
 Personal Notedbook
 Courier-Dashboard
+android
+www
+capacitor.config.ts
 
 # Demo Mode build junk (if present in repo)
 demo-mode/node_modules

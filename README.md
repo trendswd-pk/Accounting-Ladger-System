@@ -18,6 +18,7 @@ Accounting Ledger is a web app for keeping professional ledgers without spreadsh
 - **Settings** — branding, currency, theme, message templates, account types, and cash types
 - **Exports** — ledger and transaction PDF / CSV
 - **PWA** — installable on phone home screens
+- **Android (Capacitor)** — native WebView app (`com.trendswd.cash`) loading the live site; see [`Documentation/17-android-capacitor.md`](Documentation/17-android-capacitor.md)
 
 ## Screenshots
 
@@ -61,6 +62,7 @@ Canonical images: `Documentation/images/` (see `SCREENSHOT-INDEX.md`).
 | Layer | Stack |
 |--------|--------|
 | App | Next.js 14 · React 18 · TypeScript · Tailwind CSS |
+| Android | Capacitor 8 (WebView → `https://cash.trendswd.com/`) |
 | Auth & data (production) | Supabase |
 | Files (production) | Cloudflare R2 (browser PUT via presign when CORS allows; `/api/uploads` fallback) |
 | Charts / PDF | Recharts · jsPDF / pdf-lib |
@@ -86,7 +88,7 @@ For the fastest file uploads, allow your app origin in the R2 bucket CORS (PUT +
 
 ## Version
 
-**1.0.1** (2026-10-30) — see [`Documentation/APP-VERSION.md`](Documentation/APP-VERSION.md) and [`Documentation/CHANGELOG.md`](Documentation/CHANGELOG.md).
+**1.3.0** (2026-11-23) — see [`Documentation/APP-VERSION.md`](Documentation/APP-VERSION.md) and [`Documentation/CHANGELOG.md`](Documentation/CHANGELOG.md).
 
 ## License / contact
 

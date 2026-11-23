@@ -6,7 +6,6 @@ node_modules/
 # Next.js
 .next/
 out/
-build/
 dist/
 
 # Env / secrets
@@ -42,23 +41,45 @@ demo-mode/node_modules/
 demo-mode/.next/
 demo-mode/.env*
 
-# Bubblewrap / Android TWA artifacts & signing key (keep keystore backed up safely!)
-.gradle/
+# Signing keys & packaged binaries (never commit)
 android.keystore
 *.keystore
 *.jks
 *.apk
 *.aab
 *.idsig
-app/build.gradle
-app/src/
-build.gradle
-gradle.properties
-gradle/
-gradlew
-gradlew.bat
-settings.gradle
-twa-manifest.json
-manifest-checksum.txt
-app-release-unsigned*.apk
-app-release-bundle-unsigned.aab
+
+# --- Bubblewrap TWA (legacy, lives mixed at repo root / under Next.js app/) ---
+# Scope with leading / so Capacitor's android/ project is NOT ignored.
+/.gradle/
+/build/
+/build.gradle
+/gradle.properties
+/gradle/
+/gradlew
+/gradlew.bat
+/settings.gradle
+/twa-manifest.json
+/manifest-checksum.txt
+/app-release-unsigned*.apk
+/app-release-bundle-unsigned.aab
+# Bubblewrap Android sources under Next.js app/ (keep Next.js routes tracked)
+/app/build.gradle
+/app/src/
+/app/build/
+
+# --- Capacitor Android native project ---
+# Track android/ source; ignore local SDK paths + build outputs.
+android/local.properties
+android/.gradle/
+android/build/
+android/app/build/
+android/capacitor-cordova-android-plugins/build/
+android/app/release/
+android/captures/
+android/.idea/
+android/*.iml
+android/.cxx/
+android/**/proguard/
+capacitor.config.json.local
+capacitor-app-release-unsigned.*

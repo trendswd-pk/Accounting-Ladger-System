@@ -1,7 +1,7 @@
 {
   "site": "Accounting Ledger Documentation",
   "base_url": "https://trendswd.com/projects/Accounting-Ladger-System/doc",
-  "version": "1.2.7",
+  "version": "1.3.0",
   "version_date": "2026-11-23",
   "navigation": [
     { "title": "Home", "path": "/docs", "file": "index.md" },
@@ -31,7 +31,8 @@
         { "title": "Profile", "path": "/docs/13-settings-profile", "file": "13-settings-profile.md" },
         { "title": "Account Type", "path": "/docs/14-settings-account-type", "file": "14-settings-account-type.md" },
         { "title": "Cash Type", "path": "/docs/15-settings-cash-type", "file": "15-settings-cash-type.md" },
-        { "title": "Mobile", "path": "/docs/16-mobile", "file": "16-mobile.md" }
+        { "title": "Mobile", "path": "/docs/16-mobile", "file": "16-mobile.md" },
+        { "title": "Android (Capacitor)", "path": "/docs/17-android-capacitor", "file": "17-android-capacitor.md" }
       ]
     }
   ]
