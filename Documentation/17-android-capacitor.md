@@ -87,4 +87,4 @@ adb install -r capacitor-app-release-signed.apk
 
 - Next.js routes under `app/` are unchanged. Capacitor only adds `android/`, `www/`, and `capacitor.config.ts`.
 - Because `server.url` points at production, **deploy web changes to Vercel** to update what the APK shows — no need to rebuild the APK for most UI fixes.
-- Legacy Bubblewrap/TWA files at the repo root (`twa-manifest.json`, root `gradlew`, etc.) are unrelated to this Capacitor app.
+- Legacy Bubblewrap/TWA files at the repo root are gitignored and should not be reintroduced; the Capacitor project lives only under `android/`.
