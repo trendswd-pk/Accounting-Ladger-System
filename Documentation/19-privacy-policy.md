@@ -161,6 +161,8 @@ Accounting Ledger is intended for business and adult users. It is not directed a
 
 The Android app loads the live web product in a Capacitor WebView (`https://cash.trendswd.com/`). The same privacy practices apply. This Privacy Policy URL may be linked from Google Play Console for the listing `com.trendswd.cash`.
 
+**Account deletion (Play requirement):** step-by-step instructions for deleting an account and associated data are published at **[Data & Account Deletion](./21-data-account-deletion.md)** (developer: **Trends WD**). Use that page as the Google Play Console “Account deletion” web link.
+
 ## 14. Changes
 
 We may update this Privacy Policy when the product or legal requirements change. The **Effective date** at the top will be revised. Continued use after an update means you accept the revised policy where permitted by law.

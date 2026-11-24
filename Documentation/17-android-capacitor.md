@@ -7,7 +7,7 @@ The production site [https://cash.trendswd.com/](https://cash.trendswd.com/) run
 | Package ID | `com.trendswd.cash` |
 | Loads | `https://cash.trendswd.com/` (live site; UI stays the Next.js app) |
 | Min SDK | 24 |
-| App version | `1.4.0` (versionCode 7) |
+| App version | `1.6.1` (versionCode 1) |
 | Signing key | repo-root `android.keystore` (alias `android`) |
 | Native project | `android/` (does **not** replace Next.js `app/`) |
 

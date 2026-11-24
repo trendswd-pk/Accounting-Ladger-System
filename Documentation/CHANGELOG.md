@@ -7,6 +7,10 @@ All notable changes to Accounting Ledger are documented here.
 ### Added
 - Documentation: **Privacy Policy**, **Terms & Conditions**, **Data & Account Deletion**, and **Support & Contact** pages for store compliance and user help (`19`–`22`), with navigation under **Policy & support**.
 
+### Changed
+- Android Capacitor release rebuild: `versionName` **1.6.1**, `versionCode` **1** (first Play Store upload). Signed artifacts at repo root `capacitor-app-release-signed.aab` / `.apk`.
+- **Data & Account Deletion** doc expanded for Google Play account-deletion link requirements (app/developer names, steps, deleted vs retained data, 30-day timeline); Privacy Policy links to it explicitly.
+
 ## [1.6.0] — 2026-11-24
 
 ### Added

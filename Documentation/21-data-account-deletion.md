@@ -1,121 +1,156 @@
 # Data & Account Deletion
 
-**Product:** Accounting Ledger  
+**App name:** Accounting Ledger  
 **Developer / brand:** Trends WD  
+**Android package:** `com.trendswd.cash`  
+**Web app:** [https://cash.trendswd.com/](https://cash.trendswd.com/)  
 **Last updated:** 24 November 2026  
 
-This page explains how to remove ledger data you control in the app, and how to request **full account deletion** (including authentication identity) for Google Play and privacy compliance.
+This page is the official **account and data deletion** resource for Accounting Ledger (web and Android). It is intended to satisfy Google Play Console requirements for an account-deletion web link, and to help users remove local Demo Mode data.
 
-Production app: [https://cash.trendswd.com/](https://cash.trendswd.com/)  
-Package (Android): `com.trendswd.cash`
+**Developer contact for deletion requests:** [info@trendswd.com](mailto:info@trendswd.com)  
+**Developer website:** [https://www.trendswd.com/](https://www.trendswd.com/)  
+**Phone:** +92 305 9778976  
 
-## Quick summary
+Related: [Privacy Policy](./19-privacy-policy.md) · [Support & Contact](./22-support-and-contact.md)
 
-| Goal | How |
+---
+
+## 1. Overview
+
+Accounting Ledger stores:
+
+- **Cloud account data** (when you sign up / sign in) — authentication and private ledger records in **Supabase**, plus optional file bytes in **Cloudflare R2**
+- **Local Demo Mode data** — sample ledger only in the browser / Android WebView **`localStorage`** (not written to the production database for that guest session)
+
+| What you want | What to do |
 |---|---|
-| Delete selected ledger rows | Sign in → use in-app delete on Accounts, Transactions, Types, Banks, Uploads |
-| Clear Demo Mode sample data | Exit Demo Mode and/or clear site data for the app origin |
-| Delete entire account + cloud data | Email Trends WD (steps below) — there is no fully automated “delete my account” button yet |
+| Delete individual ledger rows | Use in-app delete while signed in (Section 2) |
+| Clear Demo Mode / local sample data | Exit Demo Mode and/or clear site or app storage (Section 3) |
+| Delete your **entire account** and associated cloud data | Email Trends WD with the steps in Section 4 |
+
+There is currently **no fully automated “Delete my account” button** inside the app. Full account deletion is completed by **Trends WD** after a verified email request.
 
 ---
 
-## A. Delete data yourself (while signed in)
+## 2. Delete ledger data yourself (signed-in users)
 
-These actions remove records from **your** private ledger in the production database (scoped to your user). They do **not** by themselves delete your Supabase Auth login.
+These steps remove selected records from **your** private cloud ledger. They do **not** delete your Supabase login by themselves.
 
-1. Open [https://cash.trendswd.com/](https://cash.trendswd.com/) and **Sign in**.
+1. Open [https://cash.trendswd.com/](https://cash.trendswd.com/) (or the Accounting Ledger Android app) and **Sign in**.
 2. Delete what you no longer need:
-   - **Transactions** — open the journal / entry and delete
-   - **Accounts** — open the account and delete (ensure you understand related transactions)
-   - **Settings → Account Type / Cash Type / Bank details** — delete unused setup rows
-   - **Attachments** — remove uploaded files from the relevant Details / Documents UI where available
-3. Optional: export CSV/PDF first from Settings if you want a personal backup before deleting.
+   - **Transactions** — open the entry and delete it  
+   - **Accounts** — open the account and delete it (review related transactions first)  
+   - **Settings → Account Type / Cash Type / Bank details** — delete unused setup rows  
+   - **Attachments / documents** — remove uploaded files from Details / Documents where available  
+3. (Optional) Export CSV or PDF from **Settings** before deleting, if you want a personal backup.
 
-Changes apply to your account only. Other users’ ledgers are not affected.
-
----
-
-## B. Clear Demo Mode (local device only)
-
-Demo Mode does **not** write your guest sandbox to the real database.
-
-1. Tap **Exit Demo Mode** on the banner, or use **Log out / Sign out** while in Demo Mode.
-2. To wipe leftover browser storage: clear site data / cookies for `cash.trendswd.com` (or localhost when developing), or clear the Android WebView data for the app.
-3. See [Embedded Demo Mode](./18-embedded-demo-mode.md) for behavior details.
+Only your user-scoped data is affected. Other users’ ledgers are not changed.
 
 ---
 
-## C. Request full account & data deletion
+## 3. Clear local / Demo Mode data
 
-Use this when you want Trends WD to remove your **authentication account** and associated **cloud ledger data** (database rows and related upload objects where identifiable).
+**Try Demo Mode** keeps Northline sample books in device storage only.
+
+1. Tap **Exit Demo Mode** on the top banner, or use **Log out / Sign out** while in Demo Mode.  
+2. To fully wipe leftover local data:
+   - **Browser:** clear site data / cookies for `cash.trendswd.com`  
+   - **Android app:** clear the app’s storage in system settings, or uninstall the app  
+3. Details: [Embedded Demo Mode](./18-embedded-demo-mode.md)
+
+Uninstalling the Android app removes local WebView / biometric unlock flags on that device. It does **not** delete your cloud account — use Section 4 for that.
+
+---
+
+## 4. Request full account & associated data deletion
+
+Use this path when you want Trends WD to delete your **authentication account** and **cloud data** linked to Accounting Ledger.
 
 ### Step 1 — Prepare
 
-1. Sign in and note the **email address** on **Settings → Profile**.
-2. (Recommended) Export any records you want to keep.
-3. (Optional) Delete large sets of data yourself first using section A.
+1. Sign in and open **Settings → Profile**.  
+2. Note the **exact email address** of the account.  
+3. (Recommended) Export any records you want to keep.  
+4. (Optional) Delete large sets of ledger data yourself using Section 2.
 
-### Step 2 — Email the request
+### Step 2 — Contact Trends WD
 
 Send an email to:
 
 **[info@trendswd.com](mailto:info@trendswd.com)**
 
-Suggested subject:
+**Suggested subject:**
 
-`Account deletion request — Accounting Ledger`
+`Account deletion request — Accounting Ledger (Trends WD)`
 
-Include:
+**Include in the message:**
 
-- Full name (if used on the profile)
-- Exact **account email**
-- Confirmation phrase: **Please delete my Accounting Ledger account and associated data**
-- Whether you also used the Android app `com.trendswd.cash`
-- App URL you use (usually `https://cash.trendswd.com/`)
+- Your full name (if set on the profile)  
+- The **exact account email**  
+- The confirmation phrase: **Please delete my Accounting Ledger account and associated data**  
+- Whether you use the Android app (`com.trendswd.cash`) and/or [https://cash.trendswd.com/](https://cash.trendswd.com/)  
+- Any other detail that helps us locate the account  
 
-### Step 3 — Verify
+You may also use the contact options on [Support & Contact](./22-support-and-contact.md) (same email / phone). Deletion requests by email are preferred so we have a written record.
 
-We may reply from Trends WD to confirm the request came from the account holder (for example asking you to reply from the same email or confirm a detail). We will not delete an account based on an unverified request.
+### Step 3 — Identity verification
 
-### Step 4 — What we delete
+Trends WD may reply to confirm that the request comes from the account holder (for example asking you to reply from the same email). We will **not** delete an account based on an unverified request.
 
-After verification, Trends WD will, within a reasonable period (typically **within 30 days**, often sooner):
+### Step 4 — Processing timeline
 
-- Remove or disable your **Supabase Auth** user for this product
-- Delete or anonymize application data linked to your `user_id` (accounts, transactions, settings, types, banks, share rows, upload metadata) as implemented in our systems
-- Remove associated **Cloudflare R2** objects that are clearly tied to your uploads when feasible
-- Clear server-side sessions for that account
-
-### Step 5 — What may remain briefly
-
-- Encrypted or access-controlled **backups** may retain residual copies for a short rolling window until they expire
-- **Billing or legal** records if a paid agreement required them (usually not applicable to the free portfolio demo)
-- Aggregated, non-identifying logs used for security
-
-### Step 6 — After deletion
-
-- You will no longer be able to sign in with that account
-- On Android, uninstall the app if you no longer need it; uninstalling alone does **not** delete cloud data — complete section C for that
-- If you only wanted local Demo Mode cleared, section B is enough
+After a verified request, Trends WD processes deletion **within 30 days** (often sooner). You will receive a confirmation email when the account has been removed or disabled.
 
 ---
 
-## D. Google Play users
+## 5. What data is deleted
 
-If you installed Accounting Ledger from Google Play:
+After verification, Trends WD will delete or permanently disable, as applicable:
 
-1. Follow **section C** to delete cloud account data.
-2. Uninstall the app from your device to remove the local WebView shell and on-device biometric unlock flags.
-
-This document is the in-product / documentation deletion guide linked from our Privacy Policy for store compliance.
+| Category | Action |
+|---|---|
+| **Supabase Auth** user for this product | Removed or disabled so you can no longer sign in |
+| **Ledger database rows** scoped to your `user_id` | Deleted or anonymized (accounts, transactions, settings, account types, cash types, bank details, ledger-share rows, upload metadata) |
+| **Cloudflare R2** file objects clearly tied to your uploads | Removed when identifiable and feasible |
+| **Server sessions** for that account | Cleared |
+| **Local Demo Mode** data | Already device-local; clear via Section 3 (Trends WD cannot erase another user’s browser from our servers) |
 
 ---
 
-## Contact
+## 6. What may be retained (temporarily or for legal/security reasons)
 
-**Trends WD**  
-Email: [info@trendswd.com](mailto:info@trendswd.com)  
-Web: [https://www.trendswd.com/](https://www.trendswd.com/)  
-Phone: +92 305 9778976  
+| Category | Retention |
+|---|---|
+| **Encrypted / access-controlled backups** | May retain residual copies for a short rolling backup window until those backups expire or rotate |
+| **Security / operational logs** | Aggregated or limited logs (for example IP, timestamps) may be kept briefly for abuse prevention and troubleshooting, then aged out per normal log retention |
+| **Legal / billing records** | Kept only if a separate paid agreement or law requires it (usually **not** applicable to the free portfolio / demo deployment) |
+| **Data already shared by you** | Content you exported, messaged (for example WhatsApp), or shared via a ledger link may still exist outside our systems with recipients; we cannot delete copies others already received |
 
-Related: [Privacy Policy](./19-privacy-policy.md) · [Terms & Conditions](./20-terms-and-conditions.md) · [Support & Contact](./22-support-and-contact.md)
+We do **not** keep your full ledger “on file” for marketing after a completed deletion request.
+
+---
+
+## 7. Google Play users
+
+If you installed **Accounting Ledger** by **Trends WD** from Google Play (`com.trendswd.cash`):
+
+1. Use **Section 4** on this page to request cloud account and data deletion.  
+2. After confirmation (or whenever you wish), uninstall the app from your device to remove local data.  
+
+This URL (once published under Trends WD documentation) is the web resource to enter in Google Play Console under **App content → Data safety / Account deletion**.
+
+---
+
+## 8. Contact Trends WD
+
+| | |
+|---|---|
+| **Developer** | Trends WD |
+| **App** | Accounting Ledger |
+| **Email** | [info@trendswd.com](mailto:info@trendswd.com) |
+| **Website** | [https://www.trendswd.com/](https://www.trendswd.com/) |
+| **Phone** | +92 305 9778976 |
+| **Privacy Policy** | [19 — Privacy Policy](./19-privacy-policy.md) |
+| **Terms** | [20 — Terms & Conditions](./20-terms-and-conditions.md) |
+| **Support** | [22 — Support & Contact](./22-support-and-contact.md) |
