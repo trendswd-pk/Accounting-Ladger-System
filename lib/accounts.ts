@@ -1,4 +1,6 @@
 import { recordRequestDeduped } from '@/lib/requestProfiler'
+import { isEmbeddedDemoActive } from '@/lib/embeddedDemo/session'
+import * as demoAccounts from '@/lib/embeddedDemo/accounts'
 
 export type AccountRecord = {
   id: string
@@ -72,6 +74,11 @@ export function adjustCachedAccountBalance(accountId: string, delta: number): vo
 }
 
 export async function fetchAccounts(options?: { force?: boolean }): Promise<AccountRecord[]> {
+  if (isEmbeddedDemoActive()) {
+    const items = (await demoAccounts.fetchAccounts(options)) as AccountRecord[]
+    cache = items
+    return items.map((r) => ({ ...r }))
+  }
   const force = options?.force === true
   if (!force && cache) {
     return cache.map((r) => ({ ...r }))
@@ -106,6 +113,11 @@ export type AccountInput = {
 }
 
 export async function createAccount(input: AccountInput): Promise<AccountRecord> {
+  if (isEmbeddedDemoActive()) {
+    const item = (await demoAccounts.createAccount(input)) as AccountRecord
+    cache = [...(cache ?? []), item]
+    return item
+  }
   const res = await fetch(ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -119,6 +131,11 @@ export async function createAccount(input: AccountInput): Promise<AccountRecord>
 }
 
 export async function updateAccount(id: string, input: AccountInput): Promise<AccountRecord> {
+  if (isEmbeddedDemoActive()) {
+    const item = (await demoAccounts.updateAccount(id, input)) as AccountRecord
+    cache = (cache ?? []).map((r) => (r.id === item.id ? item : r))
+    return item
+  }
   const res = await fetch(`${ENDPOINT}/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -132,6 +149,11 @@ export async function updateAccount(id: string, input: AccountInput): Promise<Ac
 }
 
 export async function deleteAccount(id: string): Promise<void> {
+  if (isEmbeddedDemoActive()) {
+    await demoAccounts.deleteAccount(id)
+    cache = (cache ?? []).filter((r) => r.id !== id)
+    return
+  }
   const res = await fetch(`${ENDPOINT}/${id}`, { method: 'DELETE' })
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error((data as { error?: string }).error || 'Failed to delete account')

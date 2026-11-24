@@ -7,6 +7,12 @@ import type { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { clearBiometricUnlock } from '@/lib/biometricUnlock'
 import { clearClientSessionCaches } from '@/lib/clearClientSessionCaches'
+import { exitEmbeddedDemoMode } from '@/lib/embeddedDemo'
+import {
+  getDemoUser,
+  isEmbeddedDemoActive,
+  updateDemoProfile,
+} from '@/lib/embeddedDemo/session'
 
 const inputClass =
   'w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500'
@@ -33,10 +39,25 @@ export default function ProfilePage() {
   )
   const [infoOpen, setInfoOpen] = useState(false)
 
+  const [demoMode, setDemoMode] = useState(false)
+
   useEffect(() => {
     let cancelled = false
     void (async () => {
       try {
+        if (isEmbeddedDemoActive()) {
+          const demo = getDemoUser()
+          if (cancelled) return
+          if (!demo) {
+            router.replace('/login')
+            return
+          }
+          setDemoMode(true)
+          setUser(null)
+          setFullName(demo.fullName)
+          setEmail(demo.email)
+          return
+        }
         const supabase = createClient()
         const {
           data: { user: current },
@@ -47,6 +68,7 @@ export default function ProfilePage() {
           router.replace('/login')
           return
         }
+        setDemoMode(false)
         setUser(current)
         setFullName(displayNameFromUser(current))
         setEmail(current.email ?? '')
@@ -69,6 +91,13 @@ export default function ProfilePage() {
     }
     setSavingProfile(true)
     try {
+      if (demoMode || isEmbeddedDemoActive()) {
+        const next = updateDemoProfile({ fullName: name, email: email.trim() })
+        setFullName(next.fullName)
+        setEmail(next.email)
+        setMessage({ type: 'success', text: 'Profile saved (Demo Mode — browser only).' })
+        return
+      }
       const supabase = createClient()
       const { data, error } = await supabase.auth.updateUser({
         data: { full_name: name, name },
@@ -93,6 +122,13 @@ export default function ProfilePage() {
   const handleChangePassword = async (e: FormEvent) => {
     e.preventDefault()
     setMessage(null)
+    if (demoMode || isEmbeddedDemoActive()) {
+      setMessage({
+        type: 'error',
+        text: 'Password changes are disabled in Demo Mode.',
+      })
+      return
+    }
     if (newPassword.length < 8) {
       setMessage({ type: 'error', text: 'Password must be at least 8 characters.' })
       return
@@ -123,6 +159,12 @@ export default function ProfilePage() {
     setSigningOut(true)
     setMessage(null)
     try {
+      if (demoMode || isEmbeddedDemoActive()) {
+        exitEmbeddedDemoMode({ wipeData: false })
+        router.replace('/login')
+        router.refresh()
+        return
+      }
       const supabase = createClient()
       await clearBiometricUnlock().catch(() => undefined)
       await supabase.auth.signOut()

@@ -2,6 +2,20 @@
 
 All notable changes to Accounting Ledger are documented here.
 
+## [1.6.0] — 2026-11-24
+
+### Added
+- **Try Demo Mode** on the main `/login` page: reviewers can explore the app with Northline Advisory sample ledger data stored only in browser `localStorage` (cookie `als_demo_mode` for middleware). No Supabase/database writes.
+- Demo Mode banner with **Exit Demo Mode**; Sign out in Demo Mode returns to `/login`.
+- Guide: [`Documentation/18-embedded-demo-mode.md`](./18-embedded-demo-mode.md).
+
+### Changed
+- Client data helpers (accounts, transactions, settings, banks, types, uploads, dashboard, ledger share) route to the local demo store when Demo Mode is active; real auth and `/api` protection are unchanged.
+
+### Fixed
+- **Try Demo Mode** button text contrast on dark theme: was pale pistachio (`primary-200`) on a light mint wash; now uses `primary-400` on a dark green tint.
+- Demo Mode banner dark theme: same issue (`primary-950` missing → light mint + pale text); now `primary-900/40` + `primary-400`.
+
 ## [1.5.0] — 2026-11-24
 
 ### Added

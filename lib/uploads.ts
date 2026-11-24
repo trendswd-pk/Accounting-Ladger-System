@@ -10,6 +10,8 @@ import {
   compressForUpload,
   type CompressUploadOptions,
 } from '@/lib/compressUpload'
+import { isEmbeddedDemoActive } from '@/lib/embeddedDemo/session'
+import * as demoUploads from '@/lib/embeddedDemo/uploads'
 
 export const UPLOAD_MAX_BYTES = 100 * 1024 * 1024 // 100MB
 
@@ -251,6 +253,13 @@ export async function uploadFileToR2(
     compress?: CompressUploadOptions
   }
 ): Promise<FileAttachment> {
+  if (isEmbeddedDemoActive()) {
+    const attachment = await demoUploads.uploadFileToR2(file, options)
+    const folder = attachment.folder || options?.folder || ''
+    const prev = listCache.get(folder) ?? []
+    listCache.set(folder, [attachment, ...prev.filter((r) => r.id !== attachment.id)])
+    return attachment
+  }
   if (file.size <= 0) throw new Error('The file is empty.')
   if (file.size > UPLOAD_MAX_BYTES) throw new Error('File is larger than 100MB.')
   if (!isAllowedUploadName(file.name)) {
@@ -281,6 +290,18 @@ export async function uploadFileToR2(
 }
 
 export async function deleteUploadedFile(id: string): Promise<void> {
+  if (isEmbeddedDemoActive()) {
+    await demoUploads.deleteUploadedFile(id)
+    for (const [folder, rows] of listCache) {
+      if (rows.some((r) => r.id === id)) {
+        listCache.set(
+          folder,
+          rows.filter((r) => r.id !== id)
+        )
+      }
+    }
+    return
+  }
   const res = await fetch(`/api/uploads/${id}`, { method: 'DELETE' })
   if (!res.ok) throw new Error(await readError(res, 'Could not delete file.'))
   // Drop any folder cache that contained this id.
@@ -299,6 +320,17 @@ export async function linkAttachmentToFolders(
   attachmentId: string,
   folders: string[]
 ): Promise<FileAttachment[]> {
+  if (isEmbeddedDemoActive()) {
+    const items = await demoUploads.linkAttachmentToFolders(attachmentId, folders)
+    for (const attachment of items) {
+      const prev = listCache.get(attachment.folder) ?? []
+      listCache.set(attachment.folder, [
+        attachment,
+        ...prev.filter((r) => r.id !== attachment.id),
+      ])
+    }
+    return items
+  }
   const id = String(attachmentId ?? '').trim()
   const uniqueFolders = [
     ...new Set(folders.map((f) => String(f ?? '').trim()).filter(Boolean)),
@@ -359,6 +391,11 @@ export async function listUploadedFiles(
   folder: string,
   options?: { force?: boolean }
 ): Promise<FileAttachment[]> {
+  if (isEmbeddedDemoActive()) {
+    const items = await demoUploads.listUploadedFiles(folder, options)
+    listCache.set(folder, items)
+    return items.map((r) => ({ ...r }))
+  }
   const force = options?.force === true
   if (!force) {
     const hit = listCache.get(folder)

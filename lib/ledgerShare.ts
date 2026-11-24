@@ -3,6 +3,8 @@
  */
 
 import { formatDisplayDateTime } from '@/lib/localDate'
+import { isEmbeddedDemoActive } from '@/lib/embeddedDemo/session'
+import { createLedgerShare as createDemoLedgerShare } from '@/lib/embeddedDemo/ledgerShare'
 
 export type CreatedLedgerShare = {
   token: string
@@ -29,6 +31,9 @@ export function buildShareAccessFooter(opts: {
 }
 
 export async function createLedgerShare(accountId: string): Promise<CreatedLedgerShare> {
+  if (isEmbeddedDemoActive()) {
+    return createDemoLedgerShare(accountId)
+  }
   const res = await fetch('/api/ledger-shares', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

@@ -18,6 +18,11 @@ import {
 } from '@/lib/ledgerShareCrypto'
 import { recordRequestDeduped } from '@/lib/requestProfiler'
 import type { ThemePreference } from '@/lib/theme'
+import { isEmbeddedDemoActive, requireDemoUser } from '@/lib/embeddedDemo/session'
+import {
+  getStoredSettings,
+  setStoredSettings,
+} from '@/lib/embeddedDemo/store'
 
 /**
  * Migrate known seed / PDF-link templates to interactive ledger preview.
@@ -320,6 +325,14 @@ async function loadSettingsFromNetwork(): Promise<AppSettings> {
   return cloneSettings(settingsCache)
 }
 
+async function loadSettingsFromDemoStore(): Promise<AppSettings> {
+  requireDemoUser()
+  const stored = getStoredSettings()
+  settingsCache = withIdDefaults(stored ?? DEFAULT_APP_SETTINGS)
+  notifySettingsChanged(settingsCache)
+  return cloneSettings(settingsCache)
+}
+
 /** Single-flight load. Cache hits are silent (no Deduped spam). */
 export async function fetchAppSettings(): Promise<AppSettings> {
   if (settingsCache) {
@@ -330,7 +343,9 @@ export async function fetchAppSettings(): Promise<AppSettings> {
     return settingsInflight
   }
 
-  const req = loadSettingsFromNetwork()
+  const req = isEmbeddedDemoActive()
+    ? loadSettingsFromDemoStore()
+    : loadSettingsFromNetwork()
   settingsInflight = req
   try {
     return await req
@@ -404,6 +419,56 @@ export function applyFaviconUrl(url: string | null | undefined): void {
 }
 
 export async function saveAppSettings(input: AppSettingsPatch): Promise<AppSettings> {
+  if (isEmbeddedDemoActive()) {
+    requireDemoUser()
+    const current = withIdDefaults(
+      getStoredSettings() ?? settingsCache ?? DEFAULT_APP_SETTINGS
+    )
+    const next: AppSettings = {
+      ...current,
+      ...input,
+      ledgerShareRequirePin:
+        input.ledgerShareRequirePin !== undefined
+          ? Boolean(input.ledgerShareRequirePin)
+          : current.ledgerShareRequirePin,
+      ledgerShareTtlHours:
+        input.ledgerShareTtlHours !== undefined
+          ? normalizeLedgerShareTtlHours(input.ledgerShareTtlHours)
+          : current.ledgerShareTtlHours,
+      dashboardExpensePeriod:
+        input.dashboardExpensePeriod !== undefined
+          ? normalizeDashboardExpensePeriod(input.dashboardExpensePeriod)
+          : current.dashboardExpensePeriod,
+      floatingActionsShowLabels:
+        input.floatingActionsShowLabels !== undefined
+          ? Boolean(input.floatingActionsShowLabels)
+          : current.floatingActionsShowLabels === true,
+      cashSavingsCashTypeIds:
+        input.cashSavingsCashTypeIds ?? current.cashSavingsCashTypeIds,
+      cashSavingsAccountTypeIds:
+        input.cashSavingsAccountTypeIds ?? current.cashSavingsAccountTypeIds,
+      payableReceivableCashTypeIds:
+        input.payableReceivableCashTypeIds ?? current.payableReceivableCashTypeIds,
+      payableReceivableAccountTypeIds:
+        input.payableReceivableAccountTypeIds ?? current.payableReceivableAccountTypeIds,
+      updatedAt: new Date().toISOString(),
+    }
+    if (input.businessName !== undefined) {
+      next.businessName =
+        String(input.businessName).trim() || DEFAULT_APP_SETTINGS.businessName
+    }
+    if (input.currency !== undefined) {
+      next.currency = String(input.currency).trim() || DEFAULT_APP_SETTINGS.currency
+    }
+    if (input.logoUrl !== undefined) next.logoUrl = normalizeOptionalUrl(input.logoUrl)
+    if (input.faviconUrl !== undefined) {
+      next.faviconUrl = normalizeOptionalUrl(input.faviconUrl)
+    }
+    setStoredSettings(withIdDefaults(next))
+    settingsCache = withIdDefaults(next)
+    notifySettingsChanged(settingsCache)
+    return cloneSettings(settingsCache)
+  }
   const res = await fetch(SETTINGS_ENDPOINT, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },

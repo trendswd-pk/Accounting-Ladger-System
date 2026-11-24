@@ -7,6 +7,10 @@ import { createClient } from '@/lib/supabase/client'
 import { enableBiometricUnlockAfterLogin } from '@/lib/biometricUnlock'
 import { clearClientSessionCaches } from '@/lib/clearClientSessionCaches'
 import { fetchAppSettings, invalidateAppSettingsCache } from '@/lib/appSettings'
+import {
+  enterEmbeddedDemoMode,
+  exitEmbeddedDemoMode,
+} from '@/lib/embeddedDemo'
 
 function safeNextPath(raw: string | null): string {
   if (!raw) return '/'
@@ -61,7 +65,25 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [demoLoading, setDemoLoading] = useState(false)
   const [headingInfoOpen, setHeadingInfoOpen] = useState(false)
+
+  const startDemoMode = async () => {
+    setError(null)
+    setInfo(null)
+    setDemoLoading(true)
+    try {
+      // Drop any leftover demo cookie/session from a prior visit, then seed fresh.
+      exitEmbeddedDemoMode({ wipeData: false })
+      await enterEmbeddedDemoMode()
+      router.replace('/')
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not start Demo Mode.')
+    } finally {
+      setDemoLoading(false)
+    }
+  }
 
   const switchMode = (next: 'signin' | 'signup') => {
     setMode(next)
@@ -99,6 +121,8 @@ function LoginForm() {
 
     setLoading(true)
     try {
+      // Real auth must not keep a demo cookie / localStorage guest session.
+      exitEmbeddedDemoMode({ wipeData: false })
       const supabase = createClient()
 
       if (mode === 'signup') {
@@ -286,7 +310,7 @@ function LoginForm() {
           ) : null}
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || demoLoading}
             className="inline-flex h-11 w-full items-center justify-center rounded-md bg-primary-600 px-4 text-sm font-medium text-white transition-colors hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 dark:focus:ring-offset-gray-800"
           >
             {loading
@@ -298,6 +322,30 @@ function LoginForm() {
                 : 'Sign in'}
           </button>
         </form>
+
+        <div className="relative my-5">
+          <div className="absolute inset-0 flex items-center" aria-hidden>
+            <div className="w-full border-t border-gray-200 dark:border-gray-600" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase tracking-wide">
+            <span className="bg-white px-2 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+              or
+            </span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          disabled={loading || demoLoading}
+          onClick={() => void startDemoMode()}
+          className="inline-flex h-11 w-full items-center justify-center rounded-md border border-primary-300 bg-primary-50 px-4 text-sm font-medium text-primary-800 transition-colors hover:bg-primary-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 dark:border-primary-600 dark:bg-primary-900/50 dark:text-primary-400 dark:hover:bg-primary-900/70 dark:focus:ring-offset-gray-800"
+        >
+          {demoLoading ? 'Starting demo…' : 'Try Demo Mode'}
+        </button>
+        <p className="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">
+          Explore with sample ledger data stored only in this browser — no account or database
+          writes.
+        </p>
 
         <p className="mt-5 text-center text-sm text-gray-600 dark:text-gray-400">
           {mode === 'signin' ? (

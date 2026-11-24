@@ -1,5 +1,7 @@
 import { adjustCachedAccountBalance } from '@/lib/accounts'
 import { recordRequestDeduped } from '@/lib/requestProfiler'
+import { isEmbeddedDemoActive } from '@/lib/embeddedDemo/session'
+import * as demoTransactions from '@/lib/embeddedDemo/transactions'
 
 export type TransactionEntryType = 'credit' | 'debit'
 
@@ -75,6 +77,11 @@ export function invalidateTransactionsCache(): void {
 }
 
 export async function fetchTransactions(options?: { force?: boolean }): Promise<TransactionRecord[]> {
+  if (isEmbeddedDemoActive()) {
+    const items = (await demoTransactions.fetchTransactions(options)) as TransactionRecord[]
+    cache = items
+    return items.map((r) => ({ ...r }))
+  }
   const force = options?.force === true
   if (!force && cache) {
     return cache.map((r) => ({ ...r }))
@@ -120,6 +127,14 @@ function applyCreatedToCache(items: TransactionRecord[]) {
 }
 
 export async function createTransaction(input: TransactionInput): Promise<TransactionRecord> {
+  if (isEmbeddedDemoActive()) {
+    const item = (await demoTransactions.createTransaction(input)) as TransactionRecord
+    // Demo module already adjusted its own account cache; sync main caches.
+    if (cache) cache = [item, ...cache]
+    else cache = [item]
+    adjustCachedAccountBalance(item.accountId, signedTransactionAmount(item))
+    return item
+  }
   const res = await fetch(ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -139,6 +154,15 @@ export async function createTransactions(
   if (inputs.length === 0) return []
   if (inputs.length === 1) {
     return [await createTransaction(inputs[0]!)]
+  }
+  if (isEmbeddedDemoActive()) {
+    const items = (await demoTransactions.createTransactions(inputs)) as TransactionRecord[]
+    if (cache) cache = [...items, ...cache]
+    else cache = [...items]
+    for (const item of items) {
+      adjustCachedAccountBalance(item.accountId, signedTransactionAmount(item))
+    }
+    return items
   }
   const res = await fetch(ENDPOINT, {
     method: 'POST',
@@ -192,6 +216,16 @@ export async function updateTransaction(
   id: string,
   input: TransactionInput
 ): Promise<TransactionRecord> {
+  if (isEmbeddedDemoActive()) {
+    const prev = cache?.find((r) => r.id === id)
+    const item = (await demoTransactions.updateTransaction(id, input)) as TransactionRecord
+    cache = (cache ?? []).map((r) => (r.id === item.id ? item : r))
+    if (prev) {
+      adjustCachedAccountBalance(prev.accountId, -signedTransactionAmount(prev))
+    }
+    adjustCachedAccountBalance(item.accountId, signedTransactionAmount(item))
+    return item
+  }
   const prev = cache?.find((r) => r.id === id)
   const res = await fetch(`${ENDPOINT}/${id}`, {
     method: 'PATCH',
@@ -210,6 +244,15 @@ export async function updateTransaction(
 }
 
 export async function deleteTransaction(id: string): Promise<void> {
+  if (isEmbeddedDemoActive()) {
+    const prev = cache?.find((r) => r.id === id)
+    await demoTransactions.deleteTransaction(id)
+    cache = (cache ?? []).filter((r) => r.id !== id)
+    if (prev) {
+      adjustCachedAccountBalance(prev.accountId, -signedTransactionAmount(prev))
+    }
+    return
+  }
   const prev = cache?.find((r) => r.id === id)
   const res = await fetch(`${ENDPOINT}/${id}`, { method: 'DELETE' })
   const data = await res.json().catch(() => ({}))

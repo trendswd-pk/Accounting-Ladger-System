@@ -8,15 +8,16 @@ Accounting Ledger helps small businesses keep professional books: journals, acco
 
 | | |
 |---|---|
-| **Version** | 1.5.0 |
-| **Released** | 2026-11-14 |
+| **Version** | 1.6.0 |
+| **Released** | 2026-11-24 |
 | **Live demo** | [accounting-ladger-system-coral.vercel.app](https://accounting-ladger-system-coral.vercel.app) |
 
 ## How to open the demo
 
-1. Open the [live demo](https://accounting-ladger-system-coral.vercel.app), or run Demo Mode locally (see `demo-mode/README.md` in the repository).
-2. On the Demo Mode login screen, choose an **account card** (Admin, Editor, or Viewer). Demo logins appear as account cards — email is shown on each card.
-3. Explore with Northline Advisory sample data stored in your browser only.
+1. Open the main app (or [live demo](https://accounting-ladger-system-coral.vercel.app)) and go to `/login`.
+2. Click **Try Demo Mode** — no credentials required. Sample Northline Advisory data stays in your browser only.
+3. Use **Exit Demo Mode** on the banner (or Sign out) to return to `/login`. Real sign-in / sign-up are unchanged.
+4. Optional: the separate portfolio `demo-mode/` deploy still supports card-based demo logins (see `demo-mode/README.md`). Full steps: [18 — Embedded Demo Mode](./18-embedded-demo-mode.md).
 
 ## Documentation index
 
@@ -45,6 +46,7 @@ Accounting Ledger helps small businesses keep professional books: journals, acco
 - [15 — Cash Type](./15-settings-cash-type.md)
 - [16 — Mobile](./16-mobile.md)
 - [17 — Android (Capacitor)](./17-android-capacitor.md)
+- [18 — Embedded Demo Mode](./18-embedded-demo-mode.md)
 
 ## App map
 

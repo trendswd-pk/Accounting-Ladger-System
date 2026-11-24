@@ -197,6 +197,16 @@ export default function Sidebar({
     if (signingOut) return
     setSigningOut(true)
     try {
+      const { isEmbeddedDemoActive, exitEmbeddedDemoMode } = await import(
+        '@/lib/embeddedDemo'
+      )
+      if (isEmbeddedDemoActive()) {
+        exitEmbeddedDemoMode({ wipeData: false })
+        onClose?.()
+        router.replace('/login')
+        router.refresh()
+        return
+      }
       const supabase = createClient()
       await clearBiometricUnlock().catch(() => undefined)
       await supabase.auth.signOut()

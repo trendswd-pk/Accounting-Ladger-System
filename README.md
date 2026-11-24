@@ -6,7 +6,7 @@ Day-to-day books for small businesses: accounts, journal entries, balances, expe
 
 ## Overview
 
-Accounting Ledger is a web app for keeping professional ledgers without spreadsheets. Track cash and savings, payables and receivables, expenses, and investments from one dashboard. Sign-in protects every screen; Demo Mode lets you try the full UI offline with sample data.
+Accounting Ledger is a web app for keeping professional ledgers without spreadsheets. Track cash and savings, payables and receivables, expenses, and investments from one dashboard. Sign-in protects every screen; **Try Demo Mode** on `/login` lets reviewers explore with sample data stored only in the browser.
 
 ## Features
 
@@ -24,7 +24,7 @@ Accounting Ledger is a web app for keeping professional ledgers without spreadsh
 
 ![Login](Documentation/images/01-login.png)
 
-*Demo Mode login — choose an account card to explore.*
+*Login — sign in, create an account, or Try Demo Mode.*
 
 ![Transactions](Documentation/images/04-transactions.png)
 
@@ -44,12 +44,12 @@ Accounting Ledger is a web app for keeping professional ledgers without spreadsh
 
 ## Demo
 
-- **Local Demo Mode:** see [`demo-mode/README.md`](demo-mode/README.md)  
+- **Main app:** open `/login` → **Try Demo Mode** (no credentials). Sample ledger stays in `localStorage`; banner offers **Exit Demo Mode**. Guide: [`Documentation/18-embedded-demo-mode.md`](Documentation/18-embedded-demo-mode.md).
+- **Portfolio Demo Mode app:** see [`demo-mode/README.md`](demo-mode/README.md)  
   ```bash
   cd demo-mode && npm install && npm run dev
   ```
-- **Live demo:** [accounting-ladger-system-coral.vercel.app](https://accounting-ladger-system-coral.vercel.app) (separate Vercel project; Root Directory `demo-mode`; URL also in `demo-mode/demo.json` → `live_demo_url`).
-- Demo logins appear as **account cards** on the Demo Mode login screen (Admin, Editor, Viewer).
+- **Live portfolio demo:** [accounting-ladger-system-coral.vercel.app](https://accounting-ladger-system-coral.vercel.app) (separate Vercel project; Root Directory `demo-mode`; URL also in `demo-mode/demo.json` → `live_demo_url`).
 
 ## Documentation
 

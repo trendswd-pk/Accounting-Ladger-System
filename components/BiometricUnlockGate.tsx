@@ -14,6 +14,7 @@ import {
   promptBiometricUnlock,
 } from '@/lib/biometricUnlock'
 import { clearClientSessionCaches } from '@/lib/clearClientSessionCaches'
+import { isEmbeddedDemoActive } from '@/lib/embeddedDemo/session'
 
 /**
  * Capacitor-only gate: when a Supabase session exists and biometric unlock is
@@ -43,6 +44,12 @@ export default function BiometricUnlockGate({
     const manual = opts?.manual === true
 
     if (!isCapacitorNative()) {
+      setChecking(false)
+      setLocked(false)
+      return
+    }
+    // Demo Mode has no real Supabase session — never gate on biometrics.
+    if (isEmbeddedDemoActive()) {
       setChecking(false)
       setLocked(false)
       return

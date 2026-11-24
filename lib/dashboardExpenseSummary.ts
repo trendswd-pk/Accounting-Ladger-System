@@ -11,6 +11,8 @@ import {
   normalizeEntryType,
 } from '@/lib/transactions'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
+import { isEmbeddedDemoActive } from '@/lib/embeddedDemo/session'
+import { fetchDashboardExpenseSummary as fetchDemoDashboardExpenseSummary } from '@/lib/embeddedDemo/dashboardExpenseSummary'
 
 /** Default business calendar when the client does not send `today`. */
 const BUSINESS_TZ = 'Asia/Karachi'
@@ -362,6 +364,14 @@ export async function fetchDashboardExpenseSummary(options?: {
   /** Browser-local YYYY-MM-DD so Today/Yesterday match the user’s calendar. */
   today?: string
 }): Promise<DashboardExpenseSummary> {
+  if (isEmbeddedDemoActive()) {
+    const summary = (await fetchDemoDashboardExpenseSummary(
+      options
+    )) as DashboardExpenseSummary
+    cache = summary
+    cacheTodayYmd = resolveTodayYmd(options?.today)
+    return cloneSummary(summary)
+  }
   const force = options?.force === true
   const today = resolveTodayYmd(options?.today)
   if (!force && cache && cacheTodayYmd === today) {

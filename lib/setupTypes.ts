@@ -1,4 +1,6 @@
 import { recordRequestDeduped } from '@/lib/requestProfiler'
+import { isEmbeddedDemoActive } from '@/lib/embeddedDemo/session'
+import * as demoSetupTypes from '@/lib/embeddedDemo/setupTypes'
 
 export type SetupTypeRecord = {
   id: string
@@ -70,6 +72,11 @@ export async function fetchSetupTypes(
   kind: SetupTypeKind,
   options?: { force?: boolean }
 ): Promise<SetupTypeRecord[]> {
+  if (isEmbeddedDemoActive()) {
+    const items = await demoSetupTypes.fetchSetupTypes(kind, options)
+    listCache.set(kind, items)
+    return items.map((r) => ({ ...r }))
+  }
   const force = options?.force === true
 
   if (!force) {
@@ -108,6 +115,12 @@ export async function createSetupType(
   kind: SetupTypeKind,
   input: { name: string; code: string; description: string; active: boolean }
 ): Promise<SetupTypeRecord> {
+  if (isEmbeddedDemoActive()) {
+    const item = await demoSetupTypes.createSetupType(kind, input)
+    const prev = listCache.get(kind) ?? []
+    listCache.set(kind, [...prev, item])
+    return item
+  }
   const res = await fetch(endpointFor(kind), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -128,6 +141,15 @@ export async function updateSetupType(
   id: string,
   input: { name: string; code: string; description: string; active: boolean }
 ): Promise<SetupTypeRecord> {
+  if (isEmbeddedDemoActive()) {
+    const item = await demoSetupTypes.updateSetupType(kind, id, input)
+    const prev = listCache.get(kind) ?? []
+    listCache.set(
+      kind,
+      prev.map((r) => (r.id === item.id ? item : r))
+    )
+    return item
+  }
   const res = await fetch(`${endpointFor(kind)}/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -147,6 +169,15 @@ export async function updateSetupType(
 }
 
 export async function deleteSetupType(kind: SetupTypeKind, id: string): Promise<void> {
+  if (isEmbeddedDemoActive()) {
+    await demoSetupTypes.deleteSetupType(kind, id)
+    const prev = listCache.get(kind) ?? []
+    listCache.set(
+      kind,
+      prev.filter((r) => r.id !== id)
+    )
+    return
+  }
   const res = await fetch(`${endpointFor(kind)}/${id}`, { method: 'DELETE' })
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {

@@ -64,13 +64,17 @@ export async function middleware(request: NextRequest) {
       data: { session },
     } = await supabase.auth.getSession()
 
-    if (!session && !isLogin) {
+    // Embedded Demo Mode: cookie-only guest; never a Supabase user. APIs stay protected.
+    const isDemoMode = request.cookies.get('als_demo_mode')?.value === '1'
+
+    if (!session && !isLogin && !isDemoMode) {
       const redirectUrl = request.nextUrl.clone()
       redirectUrl.pathname = '/login'
       redirectUrl.searchParams.set('next', pathname)
       return NextResponse.redirect(redirectUrl)
     }
 
+    // Real auth wins over demo cookie — send signed-in users away from /login.
     if (session && isLogin) {
       const redirectUrl = request.nextUrl.clone()
       redirectUrl.pathname = '/'

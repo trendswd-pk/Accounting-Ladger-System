@@ -1,4 +1,6 @@
 import { recordRequestDeduped } from '@/lib/requestProfiler'
+import { isEmbeddedDemoActive } from '@/lib/embeddedDemo/session'
+import * as demoBanks from '@/lib/embeddedDemo/banks'
 
 export type BankDetailRecord = {
   id: string
@@ -82,6 +84,11 @@ export function invalidateBanksCache(): void {
 export async function fetchBanks(options?: {
   force?: boolean
 }): Promise<BankDetailRecord[]> {
+  if (isEmbeddedDemoActive()) {
+    const items = await demoBanks.fetchBanks(options)
+    cache = items
+    return items.map((r) => ({ ...r }))
+  }
   const force = options?.force === true
   if (!force && cache) return cache.map((r) => ({ ...r }))
   if (inflight) {
@@ -109,6 +116,11 @@ export async function fetchBanks(options?: {
 export async function createBank(
   input: BankDetailInput
 ): Promise<BankDetailRecord> {
+  if (isEmbeddedDemoActive()) {
+    const item = await demoBanks.createBank(input)
+    cache = [...(cache ?? []), item]
+    return item
+  }
   const res = await fetch(ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -125,6 +137,11 @@ export async function updateBank(
   id: string,
   input: BankDetailInput
 ): Promise<BankDetailRecord> {
+  if (isEmbeddedDemoActive()) {
+    const item = await demoBanks.updateBank(id, input)
+    if (cache) cache = cache.map((r) => (r.id === id ? item : r))
+    return item
+  }
   const res = await fetch(`${ENDPOINT}/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -140,6 +157,11 @@ export async function updateBank(
 }
 
 export async function deleteBank(id: string): Promise<void> {
+  if (isEmbeddedDemoActive()) {
+    await demoBanks.deleteBank(id)
+    if (cache) cache = cache.filter((r) => r.id !== id)
+    return
+  }
   const res = await fetch(`${ENDPOINT}/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   })

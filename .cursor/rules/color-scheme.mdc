@@ -81,7 +81,7 @@ When the user shares a **sample / screenshot / reference UI**, rebuild layout an
 | Credit / positive | `text-primary-700` or `text-green-800`, badge `bg-primary-100 text-primary-800` | `dark:text-primary-400` / caribbean |
 | Debit / negative | `text-red-700`, badge `bg-red-100 text-red-800` | `dark:text-red-400` |
 | Danger actions | red (`formModalDangerButtonClass`) | same |
-| Demo banner | `border-primary-200 bg-primary-50 text-primary-800` | `dark:border-primary-800/60 dark:bg-primary-950/40` |
+| Demo banner | `border-primary-200 bg-primary-50 text-primary-800` | `dark:border-primary-800/60 dark:bg-primary-900/40 dark:text-primary-400` |
 
 Prefer **brand greens for credit** when touching money UI so credit matches the palette; keep **red for debit** (do not use brand green for losses).
 
