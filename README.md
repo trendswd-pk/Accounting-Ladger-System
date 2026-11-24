@@ -92,4 +92,6 @@ For the fastest file uploads, allow your app origin in the R2 bucket CORS (PUT +
 
 ## License / contact
 
-Trends WD portfolio product. Contact via [trendswd.com](https://www.trendswd.com/).
+Trends WD portfolio product. Contact: [info@trendswd.com](mailto:info@trendswd.com) · [trendswd.com](https://www.trendswd.com/).
+
+Policy docs (Privacy, Terms, deletion, support): [`Documentation/19-privacy-policy.md`](Documentation/19-privacy-policy.md) and related pages `20`–`22`.

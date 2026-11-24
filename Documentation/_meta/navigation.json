@@ -1,7 +1,7 @@
 {
   "site": "Accounting Ledger Documentation",
   "base_url": "https://trendswd.com/projects/Accounting-Ladger-System/doc",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "version_date": "2026-11-24",
   "navigation": [
     { "title": "Home", "path": "/docs", "file": "index.md" },
@@ -34,6 +34,15 @@
         { "title": "Mobile", "path": "/docs/16-mobile", "file": "16-mobile.md" },
         { "title": "Android (Capacitor)", "path": "/docs/17-android-capacitor", "file": "17-android-capacitor.md" },
         { "title": "Embedded Demo Mode", "path": "/docs/18-embedded-demo-mode", "file": "18-embedded-demo-mode.md" }
+      ]
+    },
+    {
+      "title": "Policy & support",
+      "children": [
+        { "title": "Privacy Policy", "path": "/docs/19-privacy-policy", "file": "19-privacy-policy.md" },
+        { "title": "Terms & Conditions", "path": "/docs/20-terms-and-conditions", "file": "20-terms-and-conditions.md" },
+        { "title": "Data & Account Deletion", "path": "/docs/21-data-account-deletion", "file": "21-data-account-deletion.md" },
+        { "title": "Support & Contact", "path": "/docs/22-support-and-contact", "file": "22-support-and-contact.md" }
       ]
     }
   ]

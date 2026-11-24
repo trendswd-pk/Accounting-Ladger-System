@@ -2,6 +2,11 @@
 
 All notable changes to Accounting Ledger are documented here.
 
+## [1.6.1] — 2026-11-24
+
+### Added
+- Documentation: **Privacy Policy**, **Terms & Conditions**, **Data & Account Deletion**, and **Support & Contact** pages for store compliance and user help (`19`–`22`), with navigation under **Policy & support**.
+
 ## [1.6.0] — 2026-11-24
 
 ### Added

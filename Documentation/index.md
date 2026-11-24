@@ -8,8 +8,9 @@ Accounting Ledger helps small businesses keep professional books: journals, acco
 
 | | |
 |---|---|
-| **Version** | 1.6.0 |
+| **Version** | 1.6.1 |
 | **Released** | 2026-11-24 |
+| **Live app** | [cash.trendswd.com](https://cash.trendswd.com/) |
 | **Live demo** | [accounting-ladger-system-coral.vercel.app](https://accounting-ladger-system-coral.vercel.app) |
 
 ## How to open the demo
@@ -47,6 +48,13 @@ Accounting Ledger helps small businesses keep professional books: journals, acco
 - [16 — Mobile](./16-mobile.md)
 - [17 — Android (Capacitor)](./17-android-capacitor.md)
 - [18 — Embedded Demo Mode](./18-embedded-demo-mode.md)
+
+### Policy & support
+
+- [19 — Privacy Policy](./19-privacy-policy.md) *(Google Play Privacy Policy URL)*
+- [20 — Terms & Conditions](./20-terms-and-conditions.md)
+- [21 — Data & Account Deletion](./21-data-account-deletion.md)
+- [22 — Support & Contact](./22-support-and-contact.md)
 
 ## App map
 
