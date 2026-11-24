@@ -44,6 +44,7 @@ export async function POST(req: Request) {
       .from('short_links')
       .select('code')
       .eq('target_url', url)
+      .eq('user_id', auth.user.id)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -58,6 +59,7 @@ export async function POST(req: Request) {
       const { error } = await admin.from('short_links').insert({
         code,
         target_url: url,
+        user_id: auth.user.id,
       })
       if (!error) {
         return json({ shortUrl: `${origin}/l/${code}` })

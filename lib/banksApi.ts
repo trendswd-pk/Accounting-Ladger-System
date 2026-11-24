@@ -31,9 +31,7 @@ function normalizeInput(body: BankDetailInput | Record<string, unknown>) {
   const notes = String(body.notes ?? '').trim()
   const qrRaw = body.qrCodeUrl
   const qrCodeUrl =
-    qrRaw === null || qrRaw === undefined
-      ? null
-      : String(qrRaw).trim() || null
+    qrRaw === null || qrRaw === undefined ? null : String(qrRaw).trim() || null
   const active = body.active !== false
 
   return {
@@ -50,23 +48,26 @@ function normalizeInput(body: BankDetailInput | Record<string, unknown>) {
   }
 }
 
-async function listViaSelect() {
+async function listViaSelect(userId: string) {
   const admin = getSupabaseAdmin()
   const { data, error } = await admin
     .from('bank_details')
     .select(SELECT_COLS)
+    .eq('user_id', userId)
     .order('created_at', { ascending: true })
   if (error) throw new Error(error.message)
   return (data ?? []).map(mapBankDetailRow)
 }
 
-export async function listBanks() {
+export async function listBanks(userId: string) {
   try {
     const admin = getSupabaseAdmin()
-    const { data, error } = await admin.rpc('rpc_list_bank_details')
+    const { data, error } = await admin.rpc('rpc_list_bank_details', {
+      p_user_id: userId,
+    })
     if (error) {
       if (isMissingRpc(error)) {
-        const items = await listViaSelect()
+        const items = await listViaSelect(userId)
         return json({ items, via: 'select-fallback' })
       }
       return json({ error: error.message }, 500)
@@ -76,14 +77,11 @@ export async function listBanks() {
     >[0][]
     return json({ items: rows.map(mapBankDetailRow), via: 'rpc' })
   } catch (err) {
-    return json(
-      { error: err instanceof Error ? err.message : 'Server error' },
-      500
-    )
+    return json({ error: err instanceof Error ? err.message : 'Server error' }, 500)
   }
 }
 
-export async function createBankRow(body: BankDetailInput) {
+export async function createBankRow(userId: string, body: BankDetailInput) {
   try {
     const input = normalizeInput(body)
     if (!input.bankName) return json({ error: 'Bank name is required.' }, 400)
@@ -108,6 +106,7 @@ export async function createBankRow(body: BankDetailInput) {
         notes: input.notes,
         qr_code_url: input.qrCodeUrl,
         active: input.active,
+        user_id: userId,
       })
       .select(SELECT_COLS)
       .single()
@@ -115,14 +114,15 @@ export async function createBankRow(body: BankDetailInput) {
     if (error) return json({ error: error.message }, 400)
     return json({ item: mapBankDetailRow(data) }, 201)
   } catch (err) {
-    return json(
-      { error: err instanceof Error ? err.message : 'Server error' },
-      500
-    )
+    return json({ error: err instanceof Error ? err.message : 'Server error' }, 500)
   }
 }
 
-export async function updateBankRow(id: string, body: BankDetailInput) {
+export async function updateBankRow(
+  userId: string,
+  id: string,
+  body: BankDetailInput
+) {
   try {
     const bankId = String(id ?? '').trim()
     if (!bankId) return json({ error: 'Missing id.' }, 400)
@@ -153,32 +153,35 @@ export async function updateBankRow(id: string, body: BankDetailInput) {
         updated_at: new Date().toISOString(),
       })
       .eq('id', bankId)
+      .eq('user_id', userId)
       .select(SELECT_COLS)
-      .single()
+      .maybeSingle()
 
     if (error) return json({ error: error.message }, 400)
+    if (!data) return json({ error: 'Bank detail not found.' }, 404)
     return json({ item: mapBankDetailRow(data) })
   } catch (err) {
-    return json(
-      { error: err instanceof Error ? err.message : 'Server error' },
-      500
-    )
+    return json({ error: err instanceof Error ? err.message : 'Server error' }, 500)
   }
 }
 
-export async function deleteBankRow(id: string) {
+export async function deleteBankRow(userId: string, id: string) {
   try {
     const bankId = String(id ?? '').trim()
     if (!bankId) return json({ error: 'Missing id.' }, 400)
 
     const admin = getSupabaseAdmin()
-    const { error } = await admin.from('bank_details').delete().eq('id', bankId)
+    const { data, error } = await admin
+      .from('bank_details')
+      .delete()
+      .eq('id', bankId)
+      .eq('user_id', userId)
+      .select('id')
+      .maybeSingle()
     if (error) return json({ error: error.message }, 400)
+    if (!data) return json({ error: 'Bank detail not found.' }, 404)
     return json({ ok: true })
   } catch (err) {
-    return json(
-      { error: err instanceof Error ? err.message : 'Server error' },
-      500
-    )
+    return json({ error: err instanceof Error ? err.message : 'Server error' }, 500)
   }
 }

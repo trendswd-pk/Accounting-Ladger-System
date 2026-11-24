@@ -2,6 +2,21 @@
 
 All notable changes to Accounting Ledger are documented here.
 
+## [1.5.0] — 2026-11-24
+
+### Added
+- **Sign up** on `/login`: new users create an account with email, password, and business name.
+- **Per-user private ledger:** each signed-in user only sees their own accounts, transactions, settings, banks, types, and uploads.
+- **New-user defaults** on signup/bootstrap: Account Types (Cash in Hand, Bank, Expenses, Savings, Investment), Cash Types (Cash in Hand, Expenses, Owned Cash, Savings, Investment), one Demo Bank detail, and starter accounts (Cash in Pocket, Bank Account, Savings, Investment, Daily Expenses, Loan Payable, Loan Receivable). SQL helper: `database/migrations/2026-11-24_new_user_default_seed.sql`.
+- Database migration `database/migrations/2026-11-24_multi_tenant_user_id.sql` (required on live Supabase before enabling signup).
+
+### Changed
+- API list/create/update/delete paths scope data by authenticated `user_id` (service-role queries filtered; list RPCs take `p_user_id`).
+
+### Fixed
+- Switching users no longer keeps the previous account’s in-memory caches (settings, accounts, transactions, banks, types, dashboard). Logout and login/signup clear client session caches so a hard reload is not required.
+- Header business name now uses the name from signup / `user_metadata` instead of sticking on the product default “Trends WD” after a new account signs in.
+
 ## [1.4.0] — 2026-11-23
 
 ### Added

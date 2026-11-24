@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   if (auth.error) return auth.error
   try {
     const today = new URL(request.url).searchParams.get('today')
-    const summary = await buildDashboardExpenseSummary(today)
+    const summary = await buildDashboardExpenseSummary(auth.user.id, today)
     return NextResponse.json(summary, { headers: NO_STORE })
   } catch (err) {
     return NextResponse.json(

@@ -14,10 +14,12 @@ Single source of truth:
 | Area | Objects |
 |------|---------|
 | Types | `account_types`, `cash_types` |
-| Settings | `app_settings` (branding, templates, notes, dashboard filters, theme) |
-| Ledger | `accounts`, `transactions` |
+| Settings | `app_settings` (per-user branding, templates, notes, dashboard filters, theme) |
+| Ledger | `accounts`, `transactions` (scoped by `user_id`) |
 | Files | `file_attachments` (metadata only; bytes on Cloudflare R2) |
-| RPCs | `rpc_get_app_settings`, `rpc_list_account_types`, `rpc_list_cash_types`, `rpc_list_accounts`, `rpc_list_transactions` |
+| RPCs | `rpc_*` functions take `p_user_id` after the multi-tenant migration |
+
+**Live upgrade:** after `schema.sql`, run dated files under [`migrations/`](migrations/), especially `2026-11-24_multi_tenant_user_id.sql` before enabling signup.
 
 ## Clear transactions only (optional)
 

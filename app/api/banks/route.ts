@@ -6,12 +6,12 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   const auth = await requireUser()
   if (auth.error) return auth.error
-  return listBanks()
+  return listBanks(auth.user.id)
 }
 
 export async function POST(request: Request) {
   const auth = await requireUser()
   if (auth.error) return auth.error
   const body = await request.json().catch(() => ({}))
-  return createBankRow(body)
+  return createBankRow(auth.user.id, body)
 }

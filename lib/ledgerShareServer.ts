@@ -74,6 +74,7 @@ export type LedgerSharePayload = {
 }
 
 export async function createLedgerShareForAccount(
+  userId: string,
   accountId: string,
   req: Request,
   opts?: { ttlHours?: number; requirePin?: boolean }
@@ -92,6 +93,7 @@ export async function createLedgerShareForAccount(
     .from('accounts')
     .select('id, name')
     .eq('id', id)
+    .eq('user_id', userId)
     .maybeSingle()
   if (accErr) throw new Error(accErr.message)
   if (!account) throw new Error('Account not found.')
@@ -99,7 +101,7 @@ export async function createLedgerShareForAccount(
   const { data: settings } = await admin
     .from('app_settings')
     .select('ledger_share_require_pin, ledger_share_ttl_hours')
-    .eq('id', 1)
+    .eq('user_id', userId)
     .maybeSingle()
 
   const requirePin =
@@ -125,6 +127,7 @@ export async function createLedgerShareForAccount(
     expires_at: expiresAt,
     failed_attempts: 0,
     locked_until: null,
+    user_id: userId,
   })
   if (error) {
     // Older DBs without require_pin: retry without the column.
@@ -141,6 +144,7 @@ export async function createLedgerShareForAccount(
         expires_at: expiresAt,
         failed_attempts: 0,
         locked_until: null,
+        user_id: userId,
       })
       if (retry.error) throw new Error(retry.error.message)
     } else {
@@ -168,6 +172,7 @@ export async function getLedgerShareMeta(
   let data: {
     token: string
     account_id: string
+    user_id?: string | null
     expires_at: string
     locked_until: string | null
     require_pin?: boolean | null
@@ -181,13 +186,13 @@ export async function getLedgerShareMeta(
     const first = await admin
       .from('ledger_shares')
       .select(
-        'token, account_id, expires_at, locked_until, require_pin, accounts ( name )'
+        'token, account_id, user_id, expires_at, locked_until, require_pin, accounts ( name )'
       )
       .eq('token', t)
       .maybeSingle()
     if (
       first.error &&
-      /require_pin/i.test(first.error.message) &&
+      /require_pin|user_id/i.test(first.error.message) &&
       /does not exist|Could not find/i.test(first.error.message)
     ) {
       const fallback = await admin
@@ -209,11 +214,20 @@ export async function getLedgerShareMeta(
     ? accounts[0]?.name ?? 'Account'
     : accounts?.name ?? 'Account'
 
-  const { data: settings } = await admin
-    .from('app_settings')
-    .select('business_name')
-    .eq('id', 1)
-    .maybeSingle()
+  let ownerId = data.user_id ? String(data.user_id) : ''
+  if (!ownerId) {
+    const { data: accOwner } = await admin
+      .from('accounts')
+      .select('user_id')
+      .eq('id', data.account_id)
+      .maybeSingle()
+    ownerId = String(accOwner?.user_id ?? '')
+  }
+
+  const settingsQuery = admin.from('app_settings').select('business_name')
+  const { data: settings } = ownerId
+    ? await settingsQuery.eq('user_id', ownerId).maybeSingle()
+    : await settingsQuery.limit(1).maybeSingle()
 
   const expiresAt = String(data.expires_at)
   const expired = new Date(expiresAt).getTime() <= Date.now()
@@ -247,6 +261,7 @@ export async function unlockLedgerShare(
     id: string
     token: string
     account_id: string
+    user_id?: string | null
     pin_hash: string
     require_pin?: boolean | null
     expires_at: string
@@ -259,13 +274,13 @@ export async function unlockLedgerShare(
     const first = await admin
       .from('ledger_shares')
       .select(
-        'id, token, account_id, pin_hash, require_pin, expires_at, failed_attempts, locked_until'
+        'id, token, account_id, user_id, pin_hash, require_pin, expires_at, failed_attempts, locked_until'
       )
       .eq('token', t)
       .maybeSingle()
     if (
       first.error &&
-      /require_pin/i.test(first.error.message) &&
+      /require_pin|user_id/i.test(first.error.message) &&
       /does not exist|Could not find/i.test(first.error.message)
     ) {
       const fallback = await admin
@@ -340,26 +355,41 @@ export async function unlockLedgerShare(
     .update({ failed_attempts: 0, locked_until: null })
     .eq('id', share.id)
 
+  let ownerId = share.user_id ? String(share.user_id) : ''
+  if (!ownerId) {
+    const { data: accOwner } = await admin
+      .from('accounts')
+      .select('user_id')
+      .eq('id', share.account_id)
+      .maybeSingle()
+    ownerId = String(accOwner?.user_id ?? '')
+  }
+
   const payload = await buildLedgerPayload(
     String(share.account_id),
-    String(share.expires_at)
+    String(share.expires_at),
+    ownerId
   )
   return { ok: true, payload }
 }
 
 async function buildLedgerPayload(
   accountId: string,
-  expiresAt: string
+  expiresAt: string,
+  ownerUserId: string
 ): Promise<LedgerSharePayload> {
   const admin = getSupabaseAdmin()
 
-  const { data: account, error: accErr } = await admin
+  let accountQuery = admin
     .from('accounts')
     .select(
-      'id, name, phone, account_types ( name ), cash_types ( name )'
+      'id, name, phone, user_id, account_types ( name ), cash_types ( name )'
     )
     .eq('id', accountId)
-    .maybeSingle()
+  if (ownerUserId) {
+    accountQuery = accountQuery.eq('user_id', ownerUserId)
+  }
+  const { data: account, error: accErr } = await accountQuery.maybeSingle()
   if (accErr) throw new Error(accErr.message)
   if (!account) throw new Error('Account not found.')
 
@@ -378,11 +408,13 @@ async function buildLedgerPayload(
     ? cashTypes[0]?.name ?? ''
     : cashTypes?.name ?? ''
 
-  const { data: settings } = await admin
+  const ownerId = ownerUserId || String(account.user_id ?? '')
+  let settingsQuery = admin
     .from('app_settings')
     .select('business_name, currency, logo_url')
-    .eq('id', 1)
-    .maybeSingle()
+  const { data: settings } = ownerId
+    ? await settingsQuery.eq('user_id', ownerId).maybeSingle()
+    : await settingsQuery.limit(1).maybeSingle()
 
   type Slim = {
     id: string
@@ -398,13 +430,15 @@ async function buildLedgerPayload(
   const TX_PAGE = 1000
   const rows: Slim[] = []
   for (let from = 0; ; from += TX_PAGE) {
-    const { data: txRows, error: txErr } = await admin
+    let txQuery = admin
       .from('transactions')
       .select('id, entry_number, transaction_date, narration, entry_type, balance')
       .eq('account_id', accountId)
       .order('transaction_date', { ascending: true })
       .order('entry_number', { ascending: true })
       .range(from, from + TX_PAGE - 1)
+    if (ownerId) txQuery = txQuery.eq('user_id', ownerId)
+    const { data: txRows, error: txErr } = await txQuery
     if (txErr) throw new Error(txErr.message)
     const page = (txRows ?? []) as Slim[]
     rows.push(...page)
@@ -431,11 +465,13 @@ async function buildLedgerPayload(
   const folders = withRunning.map((t) => transactionAttachmentFolder(t.id))
   const attachmentsByTxn = new Map<string, LedgerShareAttachment[]>()
   if (folders.length > 0) {
-    const { data: files } = await admin
+    let filesQuery = admin
       .from('file_attachments')
       .select('id, file_name, public_url, mime_type, folder')
       .in('folder', folders)
       .order('created_at', { ascending: false })
+    if (ownerId) filesQuery = filesQuery.eq('user_id', ownerId)
+    const { data: files } = await filesQuery
 
     for (const f of files ?? []) {
       const folder = String(f.folder ?? '')
@@ -460,13 +496,15 @@ async function buildLedgerPayload(
 
   const logoRaw = String(settings?.logo_url ?? '').trim()
 
-  const { data: bankRows } = await admin
+  let banksQuery = admin
     .from('bank_details')
     .select(
       'id, bank_name, account_title, account_number, iban, branch_name, branch_code, swift_code, notes, qr_code_url, active'
     )
     .eq('active', true)
     .order('created_at', { ascending: true })
+  if (ownerId) banksQuery = banksQuery.eq('user_id', ownerId)
+  const { data: bankRows } = await banksQuery
 
   const banks: LedgerShareBank[] = (bankRows ?? []).map((b) => {
     const qr = String(b.qr_code_url ?? '').trim()

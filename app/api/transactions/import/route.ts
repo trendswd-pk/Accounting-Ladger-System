@@ -31,6 +31,7 @@ type DbInsert = {
   narration: string
   entry_type: 'credit' | 'debit'
   balance: number
+  user_id: string
   _line: number
 }
 
@@ -44,10 +45,12 @@ export async function POST(request: Request) {
     if (rows.length === 0) return json({ error: 'No transaction rows to import.' }, 400)
     if (rows.length > 2000) return json({ error: 'Max 2000 rows per request chunk.' }, 400)
 
+    const userId = auth.user.id
     const admin = getSupabaseAdmin()
     const { data: accounts, error: accErr } = await admin
       .from('accounts')
       .select('id, name')
+      .eq('user_id', userId)
     if (accErr) return json({ error: accErr.message }, 500)
 
     const byId = new Map((accounts ?? []).map((a) => [String(a.id), a]))
@@ -95,6 +98,7 @@ export async function POST(request: Request) {
         narration,
         entry_type: entryType,
         balance,
+        user_id: userId,
         _line: line,
       })
     }

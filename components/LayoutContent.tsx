@@ -47,7 +47,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   const [navOpen, setNavOpen] = useState(false)
   const [profilerOpen, setProfilerOpen] = useState(false)
   const [businessName, setBusinessName] = useState(
-    () => getCachedAppSettings()?.businessName ?? DEFAULT_APP_SETTINGS.businessName
+    () => getCachedAppSettings()?.businessName ?? ''
   )
   const [logoUrl, setLogoUrl] = useState<string | null>(
     () => getCachedAppSettings()?.logoUrl ?? null
@@ -176,7 +176,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
                 <BookOpen className="h-4 w-4" aria-hidden />
               </span>
               <span className="truncate text-base font-bold text-primary-600 dark:text-primary-400">
-                {businessName}
+                {businessName.trim() || 'Ledger'}
               </span>
             </>
           )}

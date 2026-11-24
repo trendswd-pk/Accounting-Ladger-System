@@ -27,6 +27,7 @@ type DbInsert = {
   phone: string
   account_type_id: string
   cash_type_id: string
+  user_id: string
   _line: number
 }
 
@@ -40,11 +41,12 @@ export async function POST(request: Request) {
     if (rows.length === 0) return json({ error: 'No account rows to import.' }, 400)
     if (rows.length > 2000) return json({ error: 'Max 2000 rows per request chunk.' }, 400)
 
+    const userId = auth.user.id
     const admin = getSupabaseAdmin()
     const [{ data: accountTypes, error: atErr }, { data: cashTypes, error: ctErr }] =
       await Promise.all([
-        admin.from('account_types').select('id, name, code'),
-        admin.from('cash_types').select('id, name, code'),
+        admin.from('account_types').select('id, name, code').eq('user_id', userId),
+        admin.from('cash_types').select('id, name, code').eq('user_id', userId),
       ])
     if (atErr) return json({ error: atErr.message }, 500)
     if (ctErr) return json({ error: ctErr.message }, 500)
@@ -65,7 +67,10 @@ export async function POST(request: Request) {
       )
     }
 
-    const { data: existing, error: exErr } = await admin.from('accounts').select('id, name')
+    const { data: existing, error: exErr } = await admin
+      .from('accounts')
+      .select('id, name')
+      .eq('user_id', userId)
     if (exErr) return json({ error: exErr.message }, 500)
     const existingNames = new Set((existing ?? []).map((a) => norm(String(a.name))))
 
@@ -106,6 +111,7 @@ export async function POST(request: Request) {
         phone,
         account_type_id: accountType.id,
         cash_type_id: cashType.id,
+        user_id: userId,
         _line: line,
       })
     }

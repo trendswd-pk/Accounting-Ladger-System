@@ -13,6 +13,7 @@ import {
   markBiometricLocked,
   promptBiometricUnlock,
 } from '@/lib/biometricUnlock'
+import { clearClientSessionCaches } from '@/lib/clearClientSessionCaches'
 
 /**
  * Capacitor-only gate: when a Supabase session exists and biometric unlock is
@@ -153,6 +154,7 @@ export default function BiometricUnlockGate({
     } catch {
       // Still send user to login
     }
+    clearClientSessionCaches()
     setLocked(false)
     router.replace('/login')
     router.refresh()

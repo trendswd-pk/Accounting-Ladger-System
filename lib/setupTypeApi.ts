@@ -41,23 +41,24 @@ type RpcRow = {
   created_at: string
 }
 
-async function listViaSelect(table: SetupTable) {
+async function listViaSelect(table: SetupTable, userId: string) {
   const admin = getSupabaseAdmin()
   const { data, error } = await admin
     .from(table)
     .select('id, name, code, description, active, created_at')
+    .eq('user_id', userId)
     .order('created_at', { ascending: true })
   if (error) throw new Error(error.message)
   return (data ?? []).map(mapSetupTypeRow)
 }
 
-export async function listSetupTypes(table: SetupTable) {
+export async function listSetupTypes(table: SetupTable, userId: string) {
   try {
     const admin = getSupabaseAdmin()
-    const { data, error } = await admin.rpc(LIST_RPC[table])
+    const { data, error } = await admin.rpc(LIST_RPC[table], { p_user_id: userId })
     if (error) {
       if (isMissingRpc(error)) {
-        const items = await listViaSelect(table)
+        const items = await listViaSelect(table, userId)
         return json({ items, via: 'select-fallback' })
       }
       return json({ error: error.message }, 500)
@@ -72,6 +73,7 @@ export async function listSetupTypes(table: SetupTable) {
 
 export async function createSetupTypeRow(
   table: SetupTable,
+  userId: string,
   body: { name?: string; code?: string; description?: string; active?: boolean }
 ) {
   try {
@@ -86,7 +88,7 @@ export async function createSetupTypeRow(
     const admin = getSupabaseAdmin()
     const { data, error } = await admin
       .from(table)
-      .insert({ name, code, description, active })
+      .insert({ name, code, description, active, user_id: userId })
       .select('id, name, code, description, active, created_at')
       .single()
 
@@ -100,6 +102,7 @@ export async function createSetupTypeRow(
 
 export async function updateSetupTypeRow(
   table: SetupTable,
+  userId: string,
   id: string,
   body: { name?: string; code?: string; description?: string; active?: boolean }
 ) {
@@ -119,25 +122,34 @@ export async function updateSetupTypeRow(
       .from(table)
       .update({ name, code, description, active, updated_at: new Date().toISOString() })
       .eq('id', id)
+      .eq('user_id', userId)
       .select('id, name, code, description, active, created_at')
-      .single()
+      .maybeSingle()
 
     if (error) {
       const uniqueMsg = uniqueCodeError(error)
-      return json({ error: uniqueMsg }, error.code === 'PGRST116' ? 404 : 400)
+      return json({ error: uniqueMsg }, 400)
     }
+    if (!data) return json({ error: 'Not found.' }, 404)
     return json({ item: mapSetupTypeRow(data) })
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : 'Server error' }, 500)
   }
 }
 
-export async function deleteSetupTypeRow(table: SetupTable, id: string) {
+export async function deleteSetupTypeRow(table: SetupTable, userId: string, id: string) {
   try {
     if (!id) return json({ error: 'Missing id.' }, 400)
     const admin = getSupabaseAdmin()
-    const { error } = await admin.from(table).delete().eq('id', id)
+    const { data, error } = await admin
+      .from(table)
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select('id')
+      .maybeSingle()
     if (error) return json({ error: error.message }, 500)
+    if (!data) return json({ error: 'Not found.' }, 404)
     return json({ ok: true })
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : 'Server error' }, 500)

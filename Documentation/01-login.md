@@ -1,8 +1,8 @@
 # Login
 
-**Version:** 1.0.3  
+**Version:** 1.5.0  
 **Route:** `/login`  
-**Who can access:** Anyone visiting Demo Mode (signed-out users). Production uses credentials provided by your administrator.
+**Who can access:** Anyone signed out. Production users can sign in or create a new account.
 
 ## Screenshot
 
@@ -10,9 +10,22 @@
 
 ## What this page does
 
-Signs you into Accounting Ledger. In Demo Mode, sample books are stored in this browser only — there is no production backend. Choose a demo account card for the fastest start, or enter email and password manually.
+Signs you into Accounting Ledger, or creates a new private ledger for your business.
+
+In **Demo Mode**, sample books are stored in this browser only — there is no production backend. Choose a demo account card for the fastest start, or enter email and password manually.
+
+In **production**, each login owns its own data: accounts, transactions, settings, and business name are not shared with other users.
 
 ## Layout at a glance
+
+### Production
+
+- Product icon and heading: **Sign in** or **Create account** (info icon explains privacy)
+- Form fields: **Email**, **Password** (and on signup: **Business name**, **Confirm password**)
+- Primary action: **Sign in** or **Create account**
+- Toggle link: **Create an account** / **Sign in**
+
+### Demo Mode
 
 - Banner: **Demo Mode — offline sample data, no production backend**
 - Product title: **Accounting Ledger (Demo)**
@@ -22,37 +35,43 @@ Signs you into Accounting Ledger. In Demo Mode, sample books are stored in this 
 
 ## Steps
 
-### Sign in with a demo account card
+### Sign in (production)
 
-1. Open the Demo Mode app (from the project page when deployed, or locally).
-2. On the login screen, find **DEMO ACCOUNTS**.
-3. Select a card:
-   - **Admin** — full access to settings, types, and ledger data
-   - **Editor** — day-to-day books: accounts, transactions, and expenses
-   - **Viewer** — browse dashboards and ledgers in a read-oriented sandbox
-4. The app signs you in and opens the [Dashboard](./02-dashboard.md).
-
-Demo logins appear as account cards on the Demo Mode login screen (email is shown on each card). Do not copy passwords into external documents.
-
-### Sign in with email and password
-
-1. Enter **Email** (placeholder: `you@example.com`).
-2. Enter **Password**.
+1. Open `/login`.
+2. Enter **Email** and **Password**.
 3. Select **Sign in**.
-4. While the request runs, the button shows **Signing in…**.
+4. The app opens your private dashboard (or the `next` path when provided).
+
+### Create account (production)
+
+1. On `/login`, select **Create an account**.
+2. Enter **Business name**, **Email**, **Password**, and **Confirm password** (min 6 characters).
+3. Select **Create account**.
+4. If email confirmation is required, check your inbox, then sign in — your ledger is bootstrapped on first session.
+5. If the session starts immediately, you land on the dashboard with default account/cash types and your business name.
+
+### Sign in with a demo account card (Demo Mode only)
+
+1. Open the Demo Mode app.
+2. Select **Admin**, **Editor**, or **Viewer**.
+3. The app signs you in and opens the [Dashboard](./02-dashboard.md).
 
 ## Fields
 
 | Field | Required | Notes |
 |-------|----------|--------|
-| Email | Yes | Must match a demo account when using Demo Mode |
-| Password | Yes | Shown on the account cards in Demo Mode only |
+| Business name | Signup only | Shown in the app header and messages |
+| Email | Yes | Unique login |
+| Password | Yes | Min 6 characters on signup |
+| Confirm password | Signup only | Must match password |
 
 ## Errors & edge cases
 
-- Empty email or password: **Email and password are required.**
-- Wrong credentials: a clear error message appears above the form (for example, sign-in failed). Correct the values or use an account card.
-- Already signed in: visiting a protected page redirects you to the app; signing out returns you here.
+- Empty required fields: clear validation messages above the form.
+- Wrong credentials: Supabase error text above the form.
+- Passwords do not match / too short: blocked before the request.
+- Email confirmation pending: info message asks you to confirm, then sign in.
+- Already signed in: visiting a protected page stays in the app; signing out returns here.
 - Demo data is per browser and per demo user — clearing site data resets local sandboxes.
 
 ## Related links
@@ -60,3 +79,4 @@ Demo logins appear as account cards on the Demo Mode login screen (email is show
 - [Getting started](./00-getting-started.md)
 - [Dashboard](./02-dashboard.md)
 - [Mobile](./16-mobile.md)
+- [Android Capacitor](./17-android-capacitor.md)

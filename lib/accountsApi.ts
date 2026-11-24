@@ -49,12 +49,8 @@ function signedAmount(entryTypeRaw: unknown, balanceRaw: unknown): number {
   return normalizeEntryType(entryTypeRaw) === 'debit' ? -amount : amount
 }
 
-/**
- * Full ledger totals per account (credit +, debit −).
- * Paginates past PostgREST’s default ~1000-row cap so balances match
- * the Transactions page running balance.
- */
 async function loadBalancesByAccountId(
+  userId: string,
   accountId?: string
 ): Promise<Map<string, number>> {
   const admin = getSupabaseAdmin()
@@ -64,6 +60,7 @@ async function loadBalancesByAccountId(
     let query = admin
       .from('transactions')
       .select('account_id, entry_type, balance')
+      .eq('user_id', userId)
       .order('entry_number', { ascending: true })
       .range(from, from + TX_PAGE - 1)
 
@@ -73,7 +70,6 @@ async function loadBalancesByAccountId(
 
     const { data, error } = await query
     if (error) {
-      // Table/column may not exist yet — treat as zero balances.
       return map
     }
 
@@ -112,7 +108,7 @@ function mapJoinWithBalance(r: JoinRow, balance: number): AccountRecord {
   })
 }
 
-async function listViaJoin() {
+async function listViaJoin(userId: string) {
   const admin = getSupabaseAdmin()
   const { data, error } = await admin
     .from('accounts')
@@ -123,16 +119,17 @@ async function listViaJoin() {
       cash_types ( name, code )
     `
     )
+    .eq('user_id', userId)
     .order('created_at', { ascending: true })
 
   if (error) throw new Error(error.message)
 
-  const balances = await loadBalancesByAccountId()
+  const balances = await loadBalancesByAccountId(userId)
   const rows = (data ?? []) as unknown as JoinRow[]
   return rows.map((r) => mapJoinWithBalance(r, balances.get(r.id) ?? 0))
 }
 
-async function fetchAccountItem(id: string) {
+async function fetchAccountItem(userId: string, id: string) {
   const admin = getSupabaseAdmin()
   const { data, error } = await admin
     .from('accounts')
@@ -144,34 +141,50 @@ async function fetchAccountItem(id: string) {
     `
     )
     .eq('id', id)
+    .eq('user_id', userId)
     .single()
 
   if (error) throw new Error(error.message)
 
-  const balances = await loadBalancesByAccountId(id)
+  const balances = await loadBalancesByAccountId(userId, id)
   return mapJoinWithBalance(data as unknown as JoinRow, balances.get(id) ?? 0)
 }
 
-export async function listAccounts() {
+async function assertOwnedType(
+  userId: string,
+  table: 'account_types' | 'cash_types',
+  id: string
+): Promise<string | null> {
+  const admin = getSupabaseAdmin()
+  const { data, error } = await admin
+    .from(table)
+    .select('id')
+    .eq('id', id)
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (error) return error.message
+  if (!data) return `Invalid ${table === 'account_types' ? 'account' : 'cash'} type.`
+  return null
+}
+
+export async function listAccounts(userId: string) {
   try {
     const admin = getSupabaseAdmin()
-    const { data, error } = await admin.rpc('rpc_list_accounts')
+    const { data, error } = await admin.rpc('rpc_list_accounts', { p_user_id: userId })
     if (error) {
       if (isMissingRpc(error)) {
-        const items = await listViaJoin()
+        const items = await listViaJoin(userId)
         return json({ items, via: 'select-fallback' })
       }
       return json({ error: error.message }, 500)
     }
-    // RPC already SUMs all transactions (same formula as running balance).
-    // Do NOT overwrite with a truncated PostgREST select (~1000 row cap).
     const rows = (Array.isArray(data) ? data : []) as RpcRow[]
     const items = rows.map(mapAccountRow)
     const rpcHasBalance = rows.some((r) =>
       Object.prototype.hasOwnProperty.call(r ?? {}, 'balance')
     )
     if (!rpcHasBalance) {
-      const balances = await loadBalancesByAccountId()
+      const balances = await loadBalancesByAccountId(userId)
       return json({
         items: items.map((item) => ({
           ...item,
@@ -186,12 +199,15 @@ export async function listAccounts() {
   }
 }
 
-export async function createAccountRow(body: {
-  name?: string
-  phone?: string
-  accountTypeId?: string
-  cashTypeId?: string
-}) {
+export async function createAccountRow(
+  userId: string,
+  body: {
+    name?: string
+    phone?: string
+    accountTypeId?: string
+    cashTypeId?: string
+  }
+) {
   try {
     const name = String(body.name ?? '').trim()
     const phone = String(body.phone ?? '').trim()
@@ -202,6 +218,11 @@ export async function createAccountRow(body: {
     if (!accountTypeId) return json({ error: 'Account type is required.' }, 400)
     if (!cashTypeId) return json({ error: 'Cash type is required.' }, 400)
 
+    const atErr = await assertOwnedType(userId, 'account_types', accountTypeId)
+    if (atErr) return json({ error: atErr }, 400)
+    const ctErr = await assertOwnedType(userId, 'cash_types', cashTypeId)
+    if (ctErr) return json({ error: ctErr }, 400)
+
     const admin = getSupabaseAdmin()
     const { data, error } = await admin
       .from('accounts')
@@ -210,12 +231,13 @@ export async function createAccountRow(body: {
         phone,
         account_type_id: accountTypeId,
         cash_type_id: cashTypeId,
+        user_id: userId,
       })
       .select('id')
       .single()
 
     if (error) return json({ error: error.message }, 400)
-    const item = await fetchAccountItem(data.id)
+    const item = await fetchAccountItem(userId, data.id)
     return json({ item }, 201)
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : 'Server error' }, 500)
@@ -223,6 +245,7 @@ export async function createAccountRow(body: {
 }
 
 export async function updateAccountRow(
+  userId: string,
   id: string,
   body: { name?: string; phone?: string; accountTypeId?: string; cashTypeId?: string }
 ) {
@@ -237,8 +260,13 @@ export async function updateAccountRow(
     if (!accountTypeId) return json({ error: 'Account type is required.' }, 400)
     if (!cashTypeId) return json({ error: 'Cash type is required.' }, 400)
 
+    const atErr = await assertOwnedType(userId, 'account_types', accountTypeId)
+    if (atErr) return json({ error: atErr }, 400)
+    const ctErr = await assertOwnedType(userId, 'cash_types', cashTypeId)
+    if (ctErr) return json({ error: ctErr }, 400)
+
     const admin = getSupabaseAdmin()
-    const { error } = await admin
+    const { data, error } = await admin
       .from('accounts')
       .update({
         name,
@@ -248,21 +276,32 @@ export async function updateAccountRow(
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)
+      .eq('user_id', userId)
+      .select('id')
+      .maybeSingle()
 
     if (error) return json({ error: error.message }, 400)
-    const item = await fetchAccountItem(id)
+    if (!data) return json({ error: 'Account not found.' }, 404)
+    const item = await fetchAccountItem(userId, id)
     return json({ item })
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : 'Server error' }, 500)
   }
 }
 
-export async function deleteAccountRow(id: string) {
+export async function deleteAccountRow(userId: string, id: string) {
   try {
     if (!id) return json({ error: 'Missing id.' }, 400)
     const admin = getSupabaseAdmin()
-    const { error } = await admin.from('accounts').delete().eq('id', id)
+    const { data, error } = await admin
+      .from('accounts')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select('id')
+      .maybeSingle()
     if (error) return json({ error: error.message }, 500)
+    if (!data) return json({ error: 'Account not found.' }, 404)
     return json({ ok: true })
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : 'Server error' }, 500)

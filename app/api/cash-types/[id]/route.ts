@@ -9,11 +9,11 @@ export async function PATCH(request: Request, { params }: Ctx) {
   const auth = await requireUser()
   if (auth.error) return auth.error
   const body = await request.json().catch(() => ({}))
-  return updateSetupTypeRow('cash_types', params.id, body)
+  return updateSetupTypeRow('cash_types', auth.user.id, params.id, body)
 }
 
 export async function DELETE(_request: Request, { params }: Ctx) {
   const auth = await requireUser()
   if (auth.error) return auth.error
-  return deleteSetupTypeRow('cash_types', params.id)
+  return deleteSetupTypeRow('cash_types', auth.user.id, params.id)
 }

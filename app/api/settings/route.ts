@@ -6,6 +6,7 @@ import {
   normalizeDefaultEntryMode,
   normalizeOptionalUrl,
   normalizeUuidIdList,
+  type AppSettings,
 } from '@/lib/appSettings'
 import { normalizeDashboardExpensePeriod } from '@/lib/dashboardExpensePeriod'
 import { normalizeLedgerShareTtlHours } from '@/lib/ledgerShareCrypto'
@@ -17,6 +18,7 @@ import {
   normalizeMessageTemplate,
 } from '@/lib/messageTemplates'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
+import { bootstrapUserLedger } from '@/lib/userBootstrap'
 
 export const dynamic = 'force-dynamic'
 
@@ -87,10 +89,18 @@ const COLUMN_SETS = [
   'business_name, currency, theme, updated_at',
 ]
 
-async function readSettingsRow() {
+async function readSettingsRow(userId: string): Promise<{
+  settings: AppSettings
+  exists: boolean
+}> {
   const admin = getSupabaseAdmin()
-  const { data, error } = await admin.rpc('rpc_get_app_settings')
-  if (!error) return mapAppSettingsRow(data as RpcSettings)
+  const { data, error } = await admin.rpc('rpc_get_app_settings', {
+    p_user_id: userId,
+  })
+  if (!error) {
+    if (data == null) return { settings: { ...DEFAULT_APP_SETTINGS }, exists: false }
+    return { settings: mapAppSettingsRow(data as RpcSettings), exists: true }
+  }
 
   if (!isMissingRpc(error)) throw new Error(error.message)
 
@@ -98,31 +108,36 @@ async function readSettingsRow() {
     const { data: row, error: selectError } = await admin
       .from('app_settings')
       .select(select)
-      .eq('id', 1)
+      .eq('user_id', userId)
       .maybeSingle()
     if (!selectError) {
-      if (row) return mapAppSettingsRow(row as unknown as RpcSettings)
-      return { ...DEFAULT_APP_SETTINGS }
+      if (row) {
+        return {
+          settings: mapAppSettingsRow(row as unknown as RpcSettings),
+          exists: true,
+        }
+      }
+      return { settings: { ...DEFAULT_APP_SETTINGS }, exists: false }
     }
     if (!/column .* does not exist|Could not find/i.test(selectError.message)) {
       throw new Error(selectError.message)
     }
   }
-  return { ...DEFAULT_APP_SETTINGS }
+  return { settings: { ...DEFAULT_APP_SETTINGS }, exists: false }
 }
 
-async function ensureSettingsRow() {
+async function ensureSettingsRow(userId: string) {
   const admin = getSupabaseAdmin()
   const { data, error } = await admin
     .from('app_settings')
     .select('id')
-    .eq('id', 1)
+    .eq('user_id', userId)
     .maybeSingle()
   if (error) throw new Error(error.message)
   if (data) return
 
   const { error: insertError } = await admin.from('app_settings').insert({
-    id: 1,
+    user_id: userId,
     business_name: DEFAULT_APP_SETTINGS.businessName,
     currency: DEFAULT_APP_SETTINGS.currency,
     theme: DEFAULT_APP_SETTINGS.theme,
@@ -145,7 +160,20 @@ export async function GET() {
   const auth = await requireUser()
   if (auth.error) return auth.error
   try {
-    const settings = await readSettingsRow()
+    let { settings, exists } = await readSettingsRow(auth.user.id)
+    const metaName =
+      typeof auth.user.user_metadata?.business_name === 'string'
+        ? auth.user.user_metadata.business_name.trim()
+        : ''
+    const looksPlaceholder =
+      !settings.businessName.trim() ||
+      settings.businessName.trim().toLowerCase() ===
+        DEFAULT_APP_SETTINGS.businessName.toLowerCase()
+    // Seed missing row, or upgrade placeholder when signup stored a real business name.
+    if (!exists || (metaName && looksPlaceholder && metaName !== settings.businessName)) {
+      await bootstrapUserLedger(auth.user.id, metaName || null)
+      ;({ settings } = await readSettingsRow(auth.user.id))
+    }
     return json({ settings })
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : 'Server error' }, 500)
@@ -248,9 +276,12 @@ export async function PATCH(request: Request) {
       }
     }
 
-    await ensureSettingsRow()
+    await ensureSettingsRow(auth.user.id)
     const admin = getSupabaseAdmin()
-    const { error } = await admin.from('app_settings').update(patch).eq('id', 1)
+    const { error } = await admin
+      .from('app_settings')
+      .update(patch)
+      .eq('user_id', auth.user.id)
     if (error) {
       if (
         /logo_url|favicon_url/i.test(error.message) &&
@@ -329,7 +360,7 @@ export async function PATCH(request: Request) {
       return json({ error: error.message }, 500)
     }
 
-    const settings = await readSettingsRow()
+    const { settings } = await readSettingsRow(auth.user.id)
     return json({ settings })
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : 'Server error' }, 500)

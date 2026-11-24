@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { clearBiometricUnlock } from '@/lib/biometricUnlock'
+import { clearClientSessionCaches } from '@/lib/clearClientSessionCaches'
 import {
   DEFAULT_APP_SETTINGS,
   getCachedAppSettings,
@@ -123,7 +124,7 @@ export default function Sidebar({
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [signingOut, setSigningOut] = useState(false)
   const [businessName, setBusinessName] = useState(
-    () => getCachedAppSettings()?.businessName ?? DEFAULT_APP_SETTINGS.businessName
+    () => getCachedAppSettings()?.businessName ?? ''
   )
   const [logoUrl, setLogoUrl] = useState<string | null>(
     () => getCachedAppSettings()?.logoUrl ?? null
@@ -199,6 +200,7 @@ export default function Sidebar({
       const supabase = createClient()
       await clearBiometricUnlock().catch(() => undefined)
       await supabase.auth.signOut()
+      clearClientSessionCaches()
       onClose?.()
       router.replace('/login')
       router.refresh()
@@ -266,7 +268,7 @@ export default function Sidebar({
                   <BookOpen className="h-5 w-5" aria-hidden />
                 </span>
                 <span className="truncate text-lg font-bold tracking-tight text-primary-600 dark:text-primary-400">
-                  {businessName}
+                  {businessName.trim() || 'Ledger'}
                 </span>
               </>
             )}

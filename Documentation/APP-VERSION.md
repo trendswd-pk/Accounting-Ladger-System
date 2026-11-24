@@ -1,4 +1,4 @@
 # App version
 
-**Current version:** 1.4.0  
-**Released:** 2026-11-23
+**Current version:** 1.5.0  
+**Released:** 2026-11-24

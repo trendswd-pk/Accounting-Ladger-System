@@ -6,12 +6,12 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   const auth = await requireUser()
   if (auth.error) return auth.error
-  return listSetupTypes('account_types')
+  return listSetupTypes('account_types', auth.user.id)
 }
 
 export async function POST(request: Request) {
   const auth = await requireUser()
   if (auth.error) return auth.error
   const body = await request.json().catch(() => ({}))
-  return createSetupTypeRow('account_types', body)
+  return createSetupTypeRow('account_types', auth.user.id, body)
 }

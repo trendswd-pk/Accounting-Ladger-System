@@ -277,6 +277,7 @@ function aggregate(
 
 /** Server: slim expense rows only (last ~6 months), pre-aggregated for dashboard. */
 export async function buildDashboardExpenseSummary(
+  userId: string,
   todayParam?: string | null
 ): Promise<DashboardExpenseSummary> {
   const today = resolveTodayYmd(todayParam)
@@ -284,6 +285,7 @@ export async function buildDashboardExpenseSummary(
   const { data: accountRows, error: accountError } = await admin
     .from('accounts')
     .select('id, name, account_types ( name, code )')
+    .eq('user_id', userId)
 
   if (accountError) throw new Error(accountError.message)
 
@@ -316,6 +318,7 @@ export async function buildDashboardExpenseSummary(
   const { data: txRows, error: txError } = await admin
     .from('transactions')
     .select('account_id, transaction_date, entry_type, balance')
+    .eq('user_id', userId)
     .in('account_id', expenseIds)
     .gte('transaction_date', fromStr)
 

@@ -58,6 +58,7 @@ export async function GET(request: Request) {
     .from('file_attachments')
     .select('id, storage_key, public_url, file_name, mime_type, size_bytes, folder, created_at')
     .eq('folder', folder)
+    .eq('user_id', auth.user.id)
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -135,6 +136,7 @@ export async function POST(request: Request) {
       mime_type: mimeType,
       size_bytes: sizeBytes,
       folder,
+      user_id: auth.user.id,
     })
     .select('id, storage_key, public_url, file_name, mime_type, size_bytes, folder, created_at')
     .single()

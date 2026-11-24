@@ -270,6 +270,11 @@ export function invalidateAppSettingsCache(): void {
   settingsCache = null
 }
 
+/** Broadcast a temporary settings snapshot (e.g. defaults after logout) so UI chrome resets. */
+export function notifyAppSettingsReset(settings: AppSettings = DEFAULT_APP_SETTINGS): void {
+  notifySettingsChanged(withIdDefaults(settings))
+}
+
 export function getCachedAppSettings(): AppSettings | null {
   return settingsCache ? cloneSettings(settingsCache) : null
 }

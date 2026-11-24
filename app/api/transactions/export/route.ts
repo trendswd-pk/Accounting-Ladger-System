@@ -34,7 +34,9 @@ export async function GET() {
     const admin = getSupabaseAdmin()
     let items: ReturnType<typeof mapTransactionRow>[] = []
 
-    const { data, error } = await admin.rpc('rpc_list_transactions')
+    const { data, error } = await admin.rpc('rpc_list_transactions', {
+      p_user_id: auth.user.id,
+    })
     if (!error) {
       items = ((Array.isArray(data) ? data : []) as RpcRow[]).map(mapTransactionRow)
     } else if (isMissingRpc(error)) {
@@ -43,6 +45,7 @@ export async function GET() {
         .select(
           'id, entry_number, transaction_date, account_id, narration, entry_type, balance, created_at, accounts ( name )'
         )
+        .eq('user_id', auth.user.id)
         .order('entry_number', { ascending: true })
       if (joinErr) {
         return NextResponse.json({ error: joinErr.message }, { status: 500 })

@@ -9,11 +9,11 @@ export async function PATCH(request: Request, { params }: Ctx) {
   const auth = await requireUser()
   if (auth.error) return auth.error
   const body = await request.json().catch(() => ({}))
-  return updateTransactionRow(params.id, body)
+  return updateTransactionRow(auth.user.id, params.id, body)
 }
 
 export async function DELETE(_request: Request, { params }: Ctx) {
   const auth = await requireUser()
   if (auth.error) return auth.error
-  return deleteTransactionRow(params.id)
+  return deleteTransactionRow(auth.user.id, params.id)
 }

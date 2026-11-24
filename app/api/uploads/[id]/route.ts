@@ -30,6 +30,7 @@ export async function DELETE(_request: Request, { params }: Ctx) {
     .from('file_attachments')
     .select('id, storage_key, public_url')
     .eq('id', id)
+    .eq('user_id', auth.user.id)
     .maybeSingle()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -42,6 +43,7 @@ export async function DELETE(_request: Request, { params }: Ctx) {
       .from('file_attachments')
       .select('id', { count: 'exact', head: true })
       .eq('storage_key', storageKey)
+      .eq('user_id', auth.user.id)
       .neq('id', id)
     if (countError) return NextResponse.json({ error: countError.message }, { status: 500 })
     sharedRefs = count ?? 0
@@ -53,7 +55,11 @@ export async function DELETE(_request: Request, { params }: Ctx) {
     if (delErr) return NextResponse.json({ error: delErr }, { status: 500 })
   }
 
-  const { error: deleteError } = await admin.from('file_attachments').delete().eq('id', id)
+  const { error: deleteError } = await admin
+    .from('file_attachments')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', auth.user.id)
   if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 })
 
   return NextResponse.json({ ok: true })

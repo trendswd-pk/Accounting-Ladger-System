@@ -68,6 +68,7 @@ export async function POST(request: Request) {
     .from('file_attachments')
     .select('id, storage_key, public_url, file_name, mime_type, size_bytes, folder, created_at')
     .eq('id', attachmentId)
+    .eq('user_id', auth.user.id)
     .maybeSingle()
 
   if (sourceError) return NextResponse.json({ error: sourceError.message }, { status: 500 })
@@ -87,6 +88,7 @@ export async function POST(request: Request) {
     mime_type: src.mime_type || 'application/octet-stream',
     size_bytes: Number(src.size_bytes ?? 0),
     folder,
+    user_id: auth.user.id,
   }))
 
   const { data, error } = await admin

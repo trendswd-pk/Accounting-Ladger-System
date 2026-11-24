@@ -22,9 +22,14 @@ export async function POST(request: Request) {
         { status: 400, headers: NO_STORE }
       )
     }
-    const created = await createLedgerShareForAccount(accountId, request, {
-      ttlHours: body.ttlHours,
-    })
+    const created = await createLedgerShareForAccount(
+      auth.user.id,
+      accountId,
+      request,
+      {
+        ttlHours: body.ttlHours,
+      }
+    )
     return NextResponse.json(created, { status: 201, headers: NO_STORE })
   } catch (err) {
     return NextResponse.json(
