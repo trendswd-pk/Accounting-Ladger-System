@@ -2,6 +2,14 @@
 
 All notable changes to Accounting Ledger are documented here.
 
+## [1.7.1] — 2026-11-27
+
+### Fixed
+- Android Capacitor: when the live site cannot load (offline, slow network, or HTTP failure), the APK shows a branded **Trends WD / Accounting Ledger** connection screen with **Try again** and auto-retry on reconnect — instead of Chromium’s “Webpage not available” / `ERR_HTTP_RESPONSE_CODE_FAILURE` page (`server.errorPath` → `www/offline.html`).
+
+### Changed
+- Android release for Play: `versionName` **1.7.1**, `versionCode` **3**. Signed artifacts at repo root `capacitor-app-release-signed.aab` / `.apk`.
+
 ## [1.7.0] — 2026-11-27
 
 ### Added

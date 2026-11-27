@@ -14,6 +14,8 @@ const config: CapacitorConfig = {
     url: 'https://cash.trendswd.com/',
     cleartext: false,
     androidScheme: 'https',
+    // Local asset page when the live site cannot load (offline / slow / HTTP failure).
+    errorPath: 'offline.html',
   },
   android: {
     allowMixedContent: false,

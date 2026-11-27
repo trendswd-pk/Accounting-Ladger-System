@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#03624C" />
+    <meta name="color-scheme" content="light" />
+    <title>Connection issue — Accounting Ledger</title>
+    <style>
+      :root {
+        --anti-flash: #f1f7f6;
+        --ink: #020f11;
+        --dark: #032221;
+        --pine: #06302b;
+        --primary: #03624c;
+        --primary-hover: #095544;
+        --caribbean: #00df81;
+        --meadow: #2cc295;
+        --stone: #707d7d;
+        --pistachio: #aacbc4;
+        --white: #ffffff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background:
+          radial-gradient(120% 80% at 50% -10%, #c8ebdf 0%, transparent 55%),
+          linear-gradient(180deg, var(--anti-flash) 0%, #e8f3f0 100%);
+        color: var(--ink);
+        font-family:
+          Manrope,
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      body {
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .brand-bar {
+        height: 4px;
+        background: linear-gradient(90deg, var(--primary) 0%, var(--meadow) 55%, var(--caribbean) 100%);
+      }
+
+      main {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1.5rem calc(2rem + env(safe-area-inset-bottom, 0px));
+      }
+
+      .panel {
+        width: min(100%, 22.5rem);
+        text-align: center;
+      }
+
+      .mark {
+        width: 4.5rem;
+        height: 4.5rem;
+        margin: 0 auto 1.5rem;
+        border-radius: 1.25rem;
+        background: linear-gradient(145deg, var(--primary) 0%, var(--pine) 100%);
+        display: grid;
+        place-items: center;
+        box-shadow: 0 12px 28px rgba(3, 98, 76, 0.22);
+        animation: float-in 0.55s ease-out both;
+      }
+
+      .mark svg {
+        width: 2.25rem;
+        height: 2.25rem;
+        color: var(--caribbean);
+      }
+
+      .brand {
+        margin: 0;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--primary);
+        animation: rise 0.5s ease-out 0.05s both;
+      }
+
+      h1 {
+        margin: 0.65rem 0 0;
+        font-size: 1.55rem;
+        font-weight: 700;
+        line-height: 1.25;
+        letter-spacing: -0.02em;
+        color: var(--ink);
+        animation: rise 0.5s ease-out 0.1s both;
+      }
+
+      .lead {
+        margin: 0.85rem 0 0;
+        font-size: 0.98rem;
+        line-height: 1.55;
+        color: var(--stone);
+        animation: rise 0.5s ease-out 0.15s both;
+      }
+
+      .status {
+        margin: 1.25rem 0 0;
+        min-height: 1.25rem;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--primary);
+        opacity: 0;
+        transition: opacity 0.25s ease;
+      }
+
+      .status.is-visible {
+        opacity: 1;
+      }
+
+      .actions {
+        margin-top: 1.75rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        animation: rise 0.5s ease-out 0.2s both;
+      }
+
+      button {
+        appearance: none;
+        border: none;
+        border-radius: 0.75rem;
+        padding: 0.9rem 1.25rem;
+        font: inherit;
+        font-size: 1rem;
+        font-weight: 650;
+        cursor: pointer;
+        transition:
+          background-color 0.15s ease,
+          transform 0.15s ease,
+          box-shadow 0.15s ease;
+      }
+
+      button:active {
+        transform: scale(0.98);
+      }
+
+      button:focus-visible {
+        outline: 2px solid var(--caribbean);
+        outline-offset: 2px;
+      }
+
+      .btn-primary {
+        background: var(--primary);
+        color: var(--white);
+        box-shadow: 0 8px 20px rgba(3, 98, 76, 0.28);
+      }
+
+      .btn-primary:hover {
+        background: var(--primary-hover);
+      }
+
+      .btn-primary.is-busy {
+        pointer-events: none;
+        opacity: 0.85;
+      }
+
+      .btn-primary.is-busy .label {
+        display: none;
+      }
+
+      .btn-primary .spinner {
+        display: none;
+        width: 1.1rem;
+        height: 1.1rem;
+        border: 2px solid rgba(255, 255, 255, 0.35);
+        border-top-color: #fff;
+        border-radius: 50%;
+        margin: 0 auto;
+        animation: spin 0.7s linear infinite;
+      }
+
+      .btn-primary.is-busy .spinner {
+        display: block;
+      }
+
+      .hint {
+        margin: 1.5rem 0 0;
+        font-size: 0.78rem;
+        line-height: 1.45;
+        color: var(--pistachio);
+        animation: rise 0.5s ease-out 0.25s both;
+      }
+
+      @keyframes float-in {
+        from {
+          opacity: 0;
+          transform: translateY(10px) scale(0.94);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .mark,
+        .brand,
+        h1,
+        .lead,
+        .actions,
+        .hint {
+          animation: none;
+        }
+        .btn-primary .spinner {
+          animation: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="brand-bar" aria-hidden="true"></div>
+    <main>
+      <div class="panel">
+        <div class="mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 8.82A13.94 13.94 0 0 1 12 5c2.5 0 4.84.66 6.87 1.82" />
+            <path d="M5.5 12.5A9.94 9.94 0 0 1 12 10c1.76 0 3.4.45 4.84 1.25" />
+            <path d="M9 16.2A5.97 5.97 0 0 1 12 15.5c.7 0 1.37.12 2 .34" />
+            <circle cx="12" cy="19.5" r="1" fill="currentColor" stroke="none" />
+            <path d="M3 3l18 18" />
+          </svg>
+        </div>
+        <p class="brand">Trends WD</p>
+        <h1>Can't reach Accounting Ledger</h1>
+        <p class="lead">
+          Your connection looks slow or offline. Check the network, then try again — your books stay safe on the server.
+        </p>
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+        <div class="actions">
+          <button type="button" class="btn-primary" id="retry" aria-label="Try again">
+            <span class="label">Try again</span>
+            <span class="spinner" aria-hidden="true"></span>
+          </button>
+        </div>
+        <p class="hint">We'll retry automatically when the connection returns.</p>
+      </div>
+    </main>
+    <script>
+      (function () {
+        var APP_URL = 'https://cash.trendswd.com/'
+        var retryBtn = document.getElementById('retry')
+        var statusEl = document.getElementById('status')
+        var retrying = false
+        var autoTimer = null
+
+        function setStatus(text) {
+          if (!statusEl) return
+          statusEl.textContent = text || ''
+          statusEl.classList.toggle('is-visible', Boolean(text))
+        }
+
+        function go() {
+          if (retrying) return
+          retrying = true
+          retryBtn.classList.add('is-busy')
+          setStatus('Reconnecting…')
+          window.location.replace(APP_URL)
+        }
+
+        function scheduleAutoRetry() {
+          if (autoTimer) clearTimeout(autoTimer)
+          autoTimer = setTimeout(function () {
+            if (navigator.onLine) {
+              setStatus('Connection detected — opening app…')
+              go()
+            }
+          }, 600)
+        }
+
+        retryBtn.addEventListener('click', go)
+        window.addEventListener('online', scheduleAutoRetry)
+
+        if (navigator.onLine) {
+          setStatus('Still having trouble reaching the server. Tap Try again.')
+        } else {
+          setStatus('You appear to be offline.')
+        }
+      })()
+    </script>
+  </body>
+</html>

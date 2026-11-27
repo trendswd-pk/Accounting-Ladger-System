@@ -7,7 +7,7 @@ The production site [https://cash.trendswd.com/](https://cash.trendswd.com/) run
 | Package ID | `com.trendswd.cash` |
 | Loads | `https://cash.trendswd.com/` (live site; UI stays the Next.js app) |
 | Min SDK | 24 |
-| App version | `1.7.0` (versionCode 2) |
+| App version | `1.7.1` (versionCode 3) |
 | Signing key | repo-root `android.keystore` (alias `android`) |
 | Native project | `android/` (does **not** replace Next.js `app/`) |
 
@@ -16,6 +16,10 @@ The production site [https://cash.trendswd.com/](https://cash.trendswd.com/) run
 - System status bar stays above the WebView (native `topMargin` from status-bar insets) so “Trends WD” sits below clock / signal icons.
 - System **Back / Home / Recents** (or the gesture handle) stay **below** the WebView (`bottomMargin` from navigation-bar insets) so the in-app bottom tab bar is tappable and not covered. Gesture phones get a small inset; 3-button phones get the full bar height.
 - After a web-only CSS change, redeploy `cash.trendswd.com`. Native shell / inset changes need a new APK.
+
+### Connection / offline error screen
+
+When `https://cash.trendswd.com/` fails to load (no network, slow link, or HTTP error), the WebView shows the local branded page `www/offline.html` via Capacitor `server.errorPath` — not the default “Webpage not available” system page. **Try again** reloads the live site; the page also retries when the device comes back online. Rebuild/sync the APK after changing that HTML or `MainActivity` error handling.
 
 ### Biometric / fingerprint unlock
 
