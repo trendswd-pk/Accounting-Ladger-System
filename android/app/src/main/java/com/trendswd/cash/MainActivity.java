@@ -1,8 +1,10 @@
 package com.trendswd.cash;
 
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
+import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.webkit.WebView;
@@ -82,6 +84,10 @@ public class MainActivity extends BridgeActivity {
         webView.setBackgroundColor(STATUS_BAR_COLOR);
         // Padding does not move Chromium layout — clear any old padding from prior builds.
         webView.setPadding(0, 0, 0, 0);
+        // Let Android Password Manager / Autofill Framework target login fields in the WebView.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            webView.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_YES);
+        }
 
         if (webView.getParent() instanceof android.view.View) {
             ((android.view.View) webView.getParent()).setBackgroundColor(STATUS_BAR_COLOR);

@@ -14,7 +14,12 @@ export default function DemoModeBanner() {
   const [exiting, setExiting] = useState(false)
 
   useEffect(() => {
-    setActive(isEmbeddedDemoActive() && pathname !== '/login')
+    const isAuthShell =
+      pathname === '/login' ||
+      pathname === '/forgot-password' ||
+      pathname === '/reset-password' ||
+      pathname === '/auth/continue'
+    setActive(isEmbeddedDemoActive() && !isAuthShell)
   }, [pathname])
 
   if (!active) return null

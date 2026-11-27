@@ -1,6 +1,7 @@
 'use client'
 
 import { FormEvent, Suspense, useState } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { BookOpen, Shield, UserCheck, Eye } from 'lucide-react'
 import {
@@ -14,7 +15,14 @@ import { roleLabel, type DemoUser } from '@/lib/demoUsers'
 function safeNextPath(raw: string | null): string {
   if (!raw) return '/'
   if (!raw.startsWith('/') || raw.startsWith('//') || raw.includes('://')) return '/'
-  if (raw === '/login') return '/'
+  if (
+    raw === '/login' ||
+    raw === '/forgot-password' ||
+    raw === '/reset-password' ||
+    raw.startsWith('/auth/')
+  ) {
+    return '/'
+  }
   return raw
 }
 
@@ -176,6 +184,14 @@ function LoginForm() {
                 placeholder="••••••••"
                 required
               />
+              <div className="mt-1.5 flex justify-end">
+                <Link
+                  href="/forgot-password"
+                  className="text-sm font-medium text-primary-700 hover:underline dark:text-primary-400"
+                >
+                  Forgot password?
+                </Link>
+              </div>
             </div>
             <button
               type="submit"

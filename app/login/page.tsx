@@ -1,6 +1,7 @@
 'use client'
 
-import { FormEvent, Suspense, useState } from 'react'
+import { FormEvent, Suspense, useRef, useState } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { BookOpen, Info } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -11,11 +12,21 @@ import {
   enterEmbeddedDemoMode,
   exitEmbeddedDemoMode,
 } from '@/lib/embeddedDemo'
+import { readLoginCredentials, useAutofillDomSync } from '@/lib/loginAutofill'
+import { authRedirectOrigin } from '@/lib/authPassword'
+import { emailVerificationRedirectTo } from '@/lib/authCallback'
 
 function safeNextPath(raw: string | null): string {
   if (!raw) return '/'
   if (!raw.startsWith('/') || raw.startsWith('//') || raw.includes('://')) return '/'
-  if (raw === '/login') return '/'
+  if (
+    raw === '/login' ||
+    raw === '/forgot-password' ||
+    raw === '/reset-password' ||
+    raw.startsWith('/auth/')
+  ) {
+    return '/'
+  }
   return raw
 }
 
@@ -56,17 +67,28 @@ function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const nextPath = safeNextPath(searchParams.get('next'))
+  const linkError =
+    searchParams.get('error') === 'auth_link_invalid'
+      ? 'That sign-in link is invalid or expired. Request a new one, or sign in with your password.'
+      : null
 
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
   const [businessName, setBusinessName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(linkError)
   const [info, setInfo] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [demoLoading, setDemoLoading] = useState(false)
   const [headingInfoOpen, setHeadingInfoOpen] = useState(false)
+  const emailRef = useRef<HTMLInputElement>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
+
+  // Android Password Manager fills the DOM; sync into controlled state so React
+  // does not wipe the fields or leave submit reading empty strings.
+  useAutofillDomSync(emailRef, setEmail)
+  useAutofillDomSync(passwordRef, setPassword)
 
   const startDemoMode = async () => {
     setError(null)
@@ -92,14 +114,27 @@ function LoginForm() {
     setConfirmPassword('')
   }
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError(null)
     setInfo(null)
-    const trimmedEmail = email.trim()
-    const trimmedBusiness = businessName.trim()
 
-    if (!trimmedEmail || !password) {
+    // Autofill may not have updated React state yet — trust the live form fields.
+    const creds = readLoginCredentials(e.currentTarget, { email, password })
+    const trimmedEmail = creds.email
+    const submitPassword = creds.password
+    setEmail(trimmedEmail)
+    setPassword(submitPassword)
+
+    const trimmedBusiness = businessName.trim()
+    const confirmFromDom =
+      (
+        e.currentTarget.querySelector(
+          '#signup-confirm'
+        ) as HTMLInputElement | null
+      )?.value ?? confirmPassword
+
+    if (!trimmedEmail || !submitPassword) {
       setError('Email and password are required.')
       return
     }
@@ -109,11 +144,11 @@ function LoginForm() {
         setError('Business name is required.')
         return
       }
-      if (password.length < 6) {
+      if (submitPassword.length < 6) {
         setError('Password must be at least 6 characters.')
         return
       }
-      if (password !== confirmPassword) {
+      if (submitPassword !== confirmFromDom) {
         setError('Passwords do not match.')
         return
       }
@@ -126,11 +161,13 @@ function LoginForm() {
       const supabase = createClient()
 
       if (mode === 'signup') {
+        const origin = authRedirectOrigin() || window.location.origin
         const { data, error: signUpError } = await supabase.auth.signUp({
           email: trimmedEmail,
-          password,
+          password: submitPassword,
           options: {
             data: { business_name: trimmedBusiness },
+            emailRedirectTo: emailVerificationRedirectTo(origin),
           },
         })
         if (signUpError) {
@@ -139,7 +176,7 @@ function LoginForm() {
         }
         if (!data.session) {
           setInfo(
-            'Account created. Check your email to confirm, then sign in. Your private ledger will be ready on first sign-in.'
+            'Account created. Check your email and tap the verification link to finish setup. If the Accounting Ledger app is installed, the link opens there signed in; otherwise it opens in your browser.'
           )
           setMode('signin')
           setPassword('')
@@ -155,7 +192,7 @@ function LoginForm() {
 
       const { error: signError } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
-        password,
+        password: submitPassword,
       })
       if (signError) {
         setError(signError.message || 'Sign in failed.')
@@ -217,14 +254,21 @@ function LoginForm() {
           </div>
         </div>
 
-        <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+        <form
+          id="login-form"
+          method="post"
+          action="/login"
+          autoComplete="on"
+          onSubmit={(e) => void handleSubmit(e)}
+          className="space-y-4"
+        >
           {error ? (
             <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">
               {error}
             </div>
           ) : null}
           {info ? (
-            <div className="rounded-md bg-primary-50 px-3 py-2 text-sm text-primary-800 dark:bg-primary-950/40 dark:text-primary-300">
+            <div className="rounded-md bg-primary-50 px-3 py-2 text-sm text-primary-800 dark:bg-primary-900/40 dark:text-primary-400">
               {info}
             </div>
           ) : null}
@@ -239,6 +283,7 @@ function LoginForm() {
               </label>
               <input
                 id="signup-business"
+                name="organization"
                 type="text"
                 autoComplete="organization"
                 value={businessName}
@@ -258,11 +303,18 @@ function LoginForm() {
               Email
             </label>
             <input
+              ref={emailRef}
               id="login-email"
+              name="username"
               type="email"
-              autoComplete="email"
+              inputMode="email"
+              autoComplete={mode === 'signin' ? 'username' : 'email'}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onInput={(e) => setEmail((e.target as HTMLInputElement).value)}
               className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
               placeholder="you@example.com"
               required
@@ -276,16 +328,29 @@ function LoginForm() {
               Password
             </label>
             <input
+              ref={passwordRef}
               id="login-password"
+              name="password"
               type="password"
               autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              onInput={(e) => setPassword((e.target as HTMLInputElement).value)}
               className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
               placeholder="••••••••"
               required
               minLength={mode === 'signup' ? 6 : undefined}
             />
+            {mode === 'signin' ? (
+              <div className="mt-1.5 flex justify-end">
+                <Link
+                  href="/forgot-password"
+                  className="text-sm font-medium text-primary-700 hover:underline dark:text-primary-400"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+            ) : null}
           </div>
           {mode === 'signup' ? (
             <div>
@@ -297,10 +362,14 @@ function LoginForm() {
               </label>
               <input
                 id="signup-confirm"
+                name="password_confirm"
                 type="password"
                 autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
+                onInput={(e) =>
+                  setConfirmPassword((e.target as HTMLInputElement).value)
+                }
                 className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                 placeholder="••••••••"
                 required

@@ -18,11 +18,27 @@
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
             android:exported="true"
+            android:importantForAutofill="yes"
             android:windowSoftInputMode="adjustResize">
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!--
+              Android App Links: verified https://cash.trendswd.com/auth… opens in
+              this APK when installed. Without the APK, the same URL opens in the browser.
+              Requires matching public/.well-known/assetlinks.json (package + SHA-256).
+            -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="cash.trendswd.com"
+                    android:pathPrefix="/auth" />
             </intent-filter>
 
         </activity>

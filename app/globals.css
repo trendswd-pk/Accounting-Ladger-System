@@ -25,3 +25,24 @@ body {
     box-shadow: var(--tw-shadow, 0 0 #0000) !important;
   }
 }
+
+/*
+ * Password-manager autofill detection (Capacitor WebView / Chrome).
+ * Fires animationstart so React can copy DOM values into controlled state
+ * when the OS fills fields without a normal input event.
+ */
+@keyframes als-on-autofill {
+  from {
+    opacity: 0.99;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  animation-name: als-on-autofill;
+  animation-duration: 0.001s;
+}

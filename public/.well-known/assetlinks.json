@@ -3,6 +3,16 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
+      "package_name": "com.trendswd.cash",
+      "sha256_cert_fingerprints": [
+        "0C:0B:DE:93:27:72:74:08:14:29:9E:35:FC:4F:6A:D1:23:1A:D2:70:2F:B0:76:22:97:22:69:49:A9:BE:E6:80"
+      ]
+    }
+  },
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
       "package_name": "com.trendswd.cash.twa",
       "sha256_cert_fingerprints": [
         "0C:0B:DE:93:27:72:74:08:14:29:9E:35:FC:4F:6A:D1:23:1A:D2:70:2F:B0:76:22:97:22:69:49:A9:BE:E6:80"

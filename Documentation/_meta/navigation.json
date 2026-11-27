@@ -1,7 +1,7 @@
 {
   "site": "Accounting Ledger Documentation",
   "base_url": "https://trendswd.com/projects/Accounting-Ladger-System/doc",
-  "version": "1.6.2",
+  "version": "1.7.0",
   "version_date": "2026-11-27",
   "navigation": [
     { "title": "Home", "path": "/docs", "file": "index.md" },
@@ -17,6 +17,8 @@
       "title": "Pages",
       "children": [
         { "title": "Login", "path": "/docs/01-login", "file": "01-login.md" },
+        { "title": "Password change & reset", "path": "/docs/23-password-reset", "file": "23-password-reset.md" },
+        { "title": "Email verification & App Links", "path": "/docs/24-email-verification-app-links", "file": "24-email-verification-app-links.md" },
         { "title": "Dashboard", "path": "/docs/02-dashboard", "file": "02-dashboard.md" },
         { "title": "Transactions", "path": "/docs/03-transactions", "file": "03-transactions.md" },
         { "title": "Accounts", "path": "/docs/04-accounts", "file": "04-accounts.md" },

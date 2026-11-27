@@ -2,6 +2,24 @@
 
 All notable changes to Accounting Ledger are documented here.
 
+## [1.7.0] — 2026-11-27
+
+### Added
+- **Change password** on Profile: Current password, New password, and Confirm new password, with shared validation (min 8 characters, match, wrong-current message) and success feedback. Session stays signed in after update; biometric unlock is cleared.
+- **Forgot password?** on Login (Sign in), plus `/forgot-password` and `/reset-password` with Supabase email recovery via `/auth/callback` (PKCE). Same flow in the Capacitor Android WebView on the production origin.
+- Middleware allows `/forgot-password`, `/reset-password`, and `/auth/callback` without an existing session.
+- Portfolio `demo-mode/` mirrors the Forgot / Reset / Change Password screens for reviewers (no real email; fixed login-card passwords unchanged).
+- Guide: [`Documentation/23-password-reset.md`](./23-password-reset.md).
+- **Magic link / email OTP** completion path: `/auth/callback` + `/auth/continue` establish the session and enter the ledger (separate from password recovery).
+
+### Changed
+- Profile password section renamed to **Change password**; Account / Password helper copy moved into info icons beside the headings.
+
+### Fixed
+- Magic Link no longer dumps users on Login: middleware forwards `?code=` / `?token_hash=` to `/auth/callback` instead of stripping them on a login redirect; callback defaults to the app (not Reset password); hash-based email links on `/login` are finished client-side.
+- Mobile APK Password Manager autofill on Login: email uses `autocomplete="username"` with `name="username"`, password uses `current-password`; React state syncs from DOM autofill so fields stay filled and Sign in works after one credential pick (WebView `importantForAutofill` enabled).
+- Email verification: signup sends `emailRedirectTo` to `/auth/callback` → `/auth/continue?flow=verify` with a real session; Android App Links for `https://cash.trendswd.com/auth*` open the Capacitor APK when installed (otherwise the browser). `assetlinks.json` updated for package `com.trendswd.cash`. Guide: [`Documentation/24-email-verification-app-links.md`](./24-email-verification-app-links.md).
+
 ## [1.6.2] — 2026-11-27
 
 ### Changed

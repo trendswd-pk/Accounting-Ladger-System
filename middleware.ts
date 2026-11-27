@@ -29,6 +29,15 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
   const isLogin = pathname === '/login'
+  // Auth email links + recovery + post-callback continue must work without a prior session.
+  const isAuthPublic =
+    isLogin ||
+    pathname === '/forgot-password' ||
+    pathname === '/reset-password' ||
+    pathname === '/auth/callback' ||
+    pathname.startsWith('/auth/callback/') ||
+    pathname === '/auth/continue' ||
+    pathname.startsWith('/auth/continue/')
   // Vercel Cron has no session cookie; /api/cron authenticates via CRON_SECRET itself.
   const isCron = pathname === '/api/cron'
   const isApi = pathname.startsWith('/api/')
@@ -60,6 +69,35 @@ export async function middleware(request: NextRequest) {
   // Page navigations: read session from cookies only (no Auth network round-trip).
   // That was making every Link click wait 2–4s. APIs still verify with getUser below.
   if (!isApi) {
+    // Magic link / OTP / recovery often land on Site URL (/, /login, …) with ?code= or
+    // ?token_hash=. If we bounce to /login first we used to drop those params and the
+    // user stuck on Login. Forward to /auth/callback instead (keeps recovery next).
+    const authCode = request.nextUrl.searchParams.get('code')
+    const tokenHash = request.nextUrl.searchParams.get('token_hash')
+    if (
+      (authCode || tokenHash) &&
+      pathname !== '/auth/callback' &&
+      !pathname.startsWith('/auth/callback/')
+    ) {
+      const callbackUrl = request.nextUrl.clone()
+      callbackUrl.pathname = '/auth/callback'
+      const type = callbackUrl.searchParams.get('type')
+      if (!callbackUrl.searchParams.get('next')) {
+        if (type === 'recovery') {
+          callbackUrl.searchParams.set('next', '/reset-password')
+        } else if (pathname === '/login' || pathname === '/forgot-password') {
+          callbackUrl.searchParams.set('next', '/auth/continue')
+        } else if (pathname === '/reset-password') {
+          callbackUrl.searchParams.set('next', '/reset-password')
+        } else {
+          callbackUrl.searchParams.set('next', '/auth/continue')
+        }
+      } else if (callbackUrl.searchParams.get('next') === '/') {
+        callbackUrl.searchParams.set('next', '/auth/continue')
+      }
+      return NextResponse.redirect(callbackUrl)
+    }
+
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -67,17 +105,20 @@ export async function middleware(request: NextRequest) {
     // Embedded Demo Mode: cookie-only guest; never a Supabase user. APIs stay protected.
     const isDemoMode = request.cookies.get('als_demo_mode')?.value === '1'
 
-    if (!session && !isLogin && !isDemoMode) {
+    if (!session && !isAuthPublic && !isDemoMode) {
       const redirectUrl = request.nextUrl.clone()
       redirectUrl.pathname = '/login'
+      redirectUrl.search = ''
       redirectUrl.searchParams.set('next', pathname)
       return NextResponse.redirect(redirectUrl)
     }
 
     // Real auth wins over demo cookie — send signed-in users away from /login.
+    // Keep recovery session on /reset-password so they can set a new password.
+    // /auth/continue finishes magic-link bootstrap before entering the shell.
     if (session && isLogin) {
       const redirectUrl = request.nextUrl.clone()
-      redirectUrl.pathname = '/'
+      redirectUrl.pathname = '/auth/continue'
       redirectUrl.search = ''
       return NextResponse.redirect(redirectUrl)
     }

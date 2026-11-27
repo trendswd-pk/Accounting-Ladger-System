@@ -10,6 +10,10 @@ import {
   updateDemoProfile,
   type DemoAuthUser,
 } from '@/lib/demoAuth'
+import {
+  MIN_PASSWORD_LENGTH,
+  validateNewPasswordPair,
+} from '@/lib/authPassword'
 
 const inputClass =
   'w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500'
@@ -23,12 +27,20 @@ export default function ProfilePage() {
   const [signingOut, setSigningOut] = useState(false)
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
+  const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(
-    null
-  )
+  const [profileMessage, setProfileMessage] = useState<{
+    type: 'success' | 'error'
+    text: string
+  } | null>(null)
+  const [passwordMessage, setPasswordMessage] = useState<{
+    type: 'success' | 'error'
+    text: string
+  } | null>(null)
   const [infoOpen, setInfoOpen] = useState(false)
+  const [passwordInfoOpen, setPasswordInfoOpen] = useState(false)
+  const [accountInfoOpen, setAccountInfoOpen] = useState(false)
 
   useEffect(() => {
     const current = getDemoUser()
@@ -44,10 +56,10 @@ export default function ProfilePage() {
 
   const handleSaveProfile = async (e: FormEvent) => {
     e.preventDefault()
-    setMessage(null)
+    setProfileMessage(null)
     const name = fullName.trim()
     if (!name) {
-      setMessage({ type: 'error', text: 'Name is required.' })
+      setProfileMessage({ type: 'error', text: 'Name is required.' })
       return
     }
     setSavingProfile(true)
@@ -56,9 +68,9 @@ export default function ProfilePage() {
       setUser(updated)
       setFullName(updated.fullName)
       setEmail(updated.email)
-      setMessage({ type: 'success', text: 'Profile saved for this demo session.' })
+      setProfileMessage({ type: 'success', text: 'Profile saved for this demo session.' })
     } catch (err) {
-      setMessage({
+      setProfileMessage({
         type: 'error',
         text: err instanceof Error ? err.message : 'Could not save profile.',
       })
@@ -69,26 +81,35 @@ export default function ProfilePage() {
 
   const handleChangePassword = async (e: FormEvent) => {
     e.preventDefault()
-    setMessage(null)
-    if (newPassword.length < 8) {
-      setMessage({ type: 'error', text: 'Password must be at least 8 characters.' })
+    setPasswordMessage(null)
+    if (!currentPassword) {
+      setPasswordMessage({ type: 'error', text: 'Current password is required.' })
       return
     }
-    if (newPassword !== confirmPassword) {
-      setMessage({ type: 'error', text: 'New password and confirmation do not match.' })
+    const validationError = validateNewPasswordPair(newPassword, confirmPassword)
+    if (validationError) {
+      setPasswordMessage({ type: 'error', text: validationError })
+      return
+    }
+    if (newPassword === currentPassword) {
+      setPasswordMessage({
+        type: 'error',
+        text: 'New password must be different from your current password.',
+      })
       return
     }
     setSavingPassword(true)
     try {
-      updateDemoPassword(newPassword)
+      updateDemoPassword(currentPassword, newPassword)
+      setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
-      setMessage({
+      setPasswordMessage({
         type: 'success',
-        text: 'Password noted for this demo session. Fixed demo login passwords are unchanged.',
+        text: 'Password updated. Fixed demo login card passwords are unchanged for this sandbox.',
       })
     } catch (err) {
-      setMessage({
+      setPasswordMessage({
         type: 'error',
         text: err instanceof Error ? err.message : 'Could not update password.',
       })
@@ -99,13 +120,14 @@ export default function ProfilePage() {
 
   const handleSignOut = async () => {
     setSigningOut(true)
-    setMessage(null)
+    setProfileMessage(null)
+    setPasswordMessage(null)
     try {
       signOutDemo()
       router.replace('/login')
       router.refresh()
     } catch (err) {
-      setMessage({
+      setProfileMessage({
         type: 'error',
         text: err instanceof Error ? err.message : 'Could not sign out.',
       })
@@ -141,7 +163,8 @@ export default function ProfilePage() {
                   role="dialog"
                   className="absolute left-0 top-full z-50 mt-1.5 w-64 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs leading-relaxed text-gray-700 shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
                 >
-                  Update your display name for this demo session. Sign out ends the local session.
+                  Update your display name or change your password for this demo session. Sign out ends
+                  the local session.
                 </div>
               </>
             ) : null}
@@ -164,15 +187,47 @@ export default function ProfilePage() {
           className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800/90"
         >
           <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Account</h2>
-            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-              Your display name for this demo account
-              {user ? ` (${user.role})` : ''}. Login email is view-only.
-            </p>
+            <div className="flex min-w-0 items-center gap-2">
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Account</h2>
+              <div className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setAccountInfoOpen((v) => !v)}
+                  className={`rounded-full p-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                    accountInfoOpen
+                      ? 'text-primary-600 dark:text-primary-400'
+                      : 'text-gray-400 hover:text-primary-600 dark:text-gray-500 dark:hover:text-primary-400'
+                  }`}
+                  aria-label="About Account"
+                  aria-expanded={accountInfoOpen}
+                >
+                  <Info className="h-3.5 w-3.5" aria-hidden />
+                </button>
+                {accountInfoOpen ? (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setAccountInfoOpen(false)}
+                      aria-hidden
+                    />
+                    <div
+                      role="dialog"
+                      className="absolute left-0 top-full z-50 mt-1.5 w-64 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs leading-relaxed text-gray-700 shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                    >
+                      Your display name for this demo account
+                      {user ? ` (${user.role})` : ''}. Login email is view-only.
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            </div>
           </div>
           <div className="space-y-4 px-4 py-4">
             <div>
-              <label htmlFor="profile-name" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label
+                htmlFor="profile-name"
+                className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
                 Name
               </label>
               <input
@@ -186,7 +241,10 @@ export default function ProfilePage() {
               />
             </div>
             <div>
-              <label htmlFor="profile-email" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label
+                htmlFor="profile-email"
+                className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
                 Email
               </label>
               <input
@@ -209,6 +267,18 @@ export default function ProfilePage() {
             >
               {savingProfile ? 'Saving…' : 'Save profile'}
             </button>
+            {profileMessage ? (
+              <p
+                className={`mt-3 text-sm ${
+                  profileMessage.type === 'success'
+                    ? 'text-primary-700 dark:text-primary-400'
+                    : 'text-red-600 dark:text-red-400'
+                }`}
+                role="status"
+              >
+                {profileMessage.text}
+              </p>
+            ) : null}
           </div>
         </form>
 
@@ -217,12 +287,62 @@ export default function ProfilePage() {
           className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800/90"
         >
           <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Password</h2>
-            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-              Demo logins keep fixed passwords on the login cards; this confirms the form flow.
-            </p>
+            <div className="flex min-w-0 items-center gap-2">
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                Change password
+              </h2>
+              <div className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setPasswordInfoOpen((v) => !v)}
+                  className={`rounded-full p-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                    passwordInfoOpen
+                      ? 'text-primary-600 dark:text-primary-400'
+                      : 'text-gray-400 hover:text-primary-600 dark:text-gray-500 dark:hover:text-primary-400'
+                  }`}
+                  aria-label="About Change password"
+                  aria-expanded={passwordInfoOpen}
+                >
+                  <Info className="h-3.5 w-3.5" aria-hidden />
+                </button>
+                {passwordInfoOpen ? (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setPasswordInfoOpen(false)}
+                      aria-hidden
+                    />
+                    <div
+                      role="dialog"
+                      className="absolute left-0 top-full z-50 mt-1.5 w-64 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs leading-relaxed text-gray-700 shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                    >
+                      Enter the current demo password (from the login card), then a new one (min.{' '}
+                      {MIN_PASSWORD_LENGTH} characters). Fixed login-card passwords stay for this
+                      sandbox.
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            </div>
           </div>
           <div className="space-y-4 px-4 py-4">
+            <div>
+              <label
+                htmlFor="profile-current-password"
+                className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                Current password
+              </label>
+              <input
+                id="profile-current-password"
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className={inputClass}
+                autoComplete="current-password"
+                placeholder="••••••••"
+              />
+            </div>
             <div>
               <label
                 htmlFor="profile-new-password"
@@ -238,6 +358,7 @@ export default function ProfilePage() {
                 className={inputClass}
                 autoComplete="new-password"
                 placeholder="••••••••"
+                minLength={MIN_PASSWORD_LENGTH}
               />
             </div>
             <div>
@@ -245,7 +366,7 @@ export default function ProfilePage() {
                 htmlFor="profile-confirm-password"
                 className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
               >
-                Confirm password
+                Confirm new password
               </label>
               <input
                 id="profile-confirm-password"
@@ -255,6 +376,7 @@ export default function ProfilePage() {
                 className={inputClass}
                 autoComplete="new-password"
                 placeholder="••••••••"
+                minLength={MIN_PASSWORD_LENGTH}
               />
             </div>
           </div>
@@ -266,22 +388,21 @@ export default function ProfilePage() {
             >
               {savingPassword ? 'Updating…' : 'Update password'}
             </button>
+            {passwordMessage ? (
+              <p
+                className={`mt-3 text-sm ${
+                  passwordMessage.type === 'success'
+                    ? 'text-primary-700 dark:text-primary-400'
+                    : 'text-red-600 dark:text-red-400'
+                }`}
+                role="status"
+              >
+                {passwordMessage.text}
+              </p>
+            ) : null}
           </div>
         </form>
       </div>
-
-      {message ? (
-        <p
-          className={`mt-4 text-sm ${
-            message.type === 'success'
-              ? 'text-green-600 dark:text-green-400'
-              : 'text-red-600 dark:text-red-400'
-          }`}
-          role="status"
-        >
-          {message.text}
-        </p>
-      ) : null}
     </div>
   )
 }

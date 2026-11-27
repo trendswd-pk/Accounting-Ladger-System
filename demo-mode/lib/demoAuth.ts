@@ -120,11 +120,55 @@ export function updateDemoProfile(input: {
   }
 }
 
-/** Demo password change is local-only (session UX); passwords stay on DEMO_USERS. */
-export function updateDemoPassword(_newPassword: string): void {
+/**
+ * Demo password change is local-only (session UX). Fixed DEMO_USERS passwords
+ * remain the way to sign in from the login cards; this validates current password
+ * and confirms the Change Password form flow.
+ */
+export function updateDemoPassword(currentPassword: string, _newPassword: string): void {
   const session = readSessionRaw()
   if (!session) throw new Error('Unauthorized. Please sign in.')
-  // Intentionally no-op for fixed demo credentials — confirm UX success only.
+  if (!String(currentPassword || '').trim()) {
+    throw new Error('Current password is required.')
+  }
+  const matched = findDemoUser(session.email, currentPassword)
+  if (!matched) {
+    throw new Error('Current password is incorrect.')
+  }
+}
+
+const DEMO_RESET_KEY = 'demo:accounting-ledger:password-reset'
+
+/** Marks that the demo Forgot Password flow reached the reset step. */
+export function markDemoPasswordReset(email: string): void {
+  if (typeof window === 'undefined') return
+  sessionStorage.setItem(
+    DEMO_RESET_KEY,
+    JSON.stringify({ email: email.trim().toLowerCase(), at: Date.now() })
+  )
+}
+
+export function consumeDemoPasswordReset(): { email: string } | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = sessionStorage.getItem(DEMO_RESET_KEY)
+    if (!raw) return null
+    sessionStorage.removeItem(DEMO_RESET_KEY)
+    const parsed = JSON.parse(raw) as { email?: string }
+    if (!parsed?.email) return null
+    return { email: parsed.email }
+  } catch {
+    return null
+  }
+}
+
+/** Completes demo reset UX without changing fixed DEMO_USERS passwords. */
+export function completeDemoPasswordReset(email: string, newPassword: string): void {
+  if (!email.trim()) throw new Error('Email is required.')
+  if (newPassword.length < 8) {
+    throw new Error('Password must be at least 8 characters.')
+  }
+  // Fixed demo credentials stay on login cards — success confirms the production-shaped flow.
 }
 
 export function listDemoLoginCards(): Array<{

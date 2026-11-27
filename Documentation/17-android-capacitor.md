@@ -24,6 +24,31 @@ The production site [https://cash.trendswd.com/](https://cash.trendswd.com/) run
 4. **Log out** in the app clears biometric unlock for that device.
 5. Requires the web build on `cash.trendswd.com` to include the biometric gate (deploy after merging), plus a synced APK (`npx cap sync android`).
 
+### Email verification App Links
+
+Verified links under `https://cash.trendswd.com/auth…` open in `com.trendswd.cash` when the APK is installed; otherwise they open in the browser. See [24 — Email verification & App Links](./24-email-verification-app-links.md) for Supabase redirect URLs and `assetlinks.json` / SHA-256 steps.
+
+### Login Password Manager / Autofill
+
+The login form is built for Android Autofill / Google Password Manager inside the Capacitor WebView:
+
+- Email field: `name="username"` + `autocomplete="username"` (paired with `current-password`)
+- React controlled state syncs from the DOM after autofill so values are not wiped
+- Submit reads live form field values (not only React state)
+- Native WebView uses `importantForAutofill=yes`
+
+Redeploy `cash.trendswd.com` for the web form fix; rebuild/sync the APK for the native autofill flag.
+
+### Change password, Forgot / Reset & Magic Link
+
+The APK loads the same Next.js UI as the website, so **Profile → Change password**, **Login → Forgot password?**, and email **Magic Links** work inside the WebView.
+
+- Reset emails use `window.location.origin` → `/auth/callback?next=/reset-password` (same host as `cash.trendswd.com`).
+- Magic / invite links use `/auth/callback` → `/auth/continue` → dashboard (not the reset form).
+- Allow those redirect URLs in Supabase Auth URL configuration.
+- After a successful Profile password change, biometric unlock is cleared so the device does not keep a stale unlock token.
+- Full steps: [23 — Change password & Forgot / Reset](./23-password-reset.md).
+
 ## Prerequisites
 
 - **JDK 21+** (Capacitor 8 / Android Gradle Plugin require Java 21; JDK 17 is not enough)

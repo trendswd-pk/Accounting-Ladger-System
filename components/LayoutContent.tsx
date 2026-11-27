@@ -81,7 +81,11 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
     return () => clearNavHoverClose()
   }, [clearNavHoverClose])
   const isDev = process.env.NODE_ENV === 'development'
-  const isLogin = pathname === '/login'
+  const isAuthShell =
+    pathname === '/login' ||
+    pathname === '/forgot-password' ||
+    pathname === '/reset-password' ||
+    pathname === '/auth/continue'
   /** Full-screen voucher print/preview — no app chrome. */
   const isTransactionPrint =
     !!pathname && /^\/transactions\/[^/]+\/print\/?$/.test(pathname)
@@ -103,14 +107,14 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
 
   // Prefetch core lists so Transactions / Accounts open without a cold full-load flash.
   useEffect(() => {
-    if (isLogin) return
+    if (isAuthShell) return
     void fetchTransactions().catch(() => {})
     void fetchAccounts().catch(() => {})
-  }, [isLogin])
+  }, [isAuthShell])
 
   // Warm Next.js route payloads so sidebar / dashboard clicks feel instant.
   useEffect(() => {
-    if (isLogin) return
+    if (isAuthShell) return
     const run = () => {
       for (const route of PREFETCH_ROUTES) {
         if (route !== pathname) router.prefetch(route)
@@ -127,9 +131,9 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
     }
     const t = globalThis.setTimeout(run, 400)
     return () => globalThis.clearTimeout(t)
-  }, [isLogin, pathname, router])
+  }, [isAuthShell, pathname, router])
 
-  if (isLogin || isTransactionPrint || isPublicShare) {
+  if (isAuthShell || isTransactionPrint || isPublicShare) {
     return <>{children}</>
   }
 
