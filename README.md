@@ -1,12 +1,14 @@
 # Accounting Ledger
 
-Day-to-day books for small businesses: accounts, journal entries, balances, expense analytics, exports, and shareable balance messages.
+![Accounting Ledger by Trends WD](Documentation/images/play-feature-graphic-1024x500.png)
 
-![Dashboard](Documentation/images/02-dashboard.png)
+Day-to-day books for small businesses: accounts, journal entries, balances, expense analytics, exports, and shareable balance messages.
 
 ## Overview
 
 Accounting Ledger is a web app for keeping professional ledgers without spreadsheets. Track cash and savings, payables and receivables, expenses, and investments from one dashboard. Sign-in protects every screen; **Try Demo Mode** on `/login` lets reviewers explore with sample data stored only in the browser.
+
+![Dashboard](Documentation/images/02-dashboard.png)
 
 ## Features
 
@@ -88,7 +90,7 @@ For the fastest file uploads, allow your app origin in the R2 bucket CORS (PUT +
 
 ## Version
 
-**1.4.0** (2026-11-23) — see [`Documentation/APP-VERSION.md`](Documentation/APP-VERSION.md) and [`Documentation/CHANGELOG.md`](Documentation/CHANGELOG.md).
+**1.6.2** (2026-11-27) — see [`Documentation/APP-VERSION.md`](Documentation/APP-VERSION.md) and [`Documentation/CHANGELOG.md`](Documentation/CHANGELOG.md).
 
 ## License / contact
 
