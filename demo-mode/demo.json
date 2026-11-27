@@ -1,4 +1,11 @@
 {
   "live_demo_url": "https://cash.trendswd.com/",
-  "type": "web-app"
+  "play_store_url": "",
+  "type": "web-app",
+  "title": "Accounting Ledger",
+  "architectureType": "Custom Web App",
+  "techStack": ["Next.js", "Supabase", "Capacitor", "Vercel"],
+  "summary": "Private ledgers for small businesses — accounts, journals, expenses, WhatsApp share, and an Android app.",
+  "outcome": "Clients can try the live product with one-click Demo Mode, or use the signed Android app on Google Play.",
+  "featured": false
 }

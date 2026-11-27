@@ -46,12 +46,9 @@ Accounting Ledger is a web app for keeping professional ledgers without spreadsh
 
 ## Demo
 
-- **Main app:** open `/login` → **Try Demo Mode** (no credentials). Sample ledger stays in `localStorage`; banner offers **Exit Demo Mode**. Guide: [`Documentation/18-embedded-demo-mode.md`](Documentation/18-embedded-demo-mode.md).
-- **Portfolio Demo Mode app:** see [`demo-mode/README.md`](demo-mode/README.md)  
-  ```bash
-  cd demo-mode && npm install && npm run dev
-  ```
-- **Live portfolio demo:** [accounting-ladger-system-coral.vercel.app](https://accounting-ladger-system-coral.vercel.app) (separate Vercel project; Root Directory `demo-mode`; URL also in `demo-mode/demo.json` → `live_demo_url`).
+- Open [cash.trendswd.com/login](https://cash.trendswd.com/login) → **Try Demo Mode** (no credentials).
+- Sample ledger stays in browser `localStorage`; banner offers **Exit Demo Mode**.
+- Portfolio metadata: [`demo-mode/demo.json`](demo-mode/demo.json) (`live_demo_url` = main product). Guide: [`Documentation/18-embedded-demo-mode.md`](Documentation/18-embedded-demo-mode.md).
 
 ## Documentation
 
@@ -86,11 +83,9 @@ See [`.env.example`](.env.example) for variables. Optional: `JWT_SECRET`, `CRON_
 
 For the fastest file uploads, allow your app origin in the R2 bucket CORS (PUT + GET). If CORS is missing, the app automatically falls back to same-origin `/api/uploads`.
 
-**Note:** `demo-mode/` is excluded from the main product build. Deploy the demo as its own project.
-
 ## Version
 
-**1.6.2** (2026-11-27) — see [`Documentation/APP-VERSION.md`](Documentation/APP-VERSION.md) and [`Documentation/CHANGELOG.md`](Documentation/CHANGELOG.md).
+**1.7.0** (2026-11-27) — see [`Documentation/APP-VERSION.md`](Documentation/APP-VERSION.md) and [`Documentation/CHANGELOG.md`](Documentation/CHANGELOG.md).
 
 ## License / contact
 

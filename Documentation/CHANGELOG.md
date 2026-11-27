@@ -21,6 +21,8 @@ All notable changes to Accounting Ledger are documented here.
 - Email verification: signup sends `emailRedirectTo` to `/auth/callback` → `/auth/continue?flow=verify` with a real session; Android App Links for `https://cash.trendswd.com/auth*` open the Capacitor APK when installed (otherwise the browser). `assetlinks.json` updated for package `com.trendswd.cash`. Guide: [`Documentation/24-email-verification-app-links.md`](./24-email-verification-app-links.md).
 - Mobile account search dropdowns (`SearchableSelect` on dashboard Transfer / Normal / Multi): list stays anchored to the input when the soft keyboard opens (visualViewport resize/scroll + capped height) on mobile web and the Capacitor APK.
 - Android Capacitor: WebView `bottomMargin` follows system navigation-bar insets so the bottom tab bar sits above 3-button Back/Home/Recents (gesture nav keeps a small inset). Mobile web continues to use `safe-area-inset-bottom`.
+- Android release rebuild for Play: `versionName` **1.7.0**, `versionCode` **2**. Signed artifacts at repo root `capacitor-app-release-signed.aab` / `.apk`.
+- Portfolio metadata aligned with in-app Demo Mode: `demo-mode/demo.json` points `live_demo_url` at `https://cash.trendswd.com/`; root README Demo section no longer promotes a separate twin-app Live Demo URL.
 
 ## [1.6.2] — 2026-11-27
 

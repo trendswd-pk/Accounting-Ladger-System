@@ -1,70 +1,46 @@
-# Accounting Ledger — Demo Mode
+# Accounting Ledger — portfolio metadata (`demo-mode/`)
 
-Standalone offline demo of **Accounting Ledger**. No Supabase, R2, or `.env` required. Data lives in browser `localStorage` per demo user.
+Per the Trends WD portfolio pipeline, **Demo Mode runs inside the main product** (`https://cash.trendswd.com/`), not as a separate twin deploy.
 
-> **Deploy separately:** Demo Mode is excluded from the main product TypeScript/ESLint build. Deploy this folder as its **own** Vercel project, then set `live_demo_url` in `demo.json`.
+This folder’s job for the portfolio is primarily **`demo.json`** (Live Demo / Play Store buttons + SEO fields).
 
-## Deploy on Vercel (checklist)
+## How clients enter Demo Mode
 
-1. **New Vercel project** → Import this GitHub repo.
-2. **Root Directory** = `demo-mode` (required — do not use repo root).
-3. Framework: Next.js (auto). Build: `npm run build`. Install uses `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` via `vercel.json`.
-4. **No environment variables** needed (offline localStorage demo).
-5. Node **18+**.
-6. After deploy, paste the public URL into `demo.json` → `live_demo_url`.
+1. Open [https://cash.trendswd.com/login](https://cash.trendswd.com/login).
+2. Select **Try Demo Mode** (no username/password).
+3. Explore the seeded Northline Advisory sample ledger (browser `localStorage` only).
+4. Use **Exit Demo Mode** on the banner (or Sign out) to return to login.
 
-If deploy stops / uploads empty: ensure the **repo root** `.vercelignore` does **not** list the whole `demo-mode` folder (only junk like `demo-mode/node_modules`). A full `demo-mode` ignore blocks this project.
-
-## Run locally
-
-```bash
-cd demo-mode
-npm install
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000).
-
-```bash
-npm run build
-npm start
-```
-
-## Demo accounts
-
-Use the clickable cards on the login page, or sign in manually:
-
-| Role   | Email             | Password  |
-|--------|-------------------|-----------|
-| Admin  | admin@admin.com   | admin123  |
-| Editor | editor@demo.com   | demo123   |
-| Viewer | viewer@demo.com   | view123   |
-
-Each account has an isolated sandbox. First login seeds **Northline Advisory** (PKR) with account types, cash types, accounts, and sample transactions.
-
-Reset anytime via **Reset demo data** in the sidebar.
+Guide: [`Documentation/18-embedded-demo-mode.md`](../Documentation/18-embedded-demo-mode.md).
 
 ## `demo.json`
 
-```json
-{
-  "live_demo_url": "",
-  "type": "web-app"
-}
+| Field | Value |
+|-------|--------|
+| `live_demo_url` | `https://cash.trendswd.com/` (main product — same URL as Live Demo) |
+| `play_store_url` | Set when the Play listing is public (`id=com.trendswd.cash`) |
+| `type` | `web-app` |
+
+**Do not** put passwords in `demo.json`.
+
+## Play Store URL (when live)
+
+```text
+https://play.google.com/store/apps/details?id=com.trendswd.cash
 ```
 
-**TODO:** After you deploy this demo, set `live_demo_url` to the public URL. Do not put passwords in `demo.json`.
+Paste into `demo.json` → `play_store_url` after the listing is published.
 
-## Screenshots (local only)
+## Legacy twin app (optional / historical)
+
+This directory still contains an older offline Next.js twin used for portfolio captures. New portfolio guidance prefers **in-app Demo Mode only**. Do not point `live_demo_url` at a separate `demo-mode` Vercel Root Directory deploy.
+
+Main app:
 
 ```bash
-npm i -D playwright
-npx playwright install chromium
-DOCS_URL=http://localhost:3000 npm run screenshots
+npm install && npm run dev
 ```
-
-Playwright is **not** a deploy dependency (avoids Vercel install/timeouts).
 
 ## Branding
 
-Favicon: Trends WD (`public/favicon.png` from https://www.trendswd.com/favicon.png).
+Trends WD assets: [logo](https://www.trendswd.com/logo.png) · [favicon](https://www.trendswd.com/favicon.png) · [icon](https://www.trendswd.com/icon.png).
