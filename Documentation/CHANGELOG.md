@@ -7,6 +7,9 @@ All notable changes to Accounting Ledger are documented here.
 ### Changed
 - Root README opens with the Play Store feature graphic (`Documentation/images/play-feature-graphic-1024x500.png`) for a clearer brand-first GitHub presence.
 
+### Fixed
+- Removed duplicate Play feature graphic files from the repo root; keep only `Documentation/images/play-feature-graphic-1024x500.png` (and `.jpg`).
+
 ## [1.6.1] — 2026-11-24
 
 ### Added
