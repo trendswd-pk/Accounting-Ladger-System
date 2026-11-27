@@ -1271,7 +1271,7 @@ export default function TransactionFormModal({
         <form
           id="dashboard-transaction-form"
           onSubmit={(e) => void handleSubmit(e)}
-          className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800/90"
+          className="overflow-visible rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800/90"
         >
           <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700 sm:px-6">
             <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">

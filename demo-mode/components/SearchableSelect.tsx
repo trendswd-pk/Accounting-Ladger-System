@@ -9,7 +9,6 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react'
-import { createPortal } from 'react-dom'
 import { ChevronDown, X } from 'lucide-react'
 
 export type SearchableSelectOption = {
@@ -29,25 +28,12 @@ type SearchableSelectProps = {
   className?: string
 }
 
-type MenuPos = { top: number; left: number; width: number; maxHeight: number }
-
 const MENU_MAX_H = 208 // max-h-52
-const MENU_GAP = 4
-
-function readVisualViewport() {
-  const vv = typeof window !== 'undefined' ? window.visualViewport : null
-  return {
-    top: vv?.offsetTop ?? 0,
-    left: vv?.offsetLeft ?? 0,
-    height: vv?.height ?? (typeof window !== 'undefined' ? window.innerHeight : 0),
-    width: vv?.width ?? (typeof window !== 'undefined' ? window.innerWidth : 0),
-  }
-}
 
 /**
  * Combobox-style select: type to filter, click or keyboard to pick.
- * List opens in a portal (avoids overflow clipping) and tracks the input via
- * visualViewport so mobile keyboard open/close keeps the list glued to the field.
+ * List is position:absolute under/over the input (not a fixed portal) so mobile
+ * keyboard / scroll never leaves results floating far from the field.
  */
 export default function SearchableSelect({
   id,
@@ -63,8 +49,9 @@ export default function SearchableSelect({
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [highlight, setHighlight] = useState(0)
-  const [menuPos, setMenuPos] = useState<MenuPos | null>(null)
-  const [mounted, setMounted] = useState(false)
+  /** When soft keyboard leaves little room below, open upward — still flush to input. */
+  const [openUp, setOpenUp] = useState(false)
+  const [maxHeight, setMaxHeight] = useState(MENU_MAX_H)
   const rootRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
   const listRef = useRef<HTMLUListElement | null>(null)
@@ -77,7 +64,6 @@ export default function SearchableSelect({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return options
-    // Just opened with the current label still in the field — show full list to browse.
     if (selected && query === selected.label) return options
     return options.filter((o) => o.label.toLowerCase().includes(q))
   }, [options, query, selected])
@@ -86,58 +72,37 @@ export default function SearchableSelect({
     setOpen(false)
     setQuery('')
     setHighlight(0)
-    setMenuPos(null)
   }
 
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  const updateMenuPos = () => {
+  const updatePlacement = () => {
     const el = inputRef.current
     if (!el) return
     const rect = el.getBoundingClientRect()
-    const vp = readVisualViewport()
-    const visibleBottom = vp.top + vp.height
-    const spaceBelow = visibleBottom - rect.bottom - MENU_GAP
-    const spaceAbove = rect.top - vp.top - MENU_GAP
-    const openUp =
-      spaceBelow < Math.min(MENU_MAX_H, 120) && spaceAbove > spaceBelow
-    const available = Math.max(96, openUp ? spaceAbove : spaceBelow)
-    const maxHeight = Math.min(MENU_MAX_H, available)
-    const top = openUp
-      ? Math.max(vp.top + 8, rect.top - MENU_GAP - maxHeight)
-      : rect.bottom + MENU_GAP
-    const left = Math.min(
-      Math.max(vp.left + 8, rect.left),
-      vp.left + vp.width - Math.max(rect.width, 160) - 8
+    const vv = window.visualViewport
+    const vpTop = vv?.offsetTop ?? 0
+    const vpHeight = vv?.height ?? window.innerHeight
+    const visibleBottom = vpTop + vpHeight
+    const spaceBelow = visibleBottom - rect.bottom - 4
+    const spaceAbove = rect.top - vpTop - 4
+    const shouldOpenUp = spaceBelow < 120 && spaceAbove > spaceBelow
+    setOpenUp(shouldOpenUp)
+    setMaxHeight(
+      Math.min(MENU_MAX_H, Math.max(96, shouldOpenUp ? spaceAbove : spaceBelow))
     )
-    setMenuPos({
-      top,
-      left,
-      width: Math.max(rect.width, 160),
-      maxHeight,
-    })
   }
 
   useLayoutEffect(() => {
     if (!open) return
-    updateMenuPos()
-
-    const onReposition = () => updateMenuPos()
+    updatePlacement()
+    const onReposition = () => updatePlacement()
     window.addEventListener('resize', onReposition)
-    // Capture scroll from nested overflow containers (main, modal body, …).
     window.addEventListener('scroll', onReposition, true)
-
     const vv = window.visualViewport
     vv?.addEventListener('resize', onReposition)
     vv?.addEventListener('scroll', onReposition)
-
-    // Keyboard animation / Chrome scroll-into-view often finishes after focus.
     const timers = [50, 150, 300, 500].map((ms) =>
       window.setTimeout(onReposition, ms)
     )
-
     return () => {
       window.removeEventListener('resize', onReposition)
       window.removeEventListener('scroll', onReposition, true)
@@ -147,7 +112,6 @@ export default function SearchableSelect({
     }
   }, [open])
 
-  // Keep highlight in range when the filtered list changes.
   useEffect(() => {
     if (!open) return
     setHighlight((h) => {
@@ -156,7 +120,6 @@ export default function SearchableSelect({
     })
   }, [filtered, open])
 
-  // Scroll the highlighted option into view.
   useEffect(() => {
     if (!open || filtered.length === 0) return
     const el = listRef.current?.querySelector<HTMLElement>(
@@ -170,7 +133,6 @@ export default function SearchableSelect({
     const onDoc = (e: MouseEvent) => {
       const target = e.target as Node
       if (rootRef.current?.contains(target)) return
-      if (listRef.current?.contains(target)) return
       close()
     }
     const onKey = (e: KeyboardEvent) => {
@@ -195,16 +157,14 @@ export default function SearchableSelect({
 
   const openWithHighlight = () => {
     setOpen(true)
-    // Keep the selected label visible and editable (do not blank on re-focus).
     setQuery(selected?.label ?? '')
     const selectedIndex = value
       ? options.findIndex((o) => o.value === value)
       : 0
     setHighlight(selectedIndex >= 0 ? selectedIndex : 0)
-    // Leave room below for the list when the soft keyboard scrolls the field.
     requestAnimationFrame(() => {
       inputRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
-      updateMenuPos()
+      updatePlacement()
     })
   }
 
@@ -258,62 +218,8 @@ export default function SearchableSelect({
     }
   }
 
-  const menu =
-    open && !disabled && mounted && menuPos ? (
-      <ul
-        ref={listRef}
-        id={listId}
-        role="listbox"
-        style={{
-          position: 'fixed',
-          top: menuPos.top,
-          left: menuPos.left,
-          width: menuPos.width,
-          maxHeight: menuPos.maxHeight,
-          zIndex: 80,
-        }}
-        className="overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-700"
-      >
-        {filtered.length === 0 ? (
-          <li className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
-            {emptyMessage}
-          </li>
-        ) : (
-          filtered.map((opt, index) => {
-            const selectedOpt = opt.value === value
-            const isHighlight = index === highlight
-            return (
-              <li
-                key={opt.value}
-                id={optionId(index)}
-                role="option"
-                aria-selected={selectedOpt || isHighlight}
-              >
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  className={`flex w-full px-3 py-2 text-left text-sm ${
-                    isHighlight
-                      ? 'bg-primary-50 text-primary-800 dark:bg-primary-900/40 dark:text-primary-200'
-                      : selectedOpt
-                        ? 'bg-primary-50/60 text-primary-800 dark:bg-primary-900/25 dark:text-primary-200'
-                        : 'text-gray-900 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-600'
-                  }`}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onMouseEnter={() => setHighlight(index)}
-                  onClick={() => pick(opt.value)}
-                >
-                  {opt.label}
-                </button>
-              </li>
-            )
-          })
-        )}
-      </ul>
-    ) : null
-
   return (
-    <div ref={rootRef} className="relative scroll-mb-56">
+    <div ref={rootRef} className="relative z-10 scroll-mb-56">
       <div className="relative">
         <input
           ref={inputRef}
@@ -336,9 +242,8 @@ export default function SearchableSelect({
             setQuery(next)
             setOpen(true)
             setHighlight(0)
-            // Clear selection once the user edits away from the selected label.
             if (value && next !== selected?.label) onChange('')
-            requestAnimationFrame(() => updateMenuPos())
+            requestAnimationFrame(() => updatePlacement())
           }}
           onFocus={() => {
             openWithHighlight()
@@ -374,7 +279,55 @@ export default function SearchableSelect({
         </div>
       </div>
 
-      {menu ? createPortal(menu, document.body) : null}
+      {open && !disabled ? (
+        <ul
+          ref={listRef}
+          id={listId}
+          role="listbox"
+          style={{ maxHeight }}
+          className={[
+            'absolute left-0 right-0 z-50 overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-700',
+            // Flush to the field: grow upward when keyboard covers below.
+            openUp ? 'bottom-full mb-1' : 'top-full mt-1',
+          ].join(' ')}
+        >
+          {filtered.length === 0 ? (
+            <li className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+              {emptyMessage}
+            </li>
+          ) : (
+            filtered.map((opt, index) => {
+              const selectedOpt = opt.value === value
+              const isHighlight = index === highlight
+              return (
+                <li
+                  key={opt.value}
+                  id={optionId(index)}
+                  role="option"
+                  aria-selected={selectedOpt || isHighlight}
+                >
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    className={`flex w-full px-3 py-2 text-left text-sm ${
+                      isHighlight
+                        ? 'bg-primary-50 text-primary-800 dark:bg-primary-900/40 dark:text-primary-200'
+                        : selectedOpt
+                          ? 'bg-primary-50/60 text-primary-800 dark:bg-primary-900/25 dark:text-primary-200'
+                          : 'text-gray-900 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-600'
+                    }`}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onMouseEnter={() => setHighlight(index)}
+                    onClick={() => pick(opt.value)}
+                  >
+                    {opt.label}
+                  </button>
+                </li>
+              )
+            })
+          )}
+        </ul>
+      ) : null}
     </div>
   )
 }
