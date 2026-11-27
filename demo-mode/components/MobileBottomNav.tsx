@@ -72,7 +72,7 @@ export default function MobileBottomNav({ onOpenMenu }: MobileBottomNavProps) {
       className="fixed inset-x-0 bottom-0 z-40 w-full border-t border-gray-200 bg-white/95 shadow-[0_-6px_24px_rgba(2,15,17,0.08)] backdrop-blur-md dark:border-gray-700 dark:bg-gray-800/95 dark:shadow-[0_-6px_24px_rgba(0,0,0,0.35)] lg:hidden"
       aria-label="Primary"
       style={{
-        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        paddingBottom: 'var(--safe-area-bottom, env(safe-area-inset-bottom, 0px))',
       }}
     >
       <ul

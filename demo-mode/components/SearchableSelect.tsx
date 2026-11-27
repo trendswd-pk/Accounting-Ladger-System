@@ -29,12 +29,25 @@ type SearchableSelectProps = {
   className?: string
 }
 
-type MenuPos = { top: number; left: number; width: number }
+type MenuPos = { top: number; left: number; width: number; maxHeight: number }
+
+const MENU_MAX_H = 208 // max-h-52
+const MENU_GAP = 4
+
+function readVisualViewport() {
+  const vv = typeof window !== 'undefined' ? window.visualViewport : null
+  return {
+    top: vv?.offsetTop ?? 0,
+    left: vv?.offsetLeft ?? 0,
+    height: vv?.height ?? (typeof window !== 'undefined' ? window.innerHeight : 0),
+    width: vv?.width ?? (typeof window !== 'undefined' ? window.innerWidth : 0),
+  }
+}
 
 /**
  * Combobox-style select: type to filter, click or keyboard to pick.
- * ArrowUp / ArrowDown move highlight; Enter selects; Escape closes.
- * List opens in a portal so table / overflow parents do not clip it.
+ * List opens in a portal (avoids overflow clipping) and tracks the input via
+ * visualViewport so mobile keyboard open/close keeps the list glued to the field.
  */
 export default function SearchableSelect({
   id,
@@ -84,31 +97,53 @@ export default function SearchableSelect({
     const el = inputRef.current
     if (!el) return
     const rect = el.getBoundingClientRect()
-    const gap = 4
-    const maxH = 208 // max-h-52
-    const spaceBelow = window.innerHeight - rect.bottom - gap
-    const spaceAbove = rect.top - gap
-    const openUp = spaceBelow < Math.min(maxH, 160) && spaceAbove > spaceBelow
+    const vp = readVisualViewport()
+    const visibleBottom = vp.top + vp.height
+    const spaceBelow = visibleBottom - rect.bottom - MENU_GAP
+    const spaceAbove = rect.top - vp.top - MENU_GAP
+    const openUp =
+      spaceBelow < Math.min(MENU_MAX_H, 120) && spaceAbove > spaceBelow
+    const available = Math.max(96, openUp ? spaceAbove : spaceBelow)
+    const maxHeight = Math.min(MENU_MAX_H, available)
     const top = openUp
-      ? Math.max(8, rect.top - gap - Math.min(maxH, spaceAbove))
-      : rect.bottom + gap
+      ? Math.max(vp.top + 8, rect.top - MENU_GAP - maxHeight)
+      : rect.bottom + MENU_GAP
+    const left = Math.min(
+      Math.max(vp.left + 8, rect.left),
+      vp.left + vp.width - Math.max(rect.width, 160) - 8
+    )
     setMenuPos({
       top,
-      left: rect.left,
+      left,
       width: Math.max(rect.width, 160),
+      maxHeight,
     })
   }
 
   useLayoutEffect(() => {
     if (!open) return
     updateMenuPos()
+
     const onReposition = () => updateMenuPos()
     window.addEventListener('resize', onReposition)
-    // Capture scroll from nested overflow containers too.
+    // Capture scroll from nested overflow containers (main, modal body, …).
     window.addEventListener('scroll', onReposition, true)
+
+    const vv = window.visualViewport
+    vv?.addEventListener('resize', onReposition)
+    vv?.addEventListener('scroll', onReposition)
+
+    // Keyboard animation / Chrome scroll-into-view often finishes after focus.
+    const timers = [50, 150, 300, 500].map((ms) =>
+      window.setTimeout(onReposition, ms)
+    )
+
     return () => {
       window.removeEventListener('resize', onReposition)
       window.removeEventListener('scroll', onReposition, true)
+      vv?.removeEventListener('resize', onReposition)
+      vv?.removeEventListener('scroll', onReposition)
+      timers.forEach((id) => window.clearTimeout(id))
     }
   }, [open])
 
@@ -166,6 +201,11 @@ export default function SearchableSelect({
       ? options.findIndex((o) => o.value === value)
       : 0
     setHighlight(selectedIndex >= 0 ? selectedIndex : 0)
+    // Leave room below for the list when the soft keyboard scrolls the field.
+    requestAnimationFrame(() => {
+      inputRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+      updateMenuPos()
+    })
   }
 
   const onInputKeyDown = (e: ReactKeyboardEvent<HTMLInputElement>) => {
@@ -229,9 +269,10 @@ export default function SearchableSelect({
           top: menuPos.top,
           left: menuPos.left,
           width: menuPos.width,
+          maxHeight: menuPos.maxHeight,
           zIndex: 80,
         }}
-        className="max-h-52 overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-700"
+        className="overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-700"
       >
         {filtered.length === 0 ? (
           <li className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
@@ -272,7 +313,7 @@ export default function SearchableSelect({
     ) : null
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative scroll-mb-56">
       <div className="relative">
         <input
           ref={inputRef}
@@ -297,6 +338,7 @@ export default function SearchableSelect({
             setHighlight(0)
             // Clear selection once the user edits away from the selected label.
             if (value && next !== selected?.label) onChange('')
+            requestAnimationFrame(() => updateMenuPos())
           }}
           onFocus={() => {
             openWithHighlight()

@@ -3,8 +3,9 @@
 @tailwind utilities;
 
 :root {
-  /* Notch / status-bar insets (0 on desktop). Used with viewport-fit=cover. */
+  /* Notch / status-bar / home-indicator / Android nav-bar insets (0 on desktop). */
   --safe-area-top: env(safe-area-inset-top, 0px);
+  /* Mobile web Chrome + iOS: env(). Capacitor APK also insets the WebView from native. */
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
 }
 

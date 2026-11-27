@@ -18,11 +18,13 @@ import com.getcapacitor.Bridge;
 import com.getcapacitor.BridgeActivity;
 
 /**
- * Keeps the live site below the system status bar on Android 15+ (targetSdk 36),
- * where edge-to-edge is the default and WebView.setPadding does not inset HTML.
+ * Edge-to-edge window (targetSdk 36): WebView padding does not inset Chromium HTML.
  *
- * Approach: leave the window edge-to-edge, paint the status-bar strip brand green,
- * and push the WebView down with topMargin equal to the real status-bar inset.
+ * - Top: status-bar / cutout → WebView topMargin (brand status strip above content)
+ * - Bottom: system navigation (3-button bar or gesture handle) → WebView bottomMargin
+ *   so the in-app tab bar sits above Back/Home/Recents. Gesture-nav phones get a small
+ *   inset; button-nav phones get the full bar height. Soft keyboard (IME) is not applied
+ *   as WebView margin — it overlays as usual.
  */
 public class MainActivity extends BridgeActivity {
     private static final int STATUS_BAR_COLOR = Color.parseColor("#03624C");
@@ -90,37 +92,40 @@ public class MainActivity extends BridgeActivity {
         }
 
         if (webView.getParent() instanceof android.view.View) {
-            ((android.view.View) webView.getParent()).setBackgroundColor(STATUS_BAR_COLOR);
+            View parent = (android.view.View) webView.getParent();
+            // Bottom gap (under WebView, behind system nav) uses nav bar brand color.
+            parent.setBackgroundColor(NAV_BAR_COLOR);
         }
 
         int fallbackTop = resolveStatusBarHeightPx();
-        applyWebViewTopMargin(webView, fallbackTop);
+        applyWebViewSystemMargins(webView, fallbackTop, resolveNavigationBarHeightPx());
 
         if (!insetsListenerAttached) {
             insetsListenerAttached = true;
             ViewCompat.setOnApplyWindowInsetsListener(webView, (v, insets) -> {
-                Insets bars = insets.getInsets(
+                Insets sys = insets.getInsets(
                     WindowInsetsCompat.Type.statusBars() | WindowInsetsCompat.Type.displayCutout()
                 );
-                int top = bars.top > 0 ? bars.top : resolveStatusBarHeightPx();
-                applyWebViewTopMargin(webView, top);
-                // Keep IME / nav insets flowing; top is handled via WebView margin.
+                Insets nav = insets.getInsets(WindowInsetsCompat.Type.navigationBars());
+                int top = sys.top > 0 ? sys.top : resolveStatusBarHeightPx();
+                // 3-button nav → larger bottom; gesture handle → small; IME ignored here.
+                int bottom = Math.max(0, nav.bottom);
+                applyWebViewSystemMargins(webView, top, bottom);
                 return insets;
             });
             ViewCompat.requestApplyInsets(webView);
         }
     }
 
-    private void applyWebViewTopMargin(WebView webView, int topPx) {
+    private void applyWebViewSystemMargins(WebView webView, int topPx, int bottomPx) {
         ViewGroup.LayoutParams raw = webView.getLayoutParams();
         if (!(raw instanceof ViewGroup.MarginLayoutParams)) {
             return;
         }
         ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) raw;
-        if (lp.topMargin != topPx) {
+        if (lp.topMargin != topPx || lp.bottomMargin != bottomPx) {
             lp.topMargin = topPx;
-            // Keep bottom flush — tab bar already handles home-indicator inset in CSS.
-            lp.bottomMargin = 0;
+            lp.bottomMargin = bottomPx;
             webView.setLayoutParams(lp);
         }
     }
@@ -132,5 +137,13 @@ public class MainActivity extends BridgeActivity {
         }
         DisplayMetrics metrics = getResources().getDisplayMetrics();
         return Math.round(28 * metrics.density);
+    }
+
+    private int resolveNavigationBarHeightPx() {
+        int resId = getResources().getIdentifier("navigation_bar_height", "dimen", "android");
+        if (resId > 0) {
+            return getResources().getDimensionPixelSize(resId);
+        }
+        return 0;
     }
 }

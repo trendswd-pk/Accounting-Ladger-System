@@ -11,10 +11,11 @@ The production site [https://cash.trendswd.com/](https://cash.trendswd.com/) run
 | Signing key | repo-root `android.keystore` (alias `android`) |
 | Native project | `android/` (does **not** replace Next.js `app/`) |
 
-### Status bar / notch
+### Status bar / notch / system navigation
 
 - System status bar stays above the WebView (native `topMargin` from status-bar insets) so “Trends WD” sits below clock / signal icons.
-- After a web-only CSS change, redeploy `cash.trendswd.com`. Native shell changes need a new APK.
+- System **Back / Home / Recents** (or the gesture handle) stay **below** the WebView (`bottomMargin` from navigation-bar insets) so the in-app bottom tab bar is tappable and not covered. Gesture phones get a small inset; 3-button phones get the full bar height.
+- After a web-only CSS change, redeploy `cash.trendswd.com`. Native shell / inset changes need a new APK.
 
 ### Biometric / fingerprint unlock
 

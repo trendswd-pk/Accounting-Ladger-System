@@ -19,6 +19,8 @@ All notable changes to Accounting Ledger are documented here.
 - Magic Link no longer dumps users on Login: middleware forwards `?code=` / `?token_hash=` to `/auth/callback` instead of stripping them on a login redirect; callback defaults to the app (not Reset password); hash-based email links on `/login` are finished client-side.
 - Mobile APK Password Manager autofill on Login: email uses `autocomplete="username"` with `name="username"`, password uses `current-password`; React state syncs from DOM autofill so fields stay filled and Sign in works after one credential pick (WebView `importantForAutofill` enabled).
 - Email verification: signup sends `emailRedirectTo` to `/auth/callback` → `/auth/continue?flow=verify` with a real session; Android App Links for `https://cash.trendswd.com/auth*` open the Capacitor APK when installed (otherwise the browser). `assetlinks.json` updated for package `com.trendswd.cash`. Guide: [`Documentation/24-email-verification-app-links.md`](./24-email-verification-app-links.md).
+- Mobile account search dropdowns (`SearchableSelect` on dashboard Transfer / Normal / Multi): list stays anchored to the input when the soft keyboard opens (visualViewport resize/scroll + capped height) on mobile web and the Capacitor APK.
+- Android Capacitor: WebView `bottomMargin` follows system navigation-bar insets so the bottom tab bar sits above 3-button Back/Home/Recents (gesture nav keeps a small inset). Mobile web continues to use `safe-area-inset-bottom`.
 
 ## [1.6.2] — 2026-11-27
 

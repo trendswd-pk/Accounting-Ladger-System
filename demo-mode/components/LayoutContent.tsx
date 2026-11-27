@@ -199,7 +199,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
       </header>
       <main
         ref={mainScrollRef}
-        className="min-h-0 flex-1 overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom,0px))] lg:pb-0"
+        className="min-h-0 flex-1 overflow-y-auto pb-[calc(4rem+var(--safe-area-bottom,env(safe-area-inset-bottom,0px)))] lg:pb-0"
       >
         {children}
       </main>
