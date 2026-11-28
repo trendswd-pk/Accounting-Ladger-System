@@ -46,3 +46,13 @@ playwright-report/
 blob-report/
 playwright/.cache/
 screenshots/
+
+# Never commit secrets / signed packages if dropped in this folder
+.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+*.apk
+*.aab
+*.idsig

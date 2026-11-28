@@ -65,6 +65,14 @@ android.keystore
 *.idsig
 *.ap_
 *.aar
+capacitor-app-release-signed.*
+capacitor-app-release-unsigned.*
+
+# Local / personal only (do not push)
+Personal Notedbook/
+
+# Play Console upload dumps at repo root (canonical docs screenshots stay in Documentation/images/)
+play-store-*-screenshots/
 
 # --- Legacy Bubblewrap TWA at repo root (Capacitor lives in android/) ---
 # Leading / so Capacitor's android/gradle* is NOT ignored.
