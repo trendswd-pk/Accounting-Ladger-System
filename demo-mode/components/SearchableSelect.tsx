@@ -7,8 +7,10 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronDown, X } from 'lucide-react'
 
 export type SearchableSelectOption = {
@@ -30,10 +32,35 @@ type SearchableSelectProps = {
 
 const MENU_MAX_H = 208 // max-h-52
 
+type FixedMenuBox = {
+  left: number
+  width: number
+  top?: number
+  bottom?: number
+  maxHeight: number
+}
+
+function hasClippingOverflow(el: HTMLElement): boolean {
+  const style = window.getComputedStyle(el)
+  const check = (value: string) => /^(auto|scroll|hidden|clip)$/.test(value)
+  return check(style.overflow) || check(style.overflowX) || check(style.overflowY)
+}
+
+/** Walk up from the field; overflow scroll/hidden ancestors clip absolute menus. */
+function findClippingAncestor(el: HTMLElement | null): HTMLElement | null {
+  let node = el?.parentElement ?? null
+  while (node && node !== document.documentElement) {
+    if (hasClippingOverflow(node)) return node
+    node = node.parentElement
+  }
+  return null
+}
+
 /**
  * Combobox-style select: type to filter, click or keyboard to pick.
- * List is position:absolute under/over the input (not a fixed portal) so mobile
- * keyboard / scroll never leaves results floating far from the field.
+ * Default: absolute under/over the input (stays with the field on mobile).
+ * Inside overflow tables/panels: portal + fixed coords so the list is not
+ * trapped in a tiny scroll box.
  */
 export default function SearchableSelect({
   id,
@@ -52,6 +79,8 @@ export default function SearchableSelect({
   /** When soft keyboard leaves little room below, open upward — still flush to input. */
   const [openUp, setOpenUp] = useState(false)
   const [maxHeight, setMaxHeight] = useState(MENU_MAX_H)
+  /** When set, list is portaled to body with fixed position. */
+  const [fixedBox, setFixedBox] = useState<FixedMenuBox | null>(null)
   const rootRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
   const listRef = useRef<HTMLUListElement | null>(null)
@@ -72,6 +101,7 @@ export default function SearchableSelect({
     setOpen(false)
     setQuery('')
     setHighlight(0)
+    setFixedBox(null)
   }
 
   const updatePlacement = () => {
@@ -85,10 +115,27 @@ export default function SearchableSelect({
     const spaceBelow = visibleBottom - rect.bottom - 4
     const spaceAbove = rect.top - vpTop - 4
     const shouldOpenUp = spaceBelow < 120 && spaceAbove > spaceBelow
-    setOpenUp(shouldOpenUp)
-    setMaxHeight(
-      Math.min(MENU_MAX_H, Math.max(96, shouldOpenUp ? spaceAbove : spaceBelow))
+    const nextMax = Math.min(
+      MENU_MAX_H,
+      Math.max(96, shouldOpenUp ? spaceAbove : spaceBelow)
     )
+    setOpenUp(shouldOpenUp)
+    setMaxHeight(nextMax)
+
+    const clipped = Boolean(findClippingAncestor(rootRef.current))
+    if (clipped) {
+      setFixedBox({
+        left: rect.left,
+        width: rect.width,
+        maxHeight: nextMax,
+        top: shouldOpenUp ? undefined : rect.bottom + 4,
+        bottom: shouldOpenUp
+          ? Math.max(4, window.innerHeight - rect.top + 4)
+          : undefined,
+      })
+    } else {
+      setFixedBox(null)
+    }
   }
 
   useLayoutEffect(() => {
@@ -133,6 +180,7 @@ export default function SearchableSelect({
     const onDoc = (e: MouseEvent) => {
       const target = e.target as Node
       if (rootRef.current?.contains(target)) return
+      if (listRef.current?.contains(target)) return
       close()
     }
     const onKey = (e: KeyboardEvent) => {
@@ -218,8 +266,87 @@ export default function SearchableSelect({
     }
   }
 
+  const usePortal = Boolean(fixedBox)
+  const listStyle: CSSProperties = usePortal
+    ? {
+        position: 'fixed',
+        left: fixedBox!.left,
+        width: fixedBox!.width,
+        top: fixedBox!.top,
+        bottom: fixedBox!.bottom,
+        maxHeight: fixedBox!.maxHeight,
+        zIndex: 80,
+      }
+    : { maxHeight }
+
+  const listClassName = [
+    'z-50 overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-700',
+    usePortal
+      ? ''
+      : [
+          'absolute left-0 right-0',
+          openUp ? 'bottom-full mb-1' : 'top-full mt-1',
+        ].join(' '),
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  const listbox =
+    open && !disabled ? (
+      <ul
+        ref={listRef}
+        id={listId}
+        role="listbox"
+        style={listStyle}
+        className={listClassName}
+      >
+        {filtered.length === 0 ? (
+          <li className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+            {emptyMessage}
+          </li>
+        ) : (
+          filtered.map((opt, index) => {
+            const selectedOpt = opt.value === value
+            const isHighlight = index === highlight
+            return (
+              <li
+                key={opt.value}
+                id={optionId(index)}
+                role="option"
+                aria-selected={selectedOpt || isHighlight}
+              >
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  className={`flex w-full px-3 py-2 text-left text-sm ${
+                    isHighlight
+                      ? 'bg-primary-50 text-primary-800 dark:bg-primary-900/40 dark:text-primary-200'
+                      : selectedOpt
+                        ? 'bg-primary-50/60 text-primary-800 dark:bg-primary-900/25 dark:text-primary-200'
+                        : 'text-gray-900 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-600'
+                  }`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onMouseEnter={() => setHighlight(index)}
+                  onClick={() => pick(opt.value)}
+                >
+                  {opt.label}
+                </button>
+              </li>
+            )
+          })
+        )}
+      </ul>
+    ) : null
+
   return (
-    <div ref={rootRef} className="relative z-10 scroll-mb-56">
+    <div
+      ref={rootRef}
+      className={[
+        'relative scroll-mb-56',
+        // Open list must stack above the next field (same z-10 siblings paint later and hide the menu).
+        open ? 'z-50' : 'z-10',
+      ].join(' ')}
+    >
       <div className="relative">
         <input
           ref={inputRef}
@@ -279,55 +406,9 @@ export default function SearchableSelect({
         </div>
       </div>
 
-      {open && !disabled ? (
-        <ul
-          ref={listRef}
-          id={listId}
-          role="listbox"
-          style={{ maxHeight }}
-          className={[
-            'absolute left-0 right-0 z-50 overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-700',
-            // Flush to the field: grow upward when keyboard covers below.
-            openUp ? 'bottom-full mb-1' : 'top-full mt-1',
-          ].join(' ')}
-        >
-          {filtered.length === 0 ? (
-            <li className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
-              {emptyMessage}
-            </li>
-          ) : (
-            filtered.map((opt, index) => {
-              const selectedOpt = opt.value === value
-              const isHighlight = index === highlight
-              return (
-                <li
-                  key={opt.value}
-                  id={optionId(index)}
-                  role="option"
-                  aria-selected={selectedOpt || isHighlight}
-                >
-                  <button
-                    type="button"
-                    tabIndex={-1}
-                    className={`flex w-full px-3 py-2 text-left text-sm ${
-                      isHighlight
-                        ? 'bg-primary-50 text-primary-800 dark:bg-primary-900/40 dark:text-primary-200'
-                        : selectedOpt
-                          ? 'bg-primary-50/60 text-primary-800 dark:bg-primary-900/25 dark:text-primary-200'
-                          : 'text-gray-900 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-600'
-                    }`}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onMouseEnter={() => setHighlight(index)}
-                    onClick={() => pick(opt.value)}
-                  >
-                    {opt.label}
-                  </button>
-                </li>
-              )
-            })
-          )}
-        </ul>
-      ) : null}
+      {listbox && usePortal && typeof document !== 'undefined'
+        ? createPortal(listbox, document.body)
+        : listbox}
     </div>
   )
 }

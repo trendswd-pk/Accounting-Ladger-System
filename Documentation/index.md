@@ -8,7 +8,7 @@ Accounting Ledger helps small businesses keep professional books: journals, acco
 
 | | |
 |---|---|
-| **Version** | 1.7.1 |
+| **Version** | 1.7.2 |
 | **Released** | 2026-11-27 |
 | **Live app** | [cash.trendswd.com](https://cash.trendswd.com/) |
 | **Live demo** | [accounting-ladger-system-coral.vercel.app](https://accounting-ladger-system-coral.vercel.app) |

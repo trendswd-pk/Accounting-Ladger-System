@@ -2,6 +2,12 @@
 
 All notable changes to Accounting Ledger are documented here.
 
+## [1.7.2] — 2026-11-28
+
+### Fixed
+- Account search dropdowns (`SearchableSelect`): open list no longer hides under the next field (e.g. To account covering From account on the dashboard transaction form). Open control uses a higher stacking order.
+- Multi-line journal table (desktop): account list no longer opens inside the table’s `overflow-x-auto` scroll box. When a clipping ancestor is present, the menu portals to the document body and stays aligned to the field.
+
 ## [1.7.1] — 2026-11-27
 
 ### Fixed
